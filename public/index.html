@@ -440,38 +440,50 @@ body {
 .flash-ok  { animation: flash-g 0.8s ease-out; }
 .flash-err { animation: flash-r 0.8s ease-out; }
 
-/* ── File Browser Panel ──────────────────────────────────────────────────── */
-#filebrowser {
+/* ── File Browser Modal ──────────────────────────────────────────────────── */
+.fb-backdrop {
   position: fixed;
-  top: 40px; right: 0; bottom: 0;
-  width: 520px;
-  background: var(--sidebar-bg);
-  border-left: 1px solid var(--border-hi);
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fb-backdrop.hidden { display: none; }
+
+#fb-modal {
+  background: #0d1117;
+  border: 1px solid #2a2d3a;
+  border-radius: 8px;
+  width: 80vw;
+  max-width: 900px;
+  height: 80vh;
   display: flex;
   flex-direction: column;
-  z-index: 500;
-  transform: translateX(100%);
-  transition: transform 0.22s cubic-bezier(.4,0,.2,1);
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.7);
 }
-#filebrowser.open { transform: translateX(0); }
 
-#fb-topbar {
+#fb-modal-header {
   display: flex;
   align-items: center;
   padding: 0 14px;
-  height: 38px;
+  height: 42px;
   border-bottom: 1px solid var(--border);
-  gap: 8px;
+  gap: 10px;
   flex-shrink: 0;
+  background: rgba(0,0,0,0.3);
 }
 #fb-path {
   flex: 1;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--cyan);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: default;
+  font-family: var(--font);
 }
 #fb-close {
   background: transparent;
@@ -555,7 +567,6 @@ body {
   transition: transform 0.22s cubic-bezier(.4,0,.2,1);
 }
 #jobpanel.open { transform: translateX(0); }
-#jobpanel.open ~ #filebrowser { right: 600px; }
 
 #jp-topbar {
   display: flex; align-items: center;
@@ -635,14 +646,14 @@ body {
 #jp-task strong { color: var(--text); display: block; margin-bottom: 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; }
 
 /* Clickable file paths in terminal */
-.fp-link {
+.file-link {
   color: var(--orange);
   text-decoration: underline;
   text-decoration-color: rgba(209,154,102,0.4);
   cursor: pointer;
   border-radius: 2px;
 }
-.fp-link:hover {
+.file-link:hover {
   background: rgba(209,154,102,0.1);
   text-decoration-color: var(--orange);
 }
@@ -801,14 +812,19 @@ body {
   </div>
 </div>
 
-<!-- File Browser Panel -->
-<div id="filebrowser">
-  <div id="fb-topbar">
-    <button id="fb-back" onclick="fbGoBack()">← back</button>
-    <span id="fb-path">/</span>
-    <button id="fb-close" onclick="fbClose()">✕</button>
+<!-- File Browser Modal -->
+<div id="fb-backdrop" class="fb-backdrop hidden">
+  <div id="fb-modal">
+    <div id="fb-modal-header">
+      <span style="color:var(--dim);font-size:12px;flex-shrink:0">📁</span>
+      <span id="fb-path">—</span>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button id="fb-back" onclick="fbGoBack()">← back</button>
+        <button id="fb-close" onclick="fbClose()">✕</button>
+      </div>
+    </div>
+    <div id="fb-body"></div>
   </div>
-  <div id="fb-body"></div>
 </div>
 
 <script>
@@ -1473,24 +1489,25 @@ async function jobAction(id, action) {
 // Wire card clicks to open job panel
 function wireCardClick(card, id) {
   card.querySelector('.card-hdr').addEventListener('click', (e) => {
-    if (e.target.closest('.fp-link')) return; // don't interfere with file links
+    if (e.target.closest('.file-link')) return; // don't interfere with file links
     jpOpen(id);
   });
 }
 
-// ── File Browser ───────────────────────────────────────────────────────────
-const fb = $('filebrowser');
+// ── File Browser Modal ─────────────────────────────────────────────────────
+const fbBackdrop = $('fb-backdrop');
 const fbBody = $('fb-body');
 const fbPathEl = $('fb-path');
 let fbHistory = [];
 
 function fbOpen(p) {
-  fb.classList.add('open');
+  fbBackdrop.classList.remove('hidden');
   fbNavigate(p);
 }
 
 function fbClose() {
-  fb.classList.remove('open');
+  fbBackdrop.classList.add('hidden');
+  fbHistory = [];
 }
 
 function fbGoBack() {
@@ -1500,19 +1517,30 @@ function fbGoBack() {
   }
 }
 
+function fbParentDir(p) {
+  const trimmed = p.replace(/\/+$/, '');
+  if (!trimmed || trimmed === '/') return null;
+  const parent = trimmed.replace(/\/[^/]+$/, '') || '/';
+  return parent;
+}
+
 async function fbNavigate(p, fromBack) {
   if (!fromBack) fbHistory.push(p);
   fbPathEl.textContent = p;
   fbBody.innerHTML = '<div style="padding:14px;color:var(--dim)">loading…</div>';
   try {
-    const res = await fetch(`/api/browse?path=${encodeURIComponent(p)}`);
-    if (!res.ok) throw new Error(await res.text());
-    const ct = res.headers.get('content-type') || '';
-    if (ct.includes('application/json')) {
-      const data = await res.json();
-      if (data.type === 'dir') renderDir(data);
+    const statRes = await fetch(`/api/fs/stat?path=${encodeURIComponent(p)}`);
+    if (!statRes.ok) throw new Error(await statRes.text());
+    const stat = await statRes.json();
+    if (!stat.exists) throw new Error('not found: ' + p);
+
+    if (stat.type === 'dir') {
+      const lsRes = await fetch(`/api/fs/ls?path=${encodeURIComponent(p)}`);
+      if (!lsRes.ok) throw new Error(await lsRes.text());
+      const data = await lsRes.json();
+      renderDir(p, data.entries);
     } else {
-      renderFile(p, ct, res);
+      renderFile(p);
     }
   } catch (e) {
     fbBody.innerHTML = `<div style="padding:14px;color:var(--red)">${escHtml(e.message)}</div>`;
@@ -1529,73 +1557,128 @@ function fmtSize(n) {
 function fileIcon(name, type) {
   if (type === 'dir') return '📁';
   const ext = name.split('.').pop().toLowerCase();
-  if (['js','ts','tsx','jsx','py','go','rs','sh'].includes(ext)) return '📄';
+  if (['js','ts','tsx','jsx','py','go','rs','sh','clj','cljs','sql'].includes(ext)) return '📄';
   if (['png','jpg','jpeg','gif','svg','webp'].includes(ext)) return '🖼';
   if (['mp4','webm','mov'].includes(ext)) return '🎬';
   if (['mp3','wav','ogg'].includes(ext)) return '🎵';
   if (ext === 'pdf') return '📋';
   if (['md','txt'].includes(ext)) return '📝';
   if (ext === 'json') return '{}';
+  if (['yaml','yml'].includes(ext)) return '⚙';
   return '📄';
 }
 
-function renderDir(data) {
+function renderDir(basePath, entries) {
   const frag = document.createDocumentFragment();
-  for (const e of data.entries) {
+
+  // Parent dir entry
+  const parent = fbParentDir(basePath);
+  if (parent) {
+    const up = document.createElement('div');
+    up.className = 'fb-entry';
+    up.innerHTML = `<span class="fb-icon">↑</span><span class="fb-name" style="color:var(--dim)">parent directory</span><span class="fb-size"></span>`;
+    up.addEventListener('click', () => fbNavigate(parent));
+    frag.appendChild(up);
+  }
+
+  for (const e of entries) {
+    const entryPath = basePath.replace(/\/$/, '') + '/' + e.name;
     const row = document.createElement('div');
     row.className = `fb-entry${e.type === 'dir' ? ' is-dir' : ''}`;
-    row.innerHTML = `<span class="fb-icon">${fileIcon(e.name, e.type)}</span><span class="fb-name">${escHtml(e.name)}</span><span class="fb-size">${fmtSize(e.size)}</span>`;
-    row.addEventListener('click', () => fbNavigate(e.path));
+    row.innerHTML = `<span class="fb-icon">${fileIcon(e.name, e.type)}</span><span class="fb-name">${escHtml(e.name + (e.type === 'dir' ? '/' : ''))}</span><span class="fb-size">${fmtSize(e.size)}</span>`;
+    row.addEventListener('click', () => fbNavigate(entryPath));
     frag.appendChild(row);
   }
+
   fbBody.innerHTML = '';
-  if (data.entries.length === 0) {
+  if (entries.length === 0 && !parent) {
     fbBody.innerHTML = '<div style="padding:14px;color:var(--dim)">empty directory</div>';
   } else {
     fbBody.appendChild(frag);
   }
 }
 
-async function renderFile(p, ct, res) {
-  const isText = ct.startsWith('text/') || ct.includes('json') || ct.includes('javascript') || ct.includes('xml');
-  const isImage = ct.startsWith('image/');
-  const isVideo = ct.startsWith('video/');
-  const isAudio = ct.startsWith('audio/');
-  const url = `/api/browse?path=${encodeURIComponent(p)}`;
+async function renderFile(p) {
+  const ext = p.split('.').pop().toLowerCase();
+  const rawUrl = `/api/fs/raw?path=${encodeURIComponent(p)}`;
   const div = document.createElement('div');
   div.id = 'fb-file-view';
-  if (isImage) {
+
+  const imageExts = ['png','jpg','jpeg','gif','svg','webp'];
+  const videoExts = ['mp4','webm','mov'];
+  const audioExts = ['mp3','wav','ogg'];
+  const textExts = ['js','ts','tsx','jsx','py','go','rs','md','json','yaml','yml',
+                    'sh','bash','html','css','txt','log','clj','cljs','sql','toml',
+                    'env','gitignore','dockerfile','makefile','lock'];
+
+  if (imageExts.includes(ext)) {
     div.className = 'media-view';
-    div.innerHTML = `<img src="${url}" alt="${escHtml(p)}">`;
-  } else if (isVideo) {
+    div.innerHTML = `<img src="${rawUrl}" alt="${escHtml(p)}">`;
+    fbBody.innerHTML = '';
+    fbBody.appendChild(div);
+  } else if (videoExts.includes(ext)) {
     div.className = 'media-view';
-    div.innerHTML = `<video controls src="${url}"></video>`;
-  } else if (isAudio) {
+    div.innerHTML = `<video controls src="${rawUrl}"></video>`;
+    fbBody.innerHTML = '';
+    fbBody.appendChild(div);
+  } else if (audioExts.includes(ext)) {
     div.className = 'media-view';
-    div.innerHTML = `<audio controls src="${url}"></audio>`;
-  } else if (isText) {
-    const text = await res.text();
-    div.textContent = text;
+    div.innerHTML = `<audio controls src="${rawUrl}"></audio>`;
+    fbBody.innerHTML = '';
+    fbBody.appendChild(div);
+  } else if (textExts.includes(ext) || !ext || p.split('/').pop().indexOf('.') === -1) {
+    div.style.cssText = 'padding:12px 14px;font-size:11px;line-height:1.65;white-space:pre-wrap;word-break:break-all;color:var(--text);overflow:auto;flex:1';
+    div.textContent = 'loading…';
+    fbBody.innerHTML = '';
+    fbBody.appendChild(div);
+    try {
+      const r = await fetch(`/api/fs/cat?path=${encodeURIComponent(p)}`);
+      if (!r.ok) { div.style.color = 'var(--red)'; div.textContent = await r.text(); return; }
+      const data = await r.json();
+      div.textContent = data.content;
+    } catch (e) {
+      div.style.color = 'var(--red)';
+      div.textContent = e.message;
+    }
   } else {
-    div.innerHTML = `<div style="color:var(--dim);padding:14px">Binary file — <a href="${url}" download style="color:var(--cyan)">download</a></div>`;
+    div.innerHTML = `<div style="color:var(--dim);padding:14px">Binary file — <a href="${rawUrl}" download style="color:var(--cyan)">download</a></div>`;
+    fbBody.innerHTML = '';
+    fbBody.appendChild(div);
   }
-  fbBody.innerHTML = '';
-  fbBody.appendChild(div);
 }
 
+// Close modal on backdrop click or ESC
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !fbBackdrop.classList.contains('hidden')) fbClose();
+});
+$('fb-backdrop').addEventListener('click', e => {
+  if (e.target === $('fb-backdrop')) fbClose();
+});
+
 // ── File path detection in terminal lines ─────────────────────────────────
-const PATH_RE = /((?:\/[^\s:'"<>()[\]{}\\|]+)+(?:\.[a-zA-Z0-9]+)?|~(?:\/[^\s:'"<>()[\]{}\\|]+)*)/g;
+function escAttr(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Delegated click handler for .file-link spans
+document.addEventListener('click', e => {
+  const link = e.target.closest('.file-link');
+  if (link) {
+    e.stopPropagation();
+    fbOpen(link.dataset.path);
+  }
+});
 
 function linkifyPaths(text) {
-  // Escape then re-insert clickable spans for file paths
-  // Split on path patterns, escape non-path segments, wrap paths in spans
+  const PATH_RE = /(\/(?:Users|home|tmp|workspace|var\/folders)[^\s"'`,;()[\]<>]{3,}|~\/[^\s"'`,;()[\]<>]+)/g;
   const parts = [];
   let last = 0;
   let m;
   PATH_RE.lastIndex = 0;
   while ((m = PATH_RE.exec(text)) !== null) {
     if (m.index > last) parts.push(escHtml(text.slice(last, m.index)));
-    parts.push(`<span class="fp-link" onclick="fbOpen(${JSON.stringify(m[0])})">${escHtml(m[0])}</span>`);
+    const p = m[0];
+    parts.push(`<span class="file-link" data-path="${escAttr(p)}">${escHtml(p)}</span>`);
     last = m.index + m[0].length;
   }
   if (last < text.length) parts.push(escHtml(text.slice(last)));

@@ -154,8 +154,22 @@ function mimeFor(ext) {
     mp4:'video/mp4', webm:'video/webm', mov:'video/quicktime',
     mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg',
     pdf:'application/pdf',
+    clj:'text/x-clojure', cljs:'text/x-clojure', sql:'text/x-sql',
+    log:'text/plain', env:'text/plain', toml:'text/x-toml',
   };
   return map[ext] || 'application/octet-stream';
+}
+
+// Security: only allow paths under approved roots
+const ALLOWED_ROOTS = [os.homedir(), '/tmp', '/workspace'];
+
+function isAllowed(p) {
+  const resolved = p.startsWith('~') ? path.join(os.homedir(), p.slice(1)) : path.resolve(p);
+  return ALLOWED_ROOTS.some(root => resolved === root || resolved.startsWith(root + '/'));
+}
+
+function resolvePath(p) {
+  return p.startsWith('~') ? path.join(os.homedir(), p.slice(1)) : path.resolve(p);
 }
 
 // ── HTTP server ────────────────────────────────────────────────────────────
@@ -172,8 +186,8 @@ const server = http.createServer((req, res) => {
     // List directory or read file
     const p = url.searchParams.get('path');
     if (!p) { res.writeHead(400); res.end('missing path'); return; }
-    // Resolve ~ and normalize
-    const resolved = p.startsWith('~') ? path.join(os.homedir(), p.slice(1)) : path.resolve(p);
+    if (!isAllowed(p)) { res.writeHead(403); res.end('forbidden'); return; }
+    const resolved = resolvePath(p);
     try {
       const stat = fs.statSync(resolved);
       if (stat.isDirectory()) {
@@ -191,6 +205,67 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, { 'Content-Type': mime });
         fs.createReadStream(resolved).pipe(res);
       }
+    } catch (e) {
+      res.writeHead(404); res.end(e.message);
+    }
+
+  } else if (url.pathname === '/api/fs/stat') {
+    const p = url.searchParams.get('path');
+    if (!p) { res.writeHead(400); res.end('missing path'); return; }
+    if (!isAllowed(p)) { res.writeHead(403); res.end('forbidden'); return; }
+    const resolved = resolvePath(p);
+    try {
+      const stat = fs.statSync(resolved);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ exists: true, type: stat.isDirectory() ? 'dir' : 'file', size: stat.size }));
+    } catch {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ exists: false }));
+    }
+
+  } else if (url.pathname === '/api/fs/ls') {
+    const p = url.searchParams.get('path');
+    if (!p) { res.writeHead(400); res.end('missing path'); return; }
+    if (!isAllowed(p)) { res.writeHead(403); res.end('forbidden'); return; }
+    const resolved = resolvePath(p);
+    try {
+      const entries = fs.readdirSync(resolved, { withFileTypes: true }).map(e => ({
+        name: e.name,
+        type: e.isDirectory() ? 'dir' : 'file',
+        size: e.isFile() ? (() => { try { return fs.statSync(path.join(resolved, e.name)).size; } catch { return 0; } })() : null,
+        ext: path.extname(e.name).slice(1).toLowerCase(),
+      })).sort((a,b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ entries }));
+    } catch (e) {
+      res.writeHead(404); res.end(e.message);
+    }
+
+  } else if (url.pathname === '/api/fs/cat') {
+    const p = url.searchParams.get('path');
+    if (!p) { res.writeHead(400); res.end('missing path'); return; }
+    if (!isAllowed(p)) { res.writeHead(403); res.end('forbidden'); return; }
+    const resolved = resolvePath(p);
+    try {
+      const stat = fs.statSync(resolved);
+      if (stat.size > 1048576) { res.writeHead(400); res.end('file too large (>1MB)'); return; }
+      const content = fs.readFileSync(resolved, 'utf8');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ content }));
+    } catch (e) {
+      res.writeHead(404); res.end(e.message);
+    }
+
+  } else if (url.pathname === '/api/fs/raw') {
+    const p = url.searchParams.get('path');
+    if (!p) { res.writeHead(400); res.end('missing path'); return; }
+    if (!isAllowed(p)) { res.writeHead(403); res.end('forbidden'); return; }
+    const resolved = resolvePath(p);
+    try {
+      const ext = path.extname(resolved).slice(1).toLowerCase();
+      const mime = mimeFor(ext);
+      res.writeHead(200, { 'Content-Type': mime });
+      fs.createReadStream(resolved).pipe(res);
     } catch (e) {
       res.writeHead(404); res.end(e.message);
     }
