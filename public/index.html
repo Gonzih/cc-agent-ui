@@ -298,26 +298,38 @@ body {
 }
 
 /* status colors */
-.tcard.running  { border-color: #2a3545; box-shadow: 0 0 24px var(--cyan-glow); }
 .tcard.done     { border-color: #1e2d1e; box-shadow: 0 0 16px var(--green-glow); }
 .tcard.failed   { border-color: #2d1e20; box-shadow: 0 0 16px var(--red-glow); }
 .tcard.pending_approval { border-color: #2d2a1e; box-shadow: 0 0 16px var(--yellow-glow); }
 .tcard.cloning  { border-color: #1e2233; box-shadow: 0 0 16px rgba(97,175,239,0.1); }
 
-/* scan line on running */
-.tcard.running::before {
-  content: '';
-  position: absolute;
-  left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent 0%, var(--cyan) 50%, transparent 100%);
-  opacity: 0.4;
-  animation: scanline 3s linear infinite;
-  pointer-events: none;
-  z-index: 5;
+/* racing border on running */
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
 }
-@keyframes scanline {
-  0%   { top: 0; }
-  100% { top: 100%; }
+@keyframes border-spin {
+  to { --border-angle: 360deg; }
+}
+.tcard.running {
+  --border-angle: 0deg;
+  animation: border-spin 2.5s linear infinite;
+  border: 1.5px solid transparent !important;
+  background:
+    linear-gradient(#0d0f14, #0d0f14) padding-box,
+    conic-gradient(
+      from var(--border-angle),
+      transparent 0deg,
+      transparent 200deg,
+      #3b82f6 240deg,
+      #60a5fa 270deg,
+      #93c5fd 280deg,
+      #60a5fa 300deg,
+      #3b82f6 320deg,
+      transparent 360deg
+    ) border-box;
+  border-radius: 6px;
 }
 
 /* ── Card Header ── */
