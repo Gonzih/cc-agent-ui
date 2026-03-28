@@ -926,6 +926,7 @@ function makeSidebarItem(job) {
   const item = document.createElement('div');
   item.className = `job-item`;
   item.id = `si-${job.id}`;
+  item.dataset.startedAt = job.startedAt || '';
   const status = job.status || 'unknown';
 
   item.innerHTML = `
@@ -1099,7 +1100,12 @@ function addJob(job, lines) {
   getOrCreateCol(key);
   insertCardInColumn(key, card, job);
   const sidebarItem = makeSidebarItem(job);
-  jobList.prepend(sidebarItem);
+  const jobTime = new Date(job.startedAt || 0).getTime();
+  const after = Array.from(jobList.children).find(el =>
+    new Date(el.dataset.startedAt || 0).getTime() < jobTime
+  );
+  if (after) jobList.insertBefore(sidebarItem, after);
+  else jobList.appendChild(sidebarItem);
   jobs[job.id] = { job: { ...job }, card, logEl, n: jobCounter };
   if (lines.length) appendLines(logEl, lines, false);
   updateColHeader(key);
