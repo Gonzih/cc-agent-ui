@@ -240,11 +240,46 @@ body {
   position: absolute;
   top: 0; left: 0;
   transform-origin: 0 0;
-  display: grid;
-  grid-template-columns: repeat(var(--cols, 3), 460px);
-  gap: 14px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 18px;
   padding: 24px;
   width: max-content;
+}
+
+/* ── Repo Column ──────────────────────────────────────────────────────── */
+.repo-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 460px;
+  flex-shrink: 0;
+}
+
+.col-header {
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.col-repo-icon { color: var(--dimmer); font-size: 12px; }
+.col-repo-name {
+  font-size: 11px; font-weight: 600; color: var(--blue);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1;
+}
+.col-counts { font-size: 9px; color: var(--dim); flex-shrink: 0; }
+.col-counts.live { color: var(--cyan); }
+
+.col-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 /* ── Terminal Card ────────────────────────────────────────────────────── */
@@ -595,7 +630,8 @@ body {
 
 <script>
 // ── State ──────────────────────────────────────────────────────────────────
-const jobs = {};          // id → { job, card, logEl, lineCount }
+const jobs = {};          // id → { job, card, logEl, n }
+const cols = {};          // repoKey → { el, cardsEl }
 let filterMode = 'all';
 let jobCounter = 0;
 let scale = 1, ox = 40, oy = 40;
@@ -816,14 +852,14 @@ function focusCard(id) {
     applyFilter();
   }
 
-  // Use actual DOM layout positions (accurate regardless of grid index math)
-  const cardX = card.offsetLeft;
-  const cardY = card.offsetTop;
+  // Walk offsetParent chain up to inner for accurate canvas coordinates
+  let cx = 0, cy = 0, el = card;
+  while (el && el !== inner) { cx += el.offsetLeft; cy += el.offsetTop; el = el.offsetParent; }
   const cardW = card.offsetWidth  || 460;
   const cardH = card.offsetHeight || 370;
   const vw = viewport.clientWidth, vh = viewport.clientHeight;
-  ox = vw/2 - (cardX + cardW/2) * scale;
-  oy = vh/2 - (cardY + cardH/2) * scale;
+  ox = vw/2 - (cx + cardW/2) * scale;
+  oy = vh/2 - (cy + cardH/2) * scale;
   applyTransform();
 
   // Scroll terminal to bottom
@@ -856,6 +892,11 @@ function applyFilter() {
     if (item) item.style.display = show ? '' : 'none';
     if (card) card.style.display = show ? '' : 'none';
   }
+  // Hide columns with no visible cards
+  for (const [key, col] of Object.entries(cols)) {
+    const hasVisible = [...col.cardsEl.children].some(c => c.style.display !== 'none');
+    col.el.style.display = hasVisible ? '' : 'none';
+  }
 }
 
 document.querySelectorAll('.fbtn').forEach(btn => {
@@ -867,34 +908,94 @@ document.querySelectorAll('.fbtn').forEach(btn => {
   });
 });
 
-// ── Handle snapshot (initial load) ────────────────────────────────────────
-function handleSnapshot(data) {
-  // Sort: running first, then pending, then recent done/failed
-  const sorted = [...data.jobs].sort((a, b) => {
-    const order = { running:0, cloning:1, pending_approval:2, failed:3, done:4, cancelled:5 };
-    return (order[a.status]??9) - (order[b.status]??9) ||
-           new Date(b.startedAt||0) - new Date(a.startedAt||0);
-  });
+// ── Column helpers ─────────────────────────────────────────────────────────
+function repoKey(job) {
+  return shortRepo(job.repoUrl) || 'local';
+}
 
-  for (const job of sorted) {
-    addJob(job, job.lines || []);
+function getOrCreateCol(key) {
+  if (cols[key]) return cols[key];
+  const el = document.createElement('div');
+  el.className = 'repo-col';
+  el.id = `col-${key.replace(/[^a-z0-9]/gi, '-')}`;
+  el.innerHTML = `
+    <div class="col-header">
+      <span class="col-repo-icon">⎇</span>
+      <span class="col-repo-name" title="${escHtml(key)}">${escHtml(key)}</span>
+      <span class="col-counts"></span>
+    </div>
+    <div class="col-cards"></div>
+  `;
+  cols[key] = { el, cardsEl: el.querySelector('.col-cards') };
+  inner.appendChild(el);
+  return cols[key];
+}
+
+function insertCardInColumn(key, card, job) {
+  const { cardsEl } = cols[key];
+  const t = new Date(job.startedAt || 0).getTime();
+  for (const sib of cardsEl.children) {
+    const sibJob = jobs[sib.id.replace('card-', '')]?.job;
+    if (t >= new Date(sibJob?.startedAt || 0).getTime()) {
+      cardsEl.insertBefore(card, sib);
+      return;
+    }
   }
-  updateCounts();
-  applyFilter();
-  if (Object.keys(jobs).length > 0) {
-    emptyState.style.display = 'none';
+  cardsEl.appendChild(card);
+}
+
+function updateColHeader(key) {
+  const col = cols[key];
+  if (!col) return;
+  const colJobs = Object.values(jobs).filter(e => repoKey(e.job) === key);
+  const running = colJobs.filter(e => ['running','cloning','pending_approval'].includes(e.job.status)).length;
+  const el = col.el.querySelector('.col-counts');
+  if (!el) return;
+  if (running > 0) {
+    el.textContent = `${running} live · ${colJobs.length}`;
+    el.className = 'col-counts live';
+  } else {
+    el.textContent = `${colJobs.length}`;
+    el.className = 'col-counts';
   }
 }
 
+function sortColumns() {
+  // Order columns by their most recent job's startedAt, descending
+  const keys = Object.keys(cols).sort((a, b) => {
+    const latest = key => Math.max(0, ...Object.values(jobs)
+      .filter(e => repoKey(e.job) === key)
+      .map(e => new Date(e.job.startedAt || 0).getTime()));
+    return latest(b) - latest(a);
+  });
+  for (const key of keys) inner.appendChild(cols[key].el);
+}
+
+// ── Handle snapshot (initial load) ────────────────────────────────────────
+function handleSnapshot(data) {
+  // Sort purely by time descending — columns handle repo grouping visually
+  const sorted = [...data.jobs].sort((a, b) =>
+    new Date(b.startedAt||0) - new Date(a.startedAt||0)
+  );
+  for (const job of sorted) addJob(job, job.lines || []);
+  sortColumns();
+  updateCounts();
+  applyFilter();
+  if (Object.keys(jobs).length > 0) emptyState.style.display = 'none';
+}
+
 function addJob(job, lines) {
-  if (jobs[job.id]) return; // already exists
+  if (jobs[job.id]) return;
   jobCounter++;
   const { card, logEl } = makeCard(job, jobCounter);
-  inner.appendChild(card);
+  const key = repoKey(job);
+  getOrCreateCol(key);
+  insertCardInColumn(key, card, job);
   const sidebarItem = makeSidebarItem(job);
   jobList.prepend(sidebarItem);
   jobs[job.id] = { job: { ...job }, card, logEl, n: jobCounter };
   if (lines.length) appendLines(logEl, lines, false);
+  updateColHeader(key);
 }
 
 // ── Handle job update ──────────────────────────────────────────────────────
@@ -940,6 +1041,7 @@ function handleJobUpdate(data) {
   const dot = $(`si-${job.id}`)?.querySelector('.ji-status');
   if (dot) { dot.className = `ji-status ${status}`; }
 
+  updateColHeader(repoKey(job));
   updateCounts();
   applyFilter();
 }
@@ -947,6 +1049,7 @@ function handleJobUpdate(data) {
 // ── Handle job_new ─────────────────────────────────────────────────────────
 function handleJobNew(data) {
   addJob(data.job, data.job.lines || []);
+  sortColumns();
   emptyState.style.display = 'none';
   updateCounts();
   applyFilter();
@@ -1116,15 +1219,6 @@ setInterval(() => {
     }
   }
 }, 30000);
-
-// Auto-layout columns based on viewport width
-function updateCols() {
-  const vw = viewport.clientWidth;
-  const cols = Math.max(1, Math.floor((vw - 40) / 474));
-  inner.style.setProperty('--cols', cols);
-}
-updateCols();
-new ResizeObserver(updateCols).observe(viewport);
 
 connect();
 </script>
