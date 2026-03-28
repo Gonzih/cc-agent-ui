@@ -646,17 +646,13 @@ body {
 #jp-task strong { color: var(--text); display: block; margin-bottom: 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; }
 
 /* Clickable file paths in terminal */
-.file-link {
-  color: var(--orange);
-  text-decoration: underline;
-  text-decoration-color: rgba(209,154,102,0.4);
+.tl-path {
+  color: #f4a261;
+  text-decoration: underline dotted;
   cursor: pointer;
   border-radius: 2px;
 }
-.file-link:hover {
-  background: rgba(209,154,102,0.1);
-  text-decoration-color: var(--orange);
-}
+.tl-path:hover { color: #ffd166; }
 .tl-url {
   color: #61afef;
   text-decoration: underline;
@@ -1498,7 +1494,7 @@ async function jobAction(id, action) {
 // Wire card clicks to open job panel
 function wireCardClick(card, id) {
   card.querySelector('.card-hdr').addEventListener('click', (e) => {
-    if (e.target.closest('.file-link')) return; // don't interfere with file links
+    if (e.target.closest('.tl-path')) return; // don't interfere with file links
     jpOpen(id);
   });
 }
@@ -1669,47 +1665,52 @@ function escAttr(s) {
   return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// Delegated click handler for .file-link spans
+// Delegated click handler for .tl-path spans
 document.addEventListener('click', e => {
-  const link = e.target.closest('.file-link');
+  const link = e.target.closest('.tl-path');
   if (link) {
     e.stopPropagation();
-    fbOpen(link.dataset.path);
+    fetch('/api/open?path=' + encodeURIComponent(link.dataset.path));
   }
 });
 
 function linkifyPaths(text) {
-  const URL_RE = /https?:\/\/[^\s<>"')\]]+/g;
-  const PATH_RE = /(?<![:/])(\/(var|Users|home|tmp|workspace|root)\/[^\s"'`,;()[\]<>]{3,})/g;
-  const parts = [];
-  let last = 0;
-  let m;
+  // Process in segments: URL first, then file paths, then escape remainder.
+  // This prevents https://github.com/... from being mis-matched as a file path.
+  const URL_RE  = /https?:\/\/[^\s<>"')\]]+/g;
+  const PATH_RE = /(?<![:/])(\/(var|Users|home|tmp|workspace|root|opt)\/[^\s"'`,;()[\]<>]{3,})/g;
 
-  // First pass: collect all URL and path matches, sorted by index
-  const matches = [];
+  // Build a list of non-overlapping segments
+  const spans = [];
+
+  let m;
   URL_RE.lastIndex = 0;
   while ((m = URL_RE.exec(text)) !== null) {
-    matches.push({ index: m.index, length: m[0].length, value: m[0], type: 'url' });
+    spans.push({ type: 'url', value: m[0], start: m.index, end: m.index + m[0].length });
   }
+
   PATH_RE.lastIndex = 0;
   while ((m = PATH_RE.exec(text)) !== null) {
-    matches.push({ index: m.index, length: m[0].length, value: m[0], type: 'path' });
+    const start = m.index, end = m.index + m[0].length;
+    // Skip if overlapping with an already-captured URL span
+    if (spans.some(s => s.type === 'url' && start < s.end && end > s.start)) continue;
+    spans.push({ type: 'path', value: m[0], start, end });
   }
-  // Sort by position; if a URL and path overlap, URL wins (processed first)
-  matches.sort((a, b) => a.index - b.index);
 
-  last = 0;
-  for (const match of matches) {
-    if (match.index < last) continue; // overlapping — skip
-    if (match.index > last) parts.push(escHtml(text.slice(last, match.index)));
-    if (match.type === 'url') {
-      const url = match.value;
-      parts.push(`<a href="${escAttr(url)}" target="_blank" rel="noopener" class="tl-url">${escHtml(url)}</a>`);
+  // Sort by start position; URLs win over paths when overlapping
+  spans.sort((a, b) => a.start - b.start);
+
+  const parts = [];
+  let last = 0;
+  for (const sp of spans) {
+    if (sp.start < last) continue; // overlapping — skip
+    if (sp.start > last) parts.push(escHtml(text.slice(last, sp.start)));
+    if (sp.type === 'url') {
+      parts.push(`<a href="${escAttr(sp.value)}" target="_blank" rel="noopener" class="tl-url">${escHtml(sp.value)}</a>`);
     } else {
-      const p = match.value;
-      parts.push(`<span class="file-link" data-path="${escAttr(p)}">${escHtml(p)}</span>`);
+      parts.push(`<span class="tl-path" data-path="${escAttr(sp.value)}">${escHtml(sp.value)}</span>`);
     }
-    last = match.index + match.length;
+    last = sp.end;
   }
   if (last < text.length) parts.push(escHtml(text.slice(last)));
   return parts.join('');
