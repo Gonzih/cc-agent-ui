@@ -662,9 +662,40 @@ body {
 #empty-state .e-icon { font-size: 48px; color: var(--dimmer); margin-bottom: 4px; }
 #empty-state .e-title { font-size: 16px; font-weight:700; color: var(--dim); }
 #empty-state .e-sub { font-size: 11px; color: var(--dimmer); }
+/* ── Loading overlay ──────────────────────────────────────────────────── */
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 9999;
+}
+#loading-spinner {
+  font-size: 24px;
+  color: var(--cyan);
+  text-shadow: 0 0 12px var(--cyan);
+  font-family: var(--font);
+  line-height: 1;
+}
+#loading-text {
+  font-size: 12px;
+  color: var(--dim);
+  letter-spacing: 0.08em;
+  font-family: var(--font);
+}
 </style>
 </head>
 <body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div id="loading-spinner">⣾</div>
+  <div id="loading-text">Loading agents…</div>
+</div>
 
 <!-- Top bar -->
 <div id="topbar">
@@ -1090,6 +1121,7 @@ function handleSnapshot(data) {
   updateCounts();
   applyFilter();
   if (Object.keys(jobs).length > 0) emptyState.style.display = 'none';
+  if (typeof hideLoader === 'function') hideLoader();
 }
 
 function addJob(job, lines) {
@@ -1452,6 +1484,32 @@ setInterval(() => {
     }
   }
 }, 30000);
+
+// ── Loading overlay ────────────────────────────────────────────────────────
+(function() {
+  const overlay = document.getElementById('loading-overlay');
+  const spinnerEl = document.getElementById('loading-spinner');
+  const textEl = document.getElementById('loading-text');
+  const frames = ['⣾','⣽','⣻','⢿','⡿','⣟','⣯','⣷'];
+  let frame = 0;
+  const spinInterval = setInterval(() => {
+    spinnerEl.textContent = frames[frame++ % frames.length];
+  }, 100);
+
+  let snapshotReceived = false;
+  const fallbackTimer = setTimeout(() => {
+    if (!snapshotReceived) {
+      textEl.textContent = 'Reconnecting…';
+    }
+  }, 8000);
+
+  window.hideLoader = function() {
+    snapshotReceived = true;
+    clearInterval(spinInterval);
+    clearTimeout(fallbackTimer);
+    overlay.style.display = 'none';
+  };
+})();
 
 connect();
 </script>
