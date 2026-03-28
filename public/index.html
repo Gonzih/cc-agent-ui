@@ -250,6 +250,15 @@ body {
   width: max-content;
 }
 
+/* ── Dependency arrows SVG overlay ───────────────────────────────────── */
+#dep-arrows {
+  position: absolute;
+  top: 0; left: 0;
+  width: 20000px; height: 20000px;
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* ── Repo Column ──────────────────────────────────────────────────────── */
 .repo-col {
   display: flex;
@@ -257,6 +266,8 @@ body {
   gap: 10px;
   width: 460px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .col-header {
@@ -749,7 +760,9 @@ body {
 
   <!-- Infinite canvas viewport -->
   <div id="viewport">
-    <div id="canvas-inner"></div>
+    <div id="canvas-inner">
+      <svg id="dep-arrows" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
     <div id="empty-state">
       <div class="e-icon">⬡</div>
       <div class="e-title">No agents running</div>
@@ -977,6 +990,10 @@ function makeSidebarItem(job) {
   item.dataset.startedAt = job.startedAt || '';
   const status = job.status || 'unknown';
 
+  const waitingOn = (status === 'pending' && job.dependsOn && job.dependsOn.length)
+    ? `<div style="font-size:9px;color:#7a8099;margin-top:3px">⏳ waiting on: ${job.dependsOn.map(d => d.slice(0,8)).join(', ')}</div>`
+    : '';
+
   item.innerHTML = `
     <div class="ji-top">
       <div class="ji-status ${status}"></div>
@@ -984,6 +1001,7 @@ function makeSidebarItem(job) {
       <span class="ji-time">${timeAgo(job.startedAt)}</span>
     </div>
     <div class="ji-task">${escHtml(shortTask(job.task))}</div>
+    ${waitingOn}
   `;
 
   item.addEventListener('click', () => focusCard(job.id));
@@ -1062,6 +1080,7 @@ document.querySelectorAll('.fbtn').forEach(btn => {
     btn.classList.add('active');
     filterMode = btn.dataset.filter;
     applyFilter();
+    drawArrows();
   });
 });
 
@@ -1138,6 +1157,7 @@ function handleSnapshot(data) {
   sortColumns();
   updateCounts();
   applyFilter();
+  drawArrows();
   if (Object.keys(jobs).length > 0) emptyState.style.display = 'none';
   if (typeof hideLoader === 'function') hideLoader();
 }
@@ -1215,6 +1235,7 @@ function handleJobUpdate(data) {
   updateColHeader(repoKey(job));
   updateCounts();
   applyFilter();
+  drawArrows();
 }
 
 // ── Handle job_new ─────────────────────────────────────────────────────────
@@ -1224,6 +1245,7 @@ function handleJobNew(data) {
   emptyState.style.display = 'none';
   updateCounts();
   applyFilter();
+  drawArrows();
 }
 
 // ── Handle output ──────────────────────────────────────────────────────────
@@ -1488,6 +1510,49 @@ function linkifyPaths(text) {
   }
   if (last < text.length) parts.push(escHtml(text.slice(last)));
   return parts.join('');
+}
+
+// ── Dependency arrows on canvas ────────────────────────────────────────────
+function cardOffset(card) {
+  let cx = 0, cy = 0, el = card;
+  while (el && el !== inner) { cx += el.offsetLeft; cy += el.offsetTop; el = el.offsetParent; }
+  return { x: cx, y: cy, w: card.offsetWidth || 460, h: card.offsetHeight || 370 };
+}
+
+function drawArrows() {
+  const svg = document.getElementById('dep-arrows');
+  svg.innerHTML = `<defs>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 6, 0 6" fill="#3b82f6" opacity="0.7"/>
+    </marker>
+  </defs>`;
+
+  for (const [id, entry] of Object.entries(jobs)) {
+    const deps = entry.job.dependsOn;
+    if (!deps || !deps.length) continue;
+    for (const depId of deps) {
+      const depEntry = jobs[depId];
+      if (!depEntry) continue;
+      if (entry.card.style.display === 'none' || depEntry.card.style.display === 'none') continue;
+      const from = cardOffset(entry.card);
+      const to   = cardOffset(depEntry.card);
+      // from: top-center of dependent card
+      const fx = from.x + from.w / 2;
+      const fy = from.y;
+      // to: bottom-center of dependency card
+      const tx = to.x + to.w / 2;
+      const ty = to.y + to.h;
+      const midy = (fy + ty) / 2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      path.setAttribute('d', `M${fx},${fy} C${fx},${midy} ${tx},${midy} ${tx},${ty}`);
+      path.setAttribute('stroke', '#3b82f6');
+      path.setAttribute('stroke-width', '1.5');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('opacity', '0.5');
+      path.setAttribute('marker-end', 'url(#arrowhead)');
+      svg.appendChild(path);
+    }
+  }
 }
 
 // Update time-ago labels every 30s
