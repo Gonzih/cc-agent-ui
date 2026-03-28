@@ -153,6 +153,8 @@ body {
   transition: all 0.15s;
 }
 .fbtn:hover, .fbtn.active { border-color: var(--cyan); color: var(--cyan); }
+.fbtn-docker { color: #17a2b8; border-color: rgba(23,162,184,0.4); }
+.fbtn-docker:hover, .fbtn-docker.active { border-color: #17a2b8 !important; color: #17a2b8 !important; }
 
 #job-list {
   flex: 1;
@@ -363,6 +365,7 @@ body {
 .badge-cancelled{ background: rgba(72,76,94,0.3);     color: var(--dim);    border: 1px solid var(--border); }
 .badge-pending_approval { background: rgba(229,192,123,0.15); color: var(--yellow); border: 1px solid rgba(229,192,123,0.3); }
 .badge-cloning  { background: rgba(97,175,239,0.15); color: var(--blue);    border: 1px solid rgba(97,175,239,0.3); }
+.badge-docker   { background: rgba(23,162,184,0.12); color: #17a2b8;        border: 1px solid rgba(23,162,184,0.35); font-size: 9px; padding: 2px 6px; border-radius: 3px; letter-spacing: 0.06em; font-weight: 600; flex-shrink: 0; }
 
 .card-id {
   font-size: 9px;
@@ -726,6 +729,7 @@ body {
         <button class="fbtn" data-filter="running">live</button>
         <button class="fbtn" data-filter="done">done</button>
         <button class="fbtn" data-filter="failed">err</button>
+        <button class="fbtn fbtn-docker" data-filter="isolated">🐳</button>
       </div>
     </div>
     <div id="job-list"></div>
@@ -922,6 +926,7 @@ function makeCard(job, n) {
       <span class="card-num">${n} ·</span>
       <span class="card-title" title="${escHtml(taskStr)}">${escHtml(taskStr)}</span>
       <span class="card-status-badge badge-${status}">${status.replace('_',' ')}</span>
+      ${job.dockerIsolation ? `<span class="badge-docker">🐳 isolated</span>` : ''}
       <span class="card-id">#${idShort}</span>
       <div class="card-dots">
         <div class="card-dot dot-r"></div>
@@ -963,7 +968,7 @@ function makeSidebarItem(job) {
   item.innerHTML = `
     <div class="ji-top">
       <div class="ji-status ${status}"></div>
-      <span class="ji-repo">${escHtml(shortRepo(job.repoUrl))}</span>
+      <span class="ji-repo">${escHtml(shortRepo(job.repoUrl))}${job.dockerIsolation ? ' <span style="color:#17a2b8;font-size:9px;" title="Docker isolated">🐳</span>' : ''}</span>
       <span class="ji-time">${timeAgo(job.startedAt)}</span>
     </div>
     <div class="ji-task">${escHtml(shortTask(job.task))}</div>
@@ -1026,7 +1031,8 @@ function applyFilter() {
     const show = filterMode === 'all'
       || (filterMode === 'running' && ['running','cloning','pending_approval'].includes(job.status))
       || (filterMode === 'done' && job.status === 'done')
-      || (filterMode === 'failed' && job.status === 'failed');
+      || (filterMode === 'failed' && job.status === 'failed')
+      || (filterMode === 'isolated' && job.dockerIsolation === true);
     const item = $(`si-${job.id}`);
     if (item) item.style.display = show ? '' : 'none';
     if (card) card.style.display = show ? '' : 'none';
