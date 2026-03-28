@@ -195,6 +195,56 @@ const server = http.createServer((req, res) => {
       res.writeHead(404); res.end(e.message);
     }
 
+  } else if (url.pathname === '/api/job/output') {
+    // Full output for a job
+    const id = url.searchParams.get('id');
+    if (!id) { res.writeHead(400); res.end('missing id'); return; }
+    (async () => {
+      try {
+        const lines = await getOutputTail(id, 5000);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ lines }));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    })();
+
+  } else if (url.pathname === '/api/job/action' && req.method === 'POST') {
+    // Job actions: approve, cancel, wake
+    let body = '';
+    req.on('data', d => body += d);
+    req.on('end', async () => {
+      try {
+        const { id, action, message } = JSON.parse(body);
+        if (!id || !action) { res.writeHead(400); res.end('missing id/action'); return; }
+        const jobRaw = await redis.get(`cca:job:${id}`);
+        const job = parseJob(jobRaw);
+        if (!job) { res.writeHead(404); res.end('job not found'); return; }
+
+        if (action === 'approve') {
+          // Set approval flag — cc-agent polls for this
+          const updated = { ...job, approvedAt: new Date().toISOString(), approved: true };
+          await redis.set(`cca:job:${id}`, JSON.stringify(updated));
+          // Also push approval to output list so agent sees it
+          await redis.rPush(`cca:job:${id}:output`, '[cc-agent-ui] Job approved by user');
+        } else if (action === 'cancel') {
+          const updated = { ...job, status: 'cancelled', cancelledAt: new Date().toISOString() };
+          await redis.set(`cca:job:${id}`, JSON.stringify(updated));
+          broadcast({ type: 'job_update', job: updated });
+        } else if (action === 'wake') {
+          const updated = { ...job, status: 'running', wakedAt: new Date().toISOString() };
+          await redis.set(`cca:job:${id}`, JSON.stringify(updated));
+          broadcast({ type: 'job_update', job: updated });
+        } else if (action === 'message') {
+          // Send a message into the job's input channel
+          if (message) await redis.rPush(`cca:job:${id}:input`, message);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, action, id }));
+      } catch (e) {
+        res.writeHead(500); res.end(e.message);
+      }
+    });
+
   } else {
     res.writeHead(404); res.end();
   }

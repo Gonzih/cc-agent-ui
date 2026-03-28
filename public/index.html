@@ -328,7 +328,9 @@ body {
   border-bottom: 1px solid var(--border);
   background: rgba(0,0,0,0.2);
   flex-shrink: 0;
+  cursor: pointer;
 }
+.card-hdr:hover { background: rgba(255,255,255,0.04); }
 
 .card-num {
   font-size: 10px;
@@ -541,6 +543,99 @@ body {
   border-radius: 4px;
 }
 
+/* ── Job Detail Panel ────────────────────────────────────────────────────── */
+#jobpanel {
+  position: fixed;
+  top: 40px; right: 0; bottom: 0;
+  width: 600px;
+  background: var(--sidebar-bg);
+  border-left: 1px solid var(--border-hi);
+  display: flex;
+  flex-direction: column;
+  z-index: 600;
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(.4,0,.2,1);
+}
+#jobpanel.open { transform: translateX(0); }
+#jobpanel.open ~ #filebrowser { right: 600px; }
+
+#jp-topbar {
+  display: flex; align-items: center;
+  padding: 0 14px; height: 44px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px; flex-shrink: 0;
+}
+#jp-title {
+  flex: 1; font-size: 11px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#jp-close {
+  background: transparent; border: none;
+  color: var(--dim); font-size: 16px; cursor: pointer;
+  padding: 0 4px; line-height: 1; font-family: var(--font);
+}
+#jp-close:hover { color: var(--text); }
+
+#jp-meta {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; flex-wrap: wrap; gap: 8px;
+  flex-shrink: 0;
+}
+.jp-badge {
+  font-size: 9px; padding: 3px 8px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+}
+.jp-meta-row {
+  width: 100%; font-size: 10px; color: var(--dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jp-meta-row span { color: var(--text); }
+
+#jp-actions {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 8px; flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.jp-btn {
+  font-family: var(--font); font-size: 10px;
+  padding: 5px 14px; border-radius: 4px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text); transition: all 0.15s;
+  font-weight: 600; letter-spacing: 0.04em;
+}
+.jp-btn:hover { border-color: var(--border-hi); background: rgba(255,255,255,0.04); }
+.jp-btn.approve { border-color: rgba(152,195,121,0.5); color: var(--green); }
+.jp-btn.approve:hover { background: rgba(152,195,121,0.12); }
+.jp-btn.cancel  { border-color: rgba(224,108,117,0.5); color: var(--red); }
+.jp-btn.cancel:hover  { background: rgba(224,108,117,0.12); }
+.jp-btn.wake    { border-color: rgba(229,192,123,0.5); color: var(--yellow); }
+.jp-btn.wake:hover    { background: rgba(229,192,123,0.12); }
+.jp-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+#jp-log {
+  flex: 1; overflow-y: auto;
+  padding: 10px 14px;
+  font-size: 11px; line-height: 1.65;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  background: var(--card-body);
+}
+#jp-log::-webkit-scrollbar { width: 4px; }
+#jp-log::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+#jp-task {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 10px; color: var(--dim);
+  max-height: 100px; overflow-y: auto;
+  flex-shrink: 0;
+  white-space: pre-wrap; word-break: break-word;
+  line-height: 1.6;
+}
+#jp-task strong { color: var(--text); display: block; margin-bottom: 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; }
+
 /* Clickable file paths in terminal */
 .fp-link {
   color: var(--orange);
@@ -616,6 +711,18 @@ body {
     <div id="zoom-hint">100%</div>
   </div>
 
+</div>
+
+<!-- Job Detail Panel -->
+<div id="jobpanel">
+  <div id="jp-topbar">
+    <span id="jp-title">—</span>
+    <button id="jp-close" onclick="jpClose()">✕</button>
+  </div>
+  <div id="jp-meta"></div>
+  <div id="jp-task"></div>
+  <div id="jp-actions"></div>
+  <div id="jp-log"></div>
 </div>
 
 <!-- File Browser Panel -->
@@ -996,6 +1103,7 @@ function addJob(job, lines) {
   jobs[job.id] = { job: { ...job }, card, logEl, n: jobCounter };
   if (lines.length) appendLines(logEl, lines, false);
   updateColHeader(key);
+  wireCardClick(card, job.id);
 }
 
 // ── Handle job update ──────────────────────────────────────────────────────
@@ -1041,6 +1149,13 @@ function handleJobUpdate(data) {
   const dot = $(`si-${job.id}`)?.querySelector('.ji-status');
   if (dot) { dot.className = `ji-status ${status}`; }
 
+  // Refresh job panel if this job is open
+  if (jpCurrentId === job.id) {
+    jpMeta.querySelector('.jp-badge').className = `jp-badge badge-${status}`;
+    jpMeta.querySelector('.jp-badge').textContent = status.replace('_', ' ');
+    renderActions(status);
+  }
+
   updateColHeader(repoKey(job));
   updateCounts();
   applyFilter();
@@ -1060,6 +1175,10 @@ function handleOutput(data) {
   const entry = jobs[data.id];
   if (!entry) return;
   appendLines(entry.logEl, data.lines, true);
+  // Mirror to job panel if open
+  if (jpCurrentId === data.id) {
+    appendLines(jpLog, data.lines, true);
+  }
 }
 
 // ── WebSocket ──────────────────────────────────────────────────────────────
@@ -1081,6 +1200,114 @@ function connect() {
       case 'job_output': handleOutput(evt); break;
     }
   };
+}
+
+// ── Job Detail Panel ───────────────────────────────────────────────────────
+const jp = $('jobpanel');
+const jpLog = $('jp-log');
+const jpTitle = $('jp-title');
+const jpMeta = $('jp-meta');
+const jpTask = $('jp-task');
+const jpActions = $('jp-actions');
+let jpCurrentId = null;
+
+function jpClose() {
+  jp.classList.remove('open');
+  jpCurrentId = null;
+}
+
+async function jpOpen(id) {
+  const entry = jobs[id];
+  if (!entry) return;
+  jpCurrentId = id;
+  jp.classList.add('open');
+
+  const job = entry.job;
+  const status = job.status || 'unknown';
+
+  jpTitle.textContent = shortTask(job.task);
+  jpTask.innerHTML = `<strong>Task</strong>${escHtml(job.task || '(no task)')}`;
+
+  // Meta
+  jpMeta.innerHTML = `
+    <span class="jp-badge badge-${status}">${status.replace('_',' ')}</span>
+    <span class="jp-meta-row">repo <span>${escHtml(shortRepo(job.repoUrl) || 'local')}</span>
+      ${job.branch ? ` · branch <span>${escHtml(job.branch)}</span>` : ''}
+    </span>
+    <span class="jp-meta-row">id <span>${escHtml(job.id || id)}</span></span>
+    <span class="jp-meta-row">started <span>${job.startedAt ? new Date(job.startedAt).toLocaleString() : '—'}</span></span>
+  `;
+
+  // Actions
+  renderActions(status);
+
+  // Load full log
+  jpLog.innerHTML = '<div style="color:var(--dim);padding:4px">loading…</div>';
+  try {
+    const r = await fetch(`/api/job/output?id=${encodeURIComponent(id)}`);
+    const data = await r.json();
+    jpLog.innerHTML = '';
+    appendLines(jpLog, data.lines || [], false);
+    jpLog.scrollTop = jpLog.scrollHeight;
+  } catch (e) {
+    jpLog.innerHTML = `<div style="color:var(--red)">${escHtml(e.message)}</div>`;
+  }
+}
+
+function renderActions(status) {
+  jpActions.innerHTML = '';
+  const add = (label, cls, action, extra = {}) => {
+    const b = document.createElement('button');
+    b.className = `jp-btn ${cls}`;
+    b.textContent = label;
+    if (extra.disabled) b.disabled = true;
+    b.addEventListener('click', () => jobAction(jpCurrentId, action));
+    jpActions.appendChild(b);
+  };
+
+  if (status === 'pending_approval') add('✓ Approve', 'approve', 'approve');
+  if (['running','cloning','pending_approval'].includes(status)) add('✕ Cancel', 'cancel', 'cancel');
+  if (status === 'failed' || status === 'cancelled') add('⟳ Wake', 'wake', 'wake');
+  if (jpActions.children.length === 0) {
+    jpActions.innerHTML = `<span style="font-size:10px;color:var(--dim)">no actions available for ${status} jobs</span>`;
+  }
+}
+
+async function jobAction(id, action) {
+  if (!id) return;
+  const btns = jpActions.querySelectorAll('.jp-btn');
+  btns.forEach(b => b.disabled = true);
+  try {
+    const r = await fetch('/api/job/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action }),
+    });
+    const data = await r.json();
+    if (data.ok) {
+      // Append confirmation to panel log
+      const d = document.createElement('div');
+      d.className = 'tl tl-ok';
+      d.textContent = `[ui] Action "${action}" sent`;
+      jpLog.appendChild(d);
+      jpLog.scrollTop = jpLog.scrollHeight;
+    }
+  } catch (e) {
+    const d = document.createElement('div');
+    d.className = 'tl tl-err';
+    d.textContent = `[ui] Error: ${e.message}`;
+    jpLog.appendChild(d);
+  } finally {
+    btns.forEach(b => b.disabled = false);
+  }
+}
+
+// Wire card clicks to open job panel
+function wireCardClick(card, id) {
+  card.querySelector('.card-hdr').addEventListener('click', (e) => {
+    if (e.target.closest('.fp-link')) return; // don't interfere with file links
+    jpOpen(id);
+  });
 }
 
 // ── File Browser ───────────────────────────────────────────────────────────
