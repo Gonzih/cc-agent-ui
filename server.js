@@ -220,11 +220,12 @@ const server = http.createServer((req, res) => {
         if (!job) { res.writeHead(404); res.end('job not found'); return; }
 
         if (action === 'approve') {
-          // Set approval flag — cc-agent polls for this
+          // Mark approved in Redis — cc-agent MCP must be called separately to actually start it
+          // (cc-agent's approval is in-memory; this sets a flag for reference and for GitHub issue polling)
           const updated = { ...job, approvedAt: new Date().toISOString(), approved: true };
           await redis.set(`cca:job:${id}`, JSON.stringify(updated));
-          // Also push approval to output list so agent sees it
-          await redis.rPush(`cca:job:${id}:output`, '[cc-agent-ui] Job approved by user');
+          await redis.rPush(`cca:job:${id}:output`, '[cc-agent-ui] Approved by UI — use MCP approve_job to start');
+          broadcast({ type: 'job_output', id, lines: ['[cc-agent-ui] Approved by UI — use MCP approve_job to start'] });
         } else if (action === 'cancel') {
           const updated = { ...job, status: 'cancelled', cancelledAt: new Date().toISOString() };
           await redis.set(`cca:job:${id}`, JSON.stringify(updated));
@@ -234,8 +235,14 @@ const server = http.createServer((req, res) => {
           await redis.set(`cca:job:${id}`, JSON.stringify(updated));
           broadcast({ type: 'job_update', job: updated });
         } else if (action === 'message') {
-          // Send a message into the job's input channel
-          if (message) await redis.rPush(`cca:job:${id}:input`, message);
+          if (message) {
+            // Queue for cc-agent to pick up (future: cc-agent polls cca:job:{id}:input)
+            await redis.rPush(`cca:job:${id}:input`, message);
+            // Echo to output so it's visible in terminal immediately
+            const line = `[you] ${message}`;
+            await redis.rPush(`cca:job:${id}:output`, line);
+            broadcast({ type: 'job_output', id, lines: [line] });
+          }
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -264,6 +271,25 @@ wss.on('connection', async ws => {
   ws.on('close', () => { clients.delete(ws); });
 });
 
+// ── Tool call synthesis from recentTools diff ──────────────────────────────
+const toolTrack = {}; // id → last recentTools array
+
+function diffTools(prevArr, currArr) {
+  if (!currArr?.length) return [];
+  if (!prevArr?.length) return currArr.slice(-3); // first snapshot: emit up to 3
+  if (JSON.stringify(prevArr) === JSON.stringify(currArr)) return [];
+  // Find how many NEW items appeared at the tail of currArr relative to prevArr.
+  // Strategy: find the longest suffix of prevArr that matches a prefix of the new tail.
+  for (let overlap = Math.min(prevArr.length, currArr.length); overlap >= 0; overlap--) {
+    const prevSuffix = prevArr.slice(prevArr.length - overlap);
+    const currPrefix = currArr.slice(0, overlap);
+    if (JSON.stringify(prevSuffix) === JSON.stringify(currPrefix)) {
+      return currArr.slice(overlap); // these are genuinely new
+    }
+  }
+  return currArr.slice(-Math.min(3, currArr.length)); // fallback: last 3
+}
+
 // ── Polling: job status changes ────────────────────────────────────────────
 setInterval(async () => {
   try {
@@ -277,6 +303,7 @@ setInterval(async () => {
         if (!prev) {
           // New job
           jobCache[job.id] = job;
+          toolTrack[job.id] = job.recentTools || [];
           const lines = await getOutputTail(job.id, 50);
           broadcast({ type: 'job_new', job: { ...job, lines } });
         } else if (prev.status !== job.status) {
@@ -285,6 +312,22 @@ setInterval(async () => {
         } else {
           jobCache[job.id] = { ...prev, ...job };
         }
+        // Detect new tool calls via recentTools diff
+        const activeStatuses = new Set(['running', 'cloning']);
+        if (activeStatuses.has(job.status)) {
+          const prevTools = toolTrack[job.id] || [];
+          const currTools = job.recentTools || [];
+          const newTools = diffTools(prevTools, currTools);
+          toolTrack[job.id] = currTools;
+          if (newTools.length) {
+            const lines = newTools.map(t => `[tool] ${t}`);
+            broadcast({ type: 'job_output', id: job.id, lines });
+            // Also write to Redis output so it persists
+            const pipeline = redis.multi();
+            for (const l of lines) pipeline.rPush(`cca:job:${job.id}:output`, l);
+            pipeline.exec().catch(() => {});
+          }
+        }
       }
     }
   } catch (e) {
@@ -292,17 +335,31 @@ setInterval(async () => {
   }
 }, 2500);
 
-// ── Polling: output for active jobs ───────────────────────────────────────
+// ── Polling: output for active + recently-finished jobs ───────────────────
+const recentlyFinished = new Map(); // id → finishedTimestamp
 setInterval(async () => {
+  const now = Date.now();
   const activeStatuses = new Set(['running', 'cloning', 'pending_approval']);
-  const active = Object.values(jobCache).filter(j => activeStatuses.has(j.status));
-  for (const job of active) {
+  // Include recently finished jobs for 15s to catch tail output
+  const toPoll = Object.values(jobCache).filter(j =>
+    activeStatuses.has(j.status) ||
+    (recentlyFinished.has(j.id) && now - recentlyFinished.get(j.id) < 15000)
+  );
+  for (const job of toPoll) {
+    // Track when jobs finish
+    if (!activeStatuses.has(job.status) && !recentlyFinished.has(job.id)) {
+      recentlyFinished.set(job.id, now);
+    }
     try {
       const lines = await pollNewOutput(job.id);
       if (lines.length > 0) {
         broadcast({ type: 'job_output', id: job.id, lines });
       }
     } catch {}
+  }
+  // Clean up old entries
+  for (const [id, ts] of recentlyFinished) {
+    if (now - ts > 30000) recentlyFinished.delete(id);
   }
 }, 900);
 

@@ -153,8 +153,6 @@ body {
   transition: all 0.15s;
 }
 .fbtn:hover, .fbtn.active { border-color: var(--cyan); color: var(--cyan); }
-.fbtn-docker { color: #17a2b8; border-color: rgba(23,162,184,0.4); }
-.fbtn-docker:hover, .fbtn-docker.active { border-color: #17a2b8 !important; color: #17a2b8 !important; }
 
 #job-list {
   flex: 1;
@@ -250,15 +248,6 @@ body {
   width: max-content;
 }
 
-/* ── Dependency arrows SVG overlay ───────────────────────────────────── */
-#dep-arrows {
-  position: absolute;
-  top: 0; left: 0;
-  width: 20000px; height: 20000px;
-  pointer-events: none;
-  z-index: 0;
-}
-
 /* ── Repo Column ──────────────────────────────────────────────────────── */
 .repo-col {
   display: flex;
@@ -266,8 +255,6 @@ body {
   gap: 10px;
   width: 460px;
   flex-shrink: 0;
-  position: relative;
-  z-index: 1;
 }
 
 .col-header {
@@ -309,38 +296,23 @@ body {
 }
 
 /* status colors */
+
 .tcard.done     { border-color: #1e2d1e; box-shadow: 0 0 16px var(--green-glow); }
 .tcard.failed   { border-color: #2d1e20; box-shadow: 0 0 16px var(--red-glow); }
 .tcard.pending_approval { border-color: #2d2a1e; box-shadow: 0 0 16px var(--yellow-glow); }
 .tcard.cloning  { border-color: #1e2233; box-shadow: 0 0 16px rgba(97,175,239,0.1); }
 
-/* racing border on running */
-@property --border-angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
+@keyframes border-race {
+  0%   { box-shadow: 0 -1px 4px 0px #60a5fa, inset 0 0 0 1px #1e3a8a, 0 0 10px rgba(59,130,246,0.12); }
+  25%  { box-shadow: 2px 0 4px 0px #60a5fa, inset 0 0 0 1px #1e3a8a, 0 0 10px rgba(59,130,246,0.12); }
+  50%  { box-shadow: 0 2px 4px 0px #60a5fa, inset 0 0 0 1px #1e3a8a, 0 0 10px rgba(59,130,246,0.12); }
+  75%  { box-shadow: -2px 0 4px 0px #60a5fa, inset 0 0 0 1px #1e3a8a, 0 0 10px rgba(59,130,246,0.12); }
+  100% { box-shadow: 0 -1px 4px 0px #60a5fa, inset 0 0 0 1px #1e3a8a, 0 0 10px rgba(59,130,246,0.12); }
 }
-@keyframes border-spin {
-  to { --border-angle: 360deg; }
-}
+
 .tcard.running {
-  --border-angle: 0deg;
-  animation: border-spin 2.5s linear infinite;
-  border: 1.5px solid transparent !important;
-  background:
-    linear-gradient(#0d0f14, #0d0f14) padding-box,
-    conic-gradient(
-      from var(--border-angle),
-      transparent 0deg,
-      transparent 200deg,
-      #3b82f6 240deg,
-      #60a5fa 270deg,
-      #93c5fd 280deg,
-      #60a5fa 300deg,
-      #3b82f6 320deg,
-      transparent 360deg
-    ) border-box;
-  border-radius: 6px;
+  border-color: #1e3a8a;
+  animation: border-race 2s linear infinite;
 }
 
 /* ── Card Header ── */
@@ -388,7 +360,6 @@ body {
 .badge-cancelled{ background: rgba(72,76,94,0.3);     color: var(--dim);    border: 1px solid var(--border); }
 .badge-pending_approval { background: rgba(229,192,123,0.15); color: var(--yellow); border: 1px solid rgba(229,192,123,0.3); }
 .badge-cloning  { background: rgba(97,175,239,0.15); color: var(--blue);    border: 1px solid rgba(97,175,239,0.3); }
-.badge-docker   { background: rgba(23,162,184,0.12); color: #17a2b8;        border: 1px solid rgba(23,162,184,0.35); font-size: 9px; padding: 2px 6px; border-radius: 3px; letter-spacing: 0.06em; font-weight: 600; flex-shrink: 0; }
 
 .card-id {
   font-size: 9px;
@@ -416,6 +387,7 @@ body {
 }
 .card-repo-icon { color: var(--dimmer); }
 .card-branch { color: var(--purple); margin-left: auto; flex-shrink:0; }
+.card-docker-badge { color: #38bdf8; font-size:9px; background: rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.3); border-radius:3px; padding:1px 5px; flex-shrink:0; }
 
 /* ── Terminal body ── */
 .card-term {
@@ -435,11 +407,11 @@ body {
 
 /* Output line coloring */
 .tl { white-space: pre-wrap; word-break: break-all; }
-.tl-sys  { color: var(--dim); }           /* [cc-agent] meta lines */
+.tl-sys  { color: #7a8099; }              /* [cc-agent] meta lines */
 .tl-ok   { color: var(--green); }         /* success */
 .tl-err  { color: var(--red); }           /* errors */
 .tl-warn { color: var(--yellow); }        /* warnings */
-.tl-tool { color: var(--blue); }          /* tool calls */
+.tl-tool { color: var(--blue); opacity: 0.8; font-size: 10px; } /* tool calls */
 .tl-file { color: var(--orange); }        /* file operations */
 .tl-head { color: var(--cyan); font-weight:600; }  /* bold headings */
 .tl-dim  { color: var(--dim); }           /* faded */
@@ -675,6 +647,49 @@ body {
   text-decoration-color: var(--orange);
 }
 
+/* ── Message bar (job panel) ── */
+#jp-msg-bar {
+  border-top: 1px solid var(--border);
+  padding: 8px 14px;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.15);
+}
+#jp-msg-bar.hidden { display: none; }
+#jp-msg-input {
+  flex: 1;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border-hi);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 5px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+#jp-msg-input::placeholder { color: var(--dim); }
+#jp-msg-input:focus { border-color: var(--cyan); }
+#jp-msg-send {
+  font-family: var(--font); font-size: 10px;
+  padding: 5px 14px; border-radius: 4px; cursor: pointer;
+  border: 1px solid rgba(86,182,194,0.4);
+  background: transparent; color: var(--cyan); font-weight: 600;
+  transition: all 0.15s; white-space: nowrap;
+}
+#jp-msg-send:hover { background: rgba(86,182,194,0.12); border-color: var(--cyan); }
+#jp-msg-send:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ── Working indicator on empty running terminal ── */
+.term-working {
+  padding: 12px 0 4px;
+  display: flex; align-items: center; gap: 8px;
+  color: var(--dim); font-size: 10px;
+}
+.term-spinner { animation: spin 1.2s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 /* ── Empty state ── */
 #empty-state {
   position: absolute;
@@ -752,7 +767,6 @@ body {
         <button class="fbtn" data-filter="running">live</button>
         <button class="fbtn" data-filter="done">done</button>
         <button class="fbtn" data-filter="failed">err</button>
-        <button class="fbtn fbtn-docker" data-filter="isolated">🐳</button>
       </div>
     </div>
     <div id="job-list"></div>
@@ -760,9 +774,7 @@ body {
 
   <!-- Infinite canvas viewport -->
   <div id="viewport">
-    <div id="canvas-inner">
-      <svg id="dep-arrows" xmlns="http://www.w3.org/2000/svg"></svg>
-    </div>
+    <div id="canvas-inner"></div>
     <div id="empty-state">
       <div class="e-icon">⬡</div>
       <div class="e-title">No agents running</div>
@@ -783,6 +795,10 @@ body {
   <div id="jp-task"></div>
   <div id="jp-actions"></div>
   <div id="jp-log"></div>
+  <div id="jp-msg-bar" class="hidden">
+    <input id="jp-msg-input" type="text" placeholder="Send message to Claude…" autocomplete="off">
+    <button id="jp-msg-send" onclick="jpSendMessage()">↵ Send</button>
+  </div>
 </div>
 
 <!-- File Browser Panel -->
@@ -880,29 +896,51 @@ viewport.addEventListener('touchmove', e => {
 }, { passive: false });
 
 // ── Log line colorizer ─────────────────────────────────────────────────────
+const TOOL_ICONS = {
+  Read:'📖', Edit:'✏️', Write:'💾', Bash:'$', Glob:'🔍', Grep:'🔎',
+  WebFetch:'🌐', WebSearch:'🌐', TodoWrite:'✅', Agent:'🤖',
+  MultiEdit:'✏️', NotebookEdit:'📓', Dispatch:'⚡',
+};
+
 function classifyLine(raw) {
   const s = raw.replace(/\x1b\[[0-9;]*m/g, '').trim();
   if (!s) return null;
+  if (s.startsWith('[tool] '))           return 'tl tl-tool';
+  if (s.startsWith('[you] '))            return 'tl tl-head';
   if (s.startsWith('[cc-agent]'))        return 'tl tl-sys';
   if (/✓|✅|PASS|passed|merged|pushed|success/i.test(s)) return 'tl tl-ok';
   if (/✗|❌|error|Error|FAIL|failed|exception/i.test(s)) return 'tl tl-err';
   if (/⚠|warn|Warning/i.test(s))        return 'tl tl-warn';
-  if (/^(Read|Edit|Write|Bash|Glob|Grep|WebFetch|TodoWrite|Agent)\b/.test(s)) return 'tl tl-tool';
+  if (/^(Read|Edit|Write|Bash|Glob|Grep|WebFetch|WebSearch|TodoWrite|Agent)\b/.test(s)) return 'tl tl-tool';
   if (/\.(ts|js|tsx|jsx|py|go|rs|md|json|yaml|sh)\b/.test(s)) return 'tl tl-file';
   if (/^#{1,3}\s|^\*\*/.test(s))         return 'tl tl-head';
   if (/^[\-–—>·]/.test(s))              return 'tl tl-dim';
   return 'tl';
 }
 
+function formatLine(raw) {
+  const s = raw.replace(/\x1b\[[0-9;]*m/g, '');
+  // Enrich [tool] lines with icon
+  const toolMatch = s.match(/^\[tool\] (\w+)(.*)/);
+  if (toolMatch) {
+    const icon = TOOL_ICONS[toolMatch[1]] || '⚙';
+    return `${icon} ${toolMatch[1]}${toolMatch[2]}`;
+  }
+  return s;
+}
+
 function appendLines(logEl, lines, isNew) {
+  // Remove working indicator if present
+  const working = logEl.querySelector('.term-working');
+  if (working && lines.some(l => l.trim())) working.remove();
+
   const frag = document.createDocumentFragment();
   for (const raw of lines) {
     const cls = classifyLine(raw);
     if (!cls) continue;
     const d = document.createElement('div');
     d.className = isNew ? cls + ' tl-new' : cls;
-    const clean = raw.replace(/\x1b\[[0-9;]*m/g, '');
-    // Linkify file paths
+    const clean = formatLine(raw);
     d.innerHTML = linkifyPaths(clean);
     if (isNew) setTimeout(() => d.classList.remove('tl-new'), 1500);
     frag.appendChild(d);
@@ -910,6 +948,18 @@ function appendLines(logEl, lines, isNew) {
   logEl.appendChild(frag);
   while (logEl.children.length > 300) logEl.removeChild(logEl.firstChild);
   logEl.scrollTop = logEl.scrollHeight;
+}
+
+function setWorkingIndicator(logEl, show) {
+  const existing = logEl.querySelector('.term-working');
+  if (show && !existing && logEl.children.length === 0) {
+    const d = document.createElement('div');
+    d.className = 'term-working';
+    d.innerHTML = '<span class="term-spinner">⟳</span> Claude is working…';
+    logEl.appendChild(d);
+  } else if (!show && existing) {
+    existing.remove();
+  }
 }
 
 // ── Card factory ───────────────────────────────────────────────────────────
@@ -951,7 +1001,6 @@ function makeCard(job, n) {
       <span class="card-num">${n} ·</span>
       <span class="card-title" title="${escHtml(taskStr)}">${escHtml(taskStr)}</span>
       <span class="card-status-badge badge-${status}">${status.replace('_',' ')}</span>
-      ${job.dockerIsolation ? `<span class="badge-docker">🐳 isolated</span>` : ''}
       <span class="card-id">#${idShort}</span>
       <div class="card-dots">
         <div class="card-dot dot-r"></div>
@@ -963,6 +1012,7 @@ function makeCard(job, n) {
       <span class="card-repo-icon">⎇</span>
       <span>${escHtml(repoStr)}</span>
       ${job.branch ? `<span class="card-branch">${escHtml(job.branch)}</span>` : ''}
+      ${job.dockerIsolation ? `<span class="card-docker-badge" title="Running in Docker container">🐳 isolated</span>` : ''}
     </div>
     <div class="card-term"></div>
     <div class="card-foot">
@@ -990,18 +1040,13 @@ function makeSidebarItem(job) {
   item.dataset.startedAt = job.startedAt || '';
   const status = job.status || 'unknown';
 
-  const waitingOn = (status === 'pending' && job.dependsOn && job.dependsOn.length)
-    ? `<div style="font-size:9px;color:#7a8099;margin-top:3px">⏳ waiting on: ${job.dependsOn.map(d => d.slice(0,8)).join(', ')}</div>`
-    : '';
-
   item.innerHTML = `
     <div class="ji-top">
       <div class="ji-status ${status}"></div>
-      <span class="ji-repo">${escHtml(shortRepo(job.repoUrl))}${job.dockerIsolation ? ' <span style="color:#17a2b8;font-size:9px;" title="Docker isolated">🐳</span>' : ''}</span>
+      <span class="ji-repo">${escHtml(shortRepo(job.repoUrl))}</span>
       <span class="ji-time">${timeAgo(job.startedAt)}</span>
     </div>
     <div class="ji-task">${escHtml(shortTask(job.task))}</div>
-    ${waitingOn}
   `;
 
   item.addEventListener('click', () => focusCard(job.id));
@@ -1061,8 +1106,7 @@ function applyFilter() {
     const show = filterMode === 'all'
       || (filterMode === 'running' && ['running','cloning','pending_approval'].includes(job.status))
       || (filterMode === 'done' && job.status === 'done')
-      || (filterMode === 'failed' && job.status === 'failed')
-      || (filterMode === 'isolated' && job.dockerIsolation === true);
+      || (filterMode === 'failed' && job.status === 'failed');
     const item = $(`si-${job.id}`);
     if (item) item.style.display = show ? '' : 'none';
     if (card) card.style.display = show ? '' : 'none';
@@ -1080,7 +1124,6 @@ document.querySelectorAll('.fbtn').forEach(btn => {
     btn.classList.add('active');
     filterMode = btn.dataset.filter;
     applyFilter();
-    drawArrows();
   });
 });
 
@@ -1157,7 +1200,6 @@ function handleSnapshot(data) {
   sortColumns();
   updateCounts();
   applyFilter();
-  drawArrows();
   if (Object.keys(jobs).length > 0) emptyState.style.display = 'none';
   if (typeof hideLoader === 'function') hideLoader();
 }
@@ -1178,6 +1220,7 @@ function addJob(job, lines) {
   else jobList.appendChild(sidebarItem);
   jobs[job.id] = { job: { ...job }, card, logEl, n: jobCounter };
   if (lines.length) appendLines(logEl, lines, false);
+  else if (job.status === 'running' || job.status === 'cloning') setWorkingIndicator(logEl, true);
   updateColHeader(key);
   wireCardClick(card, job.id);
 }
@@ -1199,6 +1242,10 @@ function handleJobUpdate(data) {
   const prev = entry.job.status;
   entry.job = { ...entry.job, ...job };
   const status = job.status;
+
+  // Working indicator
+  if (status === 'running' || status === 'cloning') setWorkingIndicator(entry.logEl, true);
+  else setWorkingIndicator(entry.logEl, false);
 
   // Update card class
   entry.card.className = `tcard ${status}`;
@@ -1230,12 +1277,14 @@ function handleJobUpdate(data) {
     jpMeta.querySelector('.jp-badge').className = `jp-badge badge-${status}`;
     jpMeta.querySelector('.jp-badge').textContent = status.replace('_', ' ');
     renderActions(status);
+    const msgBar = $('jp-msg-bar');
+    if (status === 'running') msgBar.classList.remove('hidden');
+    else msgBar.classList.add('hidden');
   }
 
   updateColHeader(repoKey(job));
   updateCounts();
   applyFilter();
-  drawArrows();
 }
 
 // ── Handle job_new ─────────────────────────────────────────────────────────
@@ -1245,7 +1294,6 @@ function handleJobNew(data) {
   emptyState.style.display = 'none';
   updateCounts();
   applyFilter();
-  drawArrows();
 }
 
 // ── Handle output ──────────────────────────────────────────────────────────
@@ -1294,6 +1342,46 @@ function jpClose() {
   jpCurrentId = null;
 }
 
+async function jpSendMessage() {
+  const input = $('jp-msg-input');
+  const btn = $('jp-msg-send');
+  const text = input.value.trim();
+  if (!text || !jpCurrentId) return;
+  input.value = '';
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/job/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: jpCurrentId, action: 'message', message: text }),
+    });
+    const data = await r.json();
+    const d = document.createElement('div');
+    d.className = 'tl tl-head';
+    d.textContent = `[you] ${text}`;
+    jpLog.appendChild(d);
+    jpLog.scrollTop = jpLog.scrollHeight;
+    // Also echo to card terminal
+    const entry = jobs[jpCurrentId];
+    if (entry?.logEl) appendLines(entry.logEl, [`[you] ${text}`], true);
+  } catch (e) {
+    const d = document.createElement('div');
+    d.className = 'tl tl-err';
+    d.textContent = `[ui] Error: ${e.message}`;
+    jpLog.appendChild(d);
+  } finally {
+    btn.disabled = false;
+    input.focus();
+  }
+}
+
+// Enter key submits message
+document.addEventListener('DOMContentLoaded', () => {
+  $('jp-msg-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); jpSendMessage(); }
+  });
+});
+
 async function jpOpen(id) {
   const entry = jobs[id];
   if (!entry) return;
@@ -1311,6 +1399,7 @@ async function jpOpen(id) {
     <span class="jp-badge badge-${status}">${status.replace('_',' ')}</span>
     <span class="jp-meta-row">repo <span>${escHtml(shortRepo(job.repoUrl) || 'local')}</span>
       ${job.branch ? ` · branch <span>${escHtml(job.branch)}</span>` : ''}
+      ${job.dockerIsolation ? ` · <span style="color:#38bdf8">🐳 docker isolated</span>` : ''}
     </span>
     <span class="jp-meta-row">id <span>${escHtml(job.id || id)}</span></span>
     <span class="jp-meta-row">started <span>${job.startedAt ? new Date(job.startedAt).toLocaleString() : '—'}</span></span>
@@ -1318,6 +1407,15 @@ async function jpOpen(id) {
 
   // Actions
   renderActions(status);
+
+  // Show/hide message bar
+  const msgBar = $('jp-msg-bar');
+  if (status === 'running') {
+    msgBar.classList.remove('hidden');
+    setTimeout(() => $('jp-msg-input').focus(), 50);
+  } else {
+    msgBar.classList.add('hidden');
+  }
 
   // Load full log
   jpLog.innerHTML = '<div style="color:var(--dim);padding:4px">loading…</div>';
@@ -1510,49 +1608,6 @@ function linkifyPaths(text) {
   }
   if (last < text.length) parts.push(escHtml(text.slice(last)));
   return parts.join('');
-}
-
-// ── Dependency arrows on canvas ────────────────────────────────────────────
-function cardOffset(card) {
-  let cx = 0, cy = 0, el = card;
-  while (el && el !== inner) { cx += el.offsetLeft; cy += el.offsetTop; el = el.offsetParent; }
-  return { x: cx, y: cy, w: card.offsetWidth || 460, h: card.offsetHeight || 370 };
-}
-
-function drawArrows() {
-  const svg = document.getElementById('dep-arrows');
-  svg.innerHTML = `<defs>
-    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-      <polygon points="0 0, 8 6, 0 6" fill="#3b82f6" opacity="0.7"/>
-    </marker>
-  </defs>`;
-
-  for (const [id, entry] of Object.entries(jobs)) {
-    const deps = entry.job.dependsOn;
-    if (!deps || !deps.length) continue;
-    for (const depId of deps) {
-      const depEntry = jobs[depId];
-      if (!depEntry) continue;
-      if (entry.card.style.display === 'none' || depEntry.card.style.display === 'none') continue;
-      const from = cardOffset(entry.card);
-      const to   = cardOffset(depEntry.card);
-      // from: top-center of dependent card
-      const fx = from.x + from.w / 2;
-      const fy = from.y;
-      // to: bottom-center of dependency card
-      const tx = to.x + to.w / 2;
-      const ty = to.y + to.h;
-      const midy = (fy + ty) / 2;
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', `M${fx},${fy} C${fx},${midy} ${tx},${midy} ${tx},${ty}`);
-      path.setAttribute('stroke', '#3b82f6');
-      path.setAttribute('stroke-width', '1.5');
-      path.setAttribute('fill', 'none');
-      path.setAttribute('opacity', '0.5');
-      path.setAttribute('marker-end', 'url(#arrowhead)');
-      svg.appendChild(path);
-    }
-  }
 }
 
 // Update time-ago labels every 30s
