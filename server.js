@@ -15,7 +15,7 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
 import { createClient } from 'redis';
-import { exec } from 'child_process';
+import { exec, execFile } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT     = parseInt(process.env.PORT || '7701', 10);
@@ -328,6 +328,15 @@ const server = http.createServer((req, res) => {
         res.writeHead(500); res.end(e.message);
       }
     });
+
+  } else if (url.pathname === '/api/open') {
+    const p = url.searchParams.get('path');
+    if (!p) { res.writeHead(400); res.end('missing path'); return; }
+    execFile('code', [p], err => {
+      if (err) execFile('open', [p], () => {});
+    });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
 
   } else {
     res.writeHead(404); res.end();
