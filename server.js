@@ -240,7 +240,9 @@ const server = http.createServer((req, res) => {
             await redis.rPush(`cca:job:${id}:input`, message);
             // Echo to output so it's visible in terminal immediately
             const line = `[you] ${message}`;
-            await redis.rPush(`cca:job:${id}:output`, line);
+            const newLen = await redis.rPush(`cca:job:${id}:output`, line);
+            // Advance the output length tracker so the poller doesn't re-broadcast this line
+            outputLengths[id] = newLen;
             broadcast({ type: 'job_output', id, lines: [line] });
           }
         }

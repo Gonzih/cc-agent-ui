@@ -1355,15 +1355,7 @@ async function jpSendMessage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: jpCurrentId, action: 'message', message: text }),
     });
-    const data = await r.json();
-    const d = document.createElement('div');
-    d.className = 'tl tl-head';
-    d.textContent = `[you] ${text}`;
-    jpLog.appendChild(d);
-    jpLog.scrollTop = jpLog.scrollHeight;
-    // Also echo to card terminal
-    const entry = jobs[jpCurrentId];
-    if (entry?.logEl) appendLines(entry.logEl, [`[you] ${text}`], true);
+    await r.json();
   } catch (e) {
     const d = document.createElement('div');
     d.className = 'tl tl-err';
