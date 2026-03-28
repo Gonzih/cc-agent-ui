@@ -1670,7 +1670,7 @@ document.addEventListener('click', e => {
 });
 
 function linkifyPaths(text) {
-  const PATH_RE = /(\/(?:Users|home|tmp|workspace|var\/folders)[^\s"'`,;()[\]<>]{3,}|~\/[^\s"'`,;()[\]<>]+)/g;
+  const PATH_RE = /(?<![:/])(\/(var|Users|home|tmp|workspace|root)\/[^\s"'`,;()[\]<>]{3,})/g;
   const parts = [];
   let last = 0;
   let m;
