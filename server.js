@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * cc-agent-ui server — plugged into Redis directly.
  *
