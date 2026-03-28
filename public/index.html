@@ -657,6 +657,15 @@ body {
   background: rgba(209,154,102,0.1);
   text-decoration-color: var(--orange);
 }
+.tl-url {
+  color: #61afef;
+  text-decoration: underline;
+  text-decoration-color: rgba(97,175,239,0.4);
+  word-break: break-all;
+}
+.tl-url:hover {
+  text-decoration-color: #61afef;
+}
 
 /* ── Message bar (job panel) ── */
 #jp-msg-bar {
@@ -1670,16 +1679,37 @@ document.addEventListener('click', e => {
 });
 
 function linkifyPaths(text) {
+  const URL_RE = /https?:\/\/[^\s<>"')\]]+/g;
   const PATH_RE = /(?<![:/])(\/(var|Users|home|tmp|workspace|root)\/[^\s"'`,;()[\]<>]{3,})/g;
   const parts = [];
   let last = 0;
   let m;
+
+  // First pass: collect all URL and path matches, sorted by index
+  const matches = [];
+  URL_RE.lastIndex = 0;
+  while ((m = URL_RE.exec(text)) !== null) {
+    matches.push({ index: m.index, length: m[0].length, value: m[0], type: 'url' });
+  }
   PATH_RE.lastIndex = 0;
   while ((m = PATH_RE.exec(text)) !== null) {
-    if (m.index > last) parts.push(escHtml(text.slice(last, m.index)));
-    const p = m[0];
-    parts.push(`<span class="file-link" data-path="${escAttr(p)}">${escHtml(p)}</span>`);
-    last = m.index + m[0].length;
+    matches.push({ index: m.index, length: m[0].length, value: m[0], type: 'path' });
+  }
+  // Sort by position; if a URL and path overlap, URL wins (processed first)
+  matches.sort((a, b) => a.index - b.index);
+
+  last = 0;
+  for (const match of matches) {
+    if (match.index < last) continue; // overlapping — skip
+    if (match.index > last) parts.push(escHtml(text.slice(last, match.index)));
+    if (match.type === 'url') {
+      const url = match.value;
+      parts.push(`<a href="${escAttr(url)}" target="_blank" rel="noopener" class="tl-url">${escHtml(url)}</a>`);
+    } else {
+      const p = match.value;
+      parts.push(`<span class="file-link" data-path="${escAttr(p)}">${escHtml(p)}</span>`);
+    }
+    last = match.index + match.length;
   }
   if (last < text.length) parts.push(escHtml(text.slice(last)));
   return parts.join('');
