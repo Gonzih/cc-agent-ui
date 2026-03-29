@@ -343,9 +343,9 @@ const server = http.createServer((req, res) => {
   } else if (url.pathname === '/crons' && req.method === 'GET') {
     (async () => {
       try {
-        const all = await redis.hGetAll(`cca:crons:${NAMESPACE}`);
-        const crons = Object.values(all).map(v => JSON.parse(v));
-        crons.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        // cc-agent stores crons as JSON array in a Redis string key
+        const raw = await redis.get(`cca:crons:${NAMESPACE}`);
+        const crons = raw ? JSON.parse(raw) : [];
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(crons));
       } catch (e) { res.writeHead(500); res.end(e.message); }
@@ -356,10 +356,13 @@ const server = http.createServer((req, res) => {
     req.on('data', d => body += d);
     req.on('end', async () => {
       try {
-        const { name, schedule, prompt, repoUrl, enabled } = JSON.parse(body);
-        const id = randomUUID();
-        const cron = { id, name, schedule, prompt, repoUrl, enabled: enabled !== false, createdAt: Date.now() };
-        await redis.hSet(`cca:crons:${NAMESPACE}`, id, JSON.stringify(cron));
+        const { schedule, prompt, repoUrl, intervalMs } = JSON.parse(body);
+        const raw = await redis.get(`cca:crons:${NAMESPACE}`);
+        const crons = raw ? JSON.parse(raw) : [];
+        const id = `${Date.now()}-ui${Math.random().toString(36).slice(2,6)}`;
+        const cron = { id, chatId: 0, intervalMs: intervalMs || 3600000, prompt, schedule: schedule || 'manual', repoUrl: repoUrl || '', createdAt: new Date().toISOString() };
+        crons.push(cron);
+        await redis.set(`cca:crons:${NAMESPACE}`, JSON.stringify(crons));
         res.writeHead(201, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(cron));
       } catch (e) { res.writeHead(500); res.end(e.message); }
@@ -368,8 +371,11 @@ const server = http.createServer((req, res) => {
   } else if (url.pathname.startsWith('/crons/') && req.method === 'DELETE') {
     (async () => {
       try {
-        const id = url.pathname.slice('/crons/'.length);
-        await redis.hDel(`cca:crons:${NAMESPACE}`, id);
+        const id = decodeURIComponent(url.pathname.slice('/crons/'.length));
+        const raw = await redis.get(`cca:crons:${NAMESPACE}`);
+        const crons = raw ? JSON.parse(raw) : [];
+        const updated = crons.filter(c => c.id !== id);
+        await redis.set(`cca:crons:${NAMESPACE}`, JSON.stringify(updated));
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));
       } catch (e) { res.writeHead(500); res.end(e.message); }
@@ -380,14 +386,16 @@ const server = http.createServer((req, res) => {
     req.on('data', d => body += d);
     req.on('end', async () => {
       try {
-        const id = url.pathname.slice('/crons/'.length);
+        const id = decodeURIComponent(url.pathname.slice('/crons/'.length));
         const updates = JSON.parse(body);
-        const existing = await redis.hGet(`cca:crons:${NAMESPACE}`, id);
-        if (!existing) { res.writeHead(404); res.end('cron not found'); return; }
-        const cron = { ...JSON.parse(existing), ...updates, id };
-        await redis.hSet(`cca:crons:${NAMESPACE}`, id, JSON.stringify(cron));
+        const raw = await redis.get(`cca:crons:${NAMESPACE}`);
+        const crons = raw ? JSON.parse(raw) : [];
+        const idx = crons.findIndex(c => c.id === id);
+        if (idx === -1) { res.writeHead(404); res.end('cron not found'); return; }
+        crons[idx] = { ...crons[idx], ...updates, id };
+        await redis.set(`cca:crons:${NAMESPACE}`, JSON.stringify(crons));
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(cron));
+        res.end(JSON.stringify(crons[idx]));
       } catch (e) { res.writeHead(500); res.end(e.message); }
     });
 
