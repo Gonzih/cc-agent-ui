@@ -745,6 +745,280 @@ body {
   letter-spacing: 0.08em;
   font-family: var(--font);
 }
+
+/* ── Tab navigation ───────────────────────────────────────────────────── */
+#tab-nav {
+  display: flex; gap: 2px; align-items: center;
+}
+.tab-btn {
+  font-family: var(--font);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--dim);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tab-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.tab-btn.active { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-glow); }
+
+/* ── Crons Panel ──────────────────────────────────────────────────────── */
+#crons-panel {
+  display: none;
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  background: var(--bg);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+#crons-panel.active { display: block; }
+
+.crons-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 18px;
+}
+.crons-title {
+  font-size: 14px; font-weight: 700; color: var(--text);
+}
+#add-cron-btn {
+  font-family: var(--font);
+  font-size: 10px;
+  padding: 5px 12px;
+  border: 1px solid var(--cyan);
+  background: var(--cyan-glow);
+  color: var(--cyan);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+#add-cron-btn:hover { background: rgba(86,182,194,0.2); }
+
+#cron-add-form {
+  display: none;
+  background: var(--card-bg);
+  border: 1px solid var(--border-hi);
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 18px;
+  max-width: 640px;
+}
+#cron-add-form.visible { display: block; }
+
+.cron-form-title {
+  font-size: 11px; font-weight: 700; color: var(--cyan);
+  margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.07em;
+}
+.cron-form-row {
+  display: flex; gap: 10px; margin-bottom: 10px;
+}
+.cron-form-row label {
+  font-size: 10px; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 4px; display: block;
+}
+.cron-form-row .cron-field { flex: 1; }
+.cron-form-row.single .cron-field { flex: 1; }
+.cron-input {
+  font-family: var(--font);
+  font-size: 11px;
+  background: var(--card-body);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 3px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.cron-input:focus { border-color: var(--cyan); }
+.cron-textarea { resize: vertical; min-height: 70px; }
+.cron-form-actions {
+  display: flex; gap: 8px; align-items: center; margin-top: 12px;
+}
+.cron-btn {
+  font-family: var(--font); font-size: 10px; font-weight: 600;
+  padding: 5px 14px; border-radius: 3px; cursor: pointer; transition: all 0.15s;
+  border: 1px solid;
+}
+.cron-btn.primary { border-color: var(--cyan); background: var(--cyan-glow); color: var(--cyan); }
+.cron-btn.primary:hover { background: rgba(86,182,194,0.2); }
+.cron-btn.secondary { border-color: var(--border); background: transparent; color: var(--dim); }
+.cron-btn.secondary:hover { border-color: var(--dim); color: var(--text); }
+
+.cron-list {
+  display: flex; flex-direction: column; gap: 10px; max-width: 900px;
+}
+.cron-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex; align-items: flex-start; gap: 16px;
+  transition: border-color 0.15s;
+}
+.cron-card:hover { border-color: var(--border-hi); }
+.cron-card-main { flex: 1; min-width: 0; }
+.cron-card-name {
+  font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 4px;
+}
+.cron-card-meta {
+  display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px;
+}
+.cron-meta-item {
+  font-size: 10px; color: var(--dim);
+  display: flex; align-items: center; gap: 4px;
+}
+.cron-meta-item span { color: var(--text); }
+.cron-card-prompt {
+  font-size: 10px; color: var(--dimmer);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 600px;
+}
+.cron-card-times {
+  display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px;
+}
+.cron-time-item {
+  font-size: 9px; color: var(--dimmer); text-transform: uppercase; letter-spacing: 0.06em;
+}
+.cron-time-item span { color: var(--dim); }
+.cron-card-actions {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.cron-toggle {
+  position: relative; width: 32px; height: 18px; cursor: pointer; flex-shrink: 0;
+}
+.cron-toggle input { opacity: 0; width: 0; height: 0; }
+.cron-toggle-track {
+  position: absolute; inset: 0; background: var(--dimmer); border-radius: 9px;
+  transition: background 0.2s;
+}
+.cron-toggle input:checked + .cron-toggle-track { background: var(--cyan); }
+.cron-toggle-thumb {
+  position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--bg); transition: transform 0.2s; pointer-events: none;
+}
+.cron-toggle input:checked ~ .cron-toggle-thumb { transform: translateX(14px); }
+.cron-delete-btn {
+  font-family: var(--font); font-size: 12px;
+  background: transparent; border: 1px solid transparent;
+  color: var(--dim); cursor: pointer; padding: 2px 6px; border-radius: 3px;
+  transition: all 0.15s;
+}
+.cron-delete-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-glow); }
+
+.cron-empty {
+  color: var(--dimmer); font-size: 12px; padding: 24px 0;
+}
+
+/* ── Chat Panel ───────────────────────────────────────────────────────── */
+#chat-panel {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+#chat-panel.active { display: flex; }
+
+#chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+#chat-messages::-webkit-scrollbar { width: 4px; }
+#chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.chat-msg {
+  display: flex;
+  flex-direction: column;
+  max-width: 70%;
+}
+.chat-msg.user { align-self: flex-end; align-items: flex-end; }
+.chat-msg.assistant { align-self: flex-start; align-items: flex-start; }
+.chat-bubble {
+  padding: 9px 13px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.chat-msg.user .chat-bubble {
+  background: rgba(86,182,194,0.15);
+  border: 1px solid rgba(86,182,194,0.3);
+  color: var(--text);
+  border-bottom-right-radius: 3px;
+}
+.chat-msg.assistant .chat-bubble {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-bottom-left-radius: 3px;
+}
+.chat-msg-meta {
+  font-size: 9px; color: var(--dimmer);
+  margin-top: 3px;
+  display: flex; align-items: center; gap: 6px;
+}
+.chat-badge-tg {
+  font-size: 9px; color: var(--dim);
+  background: rgba(97,175,239,0.1);
+  border: 1px solid rgba(97,175,239,0.2);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+
+#chat-input-bar {
+  flex-shrink: 0;
+  padding: 12px 20px;
+  background: var(--sidebar-bg);
+  border-top: 1px solid var(--border);
+  display: flex; gap: 8px; align-items: flex-end;
+}
+#chat-textarea {
+  flex: 1;
+  font-family: var(--font);
+  font-size: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 6px;
+  resize: none;
+  min-height: 38px;
+  max-height: 140px;
+  outline: none;
+  transition: border-color 0.15s;
+  line-height: 1.5;
+  overflow-y: auto;
+}
+#chat-textarea:focus { border-color: var(--cyan); }
+#chat-send-btn {
+  font-family: var(--font); font-size: 11px; font-weight: 600;
+  padding: 8px 14px;
+  background: var(--cyan-glow);
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  height: 38px;
+}
+#chat-send-btn:hover { background: rgba(86,182,194,0.2); }
+#chat-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.chat-hint { font-size: 9px; color: var(--dimmer); white-space: nowrap; padding-bottom: 10px; }
 </style>
 </head>
 <body>
@@ -760,6 +1034,12 @@ body {
   <div id="logo">
     <div id="logo-dot"></div>
     cc-agent
+  </div>
+  <div class="topbar-sep"></div>
+  <div id="tab-nav">
+    <button class="tab-btn active" data-tab="jobs">Jobs</button>
+    <button class="tab-btn" data-tab="crons">Crons</button>
+    <button class="tab-btn" data-tab="chat">Chat</button>
   </div>
   <div class="topbar-sep"></div>
   <div id="job-counts">
@@ -800,6 +1080,60 @@ body {
     <div id="zoom-hint">100%</div>
   </div>
 
+</div>
+
+<!-- Crons Panel -->
+<div id="crons-panel">
+  <div class="crons-header">
+    <div class="crons-title">Cron Jobs</div>
+    <button id="add-cron-btn" onclick="cronToggleForm()">+ Add Cron</button>
+  </div>
+  <div id="cron-add-form">
+    <div class="cron-form-title">New Cron Job</div>
+    <div class="cron-form-row">
+      <div class="cron-field">
+        <label>Name</label>
+        <input id="cf-name" class="cron-input" type="text" placeholder="my-daily-job">
+      </div>
+      <div class="cron-field">
+        <label>Schedule (cron expr)</label>
+        <input id="cf-schedule" class="cron-input" type="text" placeholder="0 9 * * *">
+      </div>
+    </div>
+    <div class="cron-form-row single">
+      <div class="cron-field">
+        <label>Repo URL</label>
+        <input id="cf-repo" class="cron-input" type="text" placeholder="https://github.com/owner/repo">
+      </div>
+    </div>
+    <div class="cron-form-row single">
+      <div class="cron-field">
+        <label>Prompt</label>
+        <textarea id="cf-prompt" class="cron-input cron-textarea" placeholder="Describe what cc-agent should do…"></textarea>
+      </div>
+    </div>
+    <div class="cron-form-actions">
+      <label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--dim);cursor:pointer">
+        <input id="cf-enabled" type="checkbox" checked> Enabled
+      </label>
+      <div style="flex:1"></div>
+      <button class="cron-btn secondary" onclick="cronToggleForm()">Cancel</button>
+      <button class="cron-btn primary" onclick="cronSubmit()">Create Cron</button>
+    </div>
+  </div>
+  <div id="cron-list" class="cron-list">
+    <div class="cron-empty">Loading crons…</div>
+  </div>
+</div>
+
+<!-- Chat Panel -->
+<div id="chat-panel">
+  <div id="chat-messages"></div>
+  <div id="chat-input-bar">
+    <textarea id="chat-textarea" placeholder="Type a message… (Ctrl+Enter to send)" rows="1"></textarea>
+    <span class="chat-hint">Ctrl+Enter</span>
+    <button id="chat-send-btn" onclick="chatSend()">Send</button>
+  </div>
 </div>
 
 <!-- Job Detail Panel -->
@@ -1757,6 +2091,256 @@ setInterval(() => {
 })();
 
 connect();
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+const mainEl     = $('main');
+const cronsPanel = $('crons-panel');
+const chatPanel  = $('chat-panel');
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (tab === 'jobs') {
+      mainEl.style.display = 'flex';
+      cronsPanel.classList.remove('active');
+      chatPanel.classList.remove('active');
+    } else if (tab === 'crons') {
+      mainEl.style.display = 'none';
+      cronsPanel.classList.add('active');
+      chatPanel.classList.remove('active');
+      cronLoad();
+    } else if (tab === 'chat') {
+      mainEl.style.display = 'none';
+      cronsPanel.classList.remove('active');
+      chatPanel.classList.add('active');
+      chatInit();
+    }
+  });
+});
+
+// ── Crons ─────────────────────────────────────────────────────────────────
+let cronPollTimer = null;
+let cronFormVisible = false;
+
+function cronToggleForm() {
+  cronFormVisible = !cronFormVisible;
+  const form = $('cron-add-form');
+  if (cronFormVisible) {
+    form.classList.add('visible');
+    $('cf-name').focus();
+  } else {
+    form.classList.remove('visible');
+    cronClearForm();
+  }
+}
+
+function cronClearForm() {
+  $('cf-name').value = '';
+  $('cf-schedule').value = '';
+  $('cf-repo').value = '';
+  $('cf-prompt').value = '';
+  $('cf-enabled').checked = true;
+}
+
+function fmtTs(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString();
+  } catch { return iso; }
+}
+
+function renderCrons(crons) {
+  const list = $('cron-list');
+  if (!crons.length) {
+    list.innerHTML = '<div class="cron-empty">No crons yet. Click "+ Add Cron" to create one.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  for (const c of crons) {
+    const repoShort = (c.repoUrl || '').length > 40 ? c.repoUrl.slice(0, 40) + '…' : (c.repoUrl || '—');
+    const card = document.createElement('div');
+    card.className = 'cron-card';
+    card.innerHTML = `
+      <div class="cron-card-main">
+        <div class="cron-card-name">${escHtml(c.name || '(unnamed)')}</div>
+        <div class="cron-card-meta">
+          <div class="cron-meta-item">schedule: <span>${escHtml(c.schedule || '—')}</span></div>
+          <div class="cron-meta-item">repo: <span title="${escHtml(c.repoUrl || '')}">${escHtml(repoShort)}</span></div>
+        </div>
+        <div class="cron-card-prompt">${escHtml(c.prompt || '')}</div>
+        <div class="cron-card-times">
+          <div class="cron-time-item">last run: <span>${fmtTs(c.lastRun)}</span></div>
+          <div class="cron-time-item">next run: <span>${fmtTs(c.nextRun)}</span></div>
+        </div>
+      </div>
+      <div class="cron-card-actions">
+        <label class="cron-toggle" title="${c.enabled ? 'Enabled' : 'Disabled'}">
+          <input type="checkbox" ${c.enabled ? 'checked' : ''} data-id="${escHtml(c.id)}">
+          <div class="cron-toggle-track"></div>
+          <div class="cron-toggle-thumb"></div>
+        </label>
+        <button class="cron-delete-btn" data-id="${escHtml(c.id)}" title="Delete cron">×</button>
+      </div>`;
+    // Toggle enabled
+    card.querySelector('.cron-toggle input').addEventListener('change', async e => {
+      e.stopPropagation();
+      const enabled = e.target.checked;
+      try {
+        await fetch(`/crons/${c.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled }),
+        });
+      } catch (err) { console.error('patch cron', err); }
+    });
+    // Delete
+    card.querySelector('.cron-delete-btn').addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm(`Delete cron "${c.name}"?`)) return;
+      try {
+        await fetch(`/crons/${c.id}`, { method: 'DELETE' });
+        await cronLoad();
+      } catch (err) { console.error('delete cron', err); }
+    });
+    list.appendChild(card);
+  }
+}
+
+async function cronLoad() {
+  try {
+    const r = await fetch('/crons');
+    if (!r.ok) throw new Error(await r.text());
+    const crons = await r.json();
+    renderCrons(crons);
+  } catch (e) {
+    $('cron-list').innerHTML = `<div class="cron-empty" style="color:var(--red)">Error loading crons: ${escHtml(e.message)}</div>`;
+  }
+}
+
+async function cronSubmit() {
+  const name = $('cf-name').value.trim();
+  const schedule = $('cf-schedule').value.trim();
+  const repoUrl = $('cf-repo').value.trim();
+  const prompt = $('cf-prompt').value.trim();
+  const enabled = $('cf-enabled').checked;
+  if (!name || !schedule || !repoUrl || !prompt) {
+    alert('Please fill in all fields.');
+    return;
+  }
+  try {
+    const r = await fetch('/crons', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, schedule, repoUrl, prompt, enabled }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    cronClearForm();
+    cronToggleForm();
+    await cronLoad();
+  } catch (e) {
+    alert('Error creating cron: ' + e.message);
+  }
+}
+
+// Poll crons every 10s when panel is active
+setInterval(() => {
+  if (cronsPanel.classList.contains('active')) cronLoad();
+}, 10000);
+
+// ── Chat ─────────────────────────────────────────────────────────────────
+let chatInitialized = false;
+let chatSSE = null;
+
+function escHtmlChat(s) { return escHtml(s); }
+
+function chatMsgEl(msg) {
+  const isUser = msg.role === 'user';
+  const isTg   = msg.source === 'telegram';
+  const div = document.createElement('div');
+  div.className = `chat-msg ${isUser ? 'user' : 'assistant'}`;
+  div.dataset.id = msg.id || '';
+  const ts = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
+  div.innerHTML = `
+    <div class="chat-bubble">${escHtml(msg.content || '')}</div>
+    <div class="chat-msg-meta">
+      ${ts}
+      ${isTg ? '<span class="chat-badge-tg">📱 Telegram</span>' : ''}
+    </div>`;
+  return div;
+}
+
+function chatAppend(msg) {
+  const messagesEl = $('chat-messages');
+  const el = chatMsgEl(msg);
+  messagesEl.appendChild(el);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+async function chatInit() {
+  if (chatInitialized) return;
+  chatInitialized = true;
+
+  // Load history
+  try {
+    const r = await fetch('/chat/history');
+    if (r.ok) {
+      const msgs = await r.json();
+      const messagesEl = $('chat-messages');
+      messagesEl.innerHTML = '';
+      for (const m of msgs) chatAppend(m);
+    }
+  } catch (e) { console.error('chat history', e); }
+
+  // SSE
+  chatSSE = new EventSource('/chat/stream');
+  chatSSE.onmessage = e => {
+    try {
+      const msg = JSON.parse(e.data);
+      // Deduplicate: skip if we already have this id (sent by us)
+      if (msg.id && document.querySelector(`[data-id="${CSS.escape(msg.id)}"]`)) return;
+      chatAppend(msg);
+    } catch {}
+  };
+  chatSSE.onerror = () => { console.warn('chat SSE disconnected, will retry'); };
+
+  // Textarea auto-resize
+  const ta = $('chat-textarea');
+  ta.addEventListener('input', () => {
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
+  });
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); chatSend(); }
+  });
+}
+
+async function chatSend() {
+  const ta = $('chat-textarea');
+  const message = ta.value.trim();
+  if (!message) return;
+  const btn = $('chat-send-btn');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/chat/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const msg = await r.json();
+    ta.value = '';
+    ta.style.height = 'auto';
+    chatAppend(msg);
+  } catch (e) {
+    alert('Error sending message: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    ta.focus();
+  }
+}
 </script>
 </body>
 </html>
