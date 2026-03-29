@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  cc-agent-ui:
+    build: .
+    ports:
+      - "7701:7701"
+    environment:
+      - REDIS_URL=redis://host.docker.internal:6379
+      - PORT=7701
+    restart: unless-stopped
