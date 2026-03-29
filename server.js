@@ -16,10 +16,12 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
 import { createClient } from 'redis';
 import { exec, execFile } from 'child_process';
+import { randomUUID } from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PORT     = parseInt(process.env.PORT || '7701', 10);
-const JOBS_DIR = path.join(os.homedir(), '.cc-agent', 'jobs');
+const PORT      = parseInt(process.env.PORT || '7701', 10);
+const JOBS_DIR  = path.join(os.homedir(), '.cc-agent', 'jobs');
+const NAMESPACE = process.env.NAMESPACE || 'default';
 const UI_FILE  = path.join(__dirname, 'public', 'index.html');
 const TAIL_LINES = 150;
 
@@ -337,6 +339,104 @@ const server = http.createServer((req, res) => {
     });
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
+
+  } else if (url.pathname === '/crons' && req.method === 'GET') {
+    (async () => {
+      try {
+        const all = await redis.hGetAll(`cca:crons:${NAMESPACE}`);
+        const crons = Object.values(all).map(v => JSON.parse(v));
+        crons.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(crons));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    })();
+
+  } else if (url.pathname === '/crons' && req.method === 'POST') {
+    let body = '';
+    req.on('data', d => body += d);
+    req.on('end', async () => {
+      try {
+        const { name, schedule, prompt, repoUrl, enabled } = JSON.parse(body);
+        const id = randomUUID();
+        const cron = { id, name, schedule, prompt, repoUrl, enabled: enabled !== false, createdAt: Date.now() };
+        await redis.hSet(`cca:crons:${NAMESPACE}`, id, JSON.stringify(cron));
+        res.writeHead(201, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(cron));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    });
+
+  } else if (url.pathname.startsWith('/crons/') && req.method === 'DELETE') {
+    (async () => {
+      try {
+        const id = url.pathname.slice('/crons/'.length);
+        await redis.hDel(`cca:crons:${NAMESPACE}`, id);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    })();
+
+  } else if (url.pathname.startsWith('/crons/') && req.method === 'PATCH') {
+    let body = '';
+    req.on('data', d => body += d);
+    req.on('end', async () => {
+      try {
+        const id = url.pathname.slice('/crons/'.length);
+        const updates = JSON.parse(body);
+        const existing = await redis.hGet(`cca:crons:${NAMESPACE}`, id);
+        if (!existing) { res.writeHead(404); res.end('cron not found'); return; }
+        const cron = { ...JSON.parse(existing), ...updates, id };
+        await redis.hSet(`cca:crons:${NAMESPACE}`, id, JSON.stringify(cron));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(cron));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    });
+
+  } else if (url.pathname === '/chat/history' && req.method === 'GET') {
+    (async () => {
+      try {
+        const raw = await redis.lRange(`cca:chat:log:${NAMESPACE}`, 0, 99);
+        const messages = raw.map(v => JSON.parse(v)).reverse();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(messages));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    })();
+
+  } else if (url.pathname === '/chat/send' && req.method === 'POST') {
+    let body = '';
+    req.on('data', d => body += d);
+    req.on('end', async () => {
+      try {
+        const { message } = JSON.parse(body);
+        const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, timestamp: Date.now() };
+        await redis.lPush(`cca:chat:log:${NAMESPACE}`, JSON.stringify(msg));
+        await redis.lTrim(`cca:chat:log:${NAMESPACE}`, 0, 499);
+        await redis.publish(`cca:chat:incoming:${NAMESPACE}`, JSON.stringify(msg));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(msg));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    });
+
+  } else if (url.pathname === '/chat/stream' && req.method === 'GET') {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    });
+    const sub = redis.duplicate();
+    (async () => {
+      try {
+        await sub.connect();
+        await sub.subscribe(`cca:chat:outgoing:${NAMESPACE}`, (msg) => {
+          res.write(`data: ${msg}\n\n`);
+        });
+        req.on('close', async () => {
+          try { await sub.unsubscribe(`cca:chat:outgoing:${NAMESPACE}`); } catch {}
+          try { await sub.disconnect(); } catch {}
+        });
+      } catch (e) {
+        res.end();
+      }
+    })();
 
   } else {
     res.writeHead(404); res.end();
