@@ -979,6 +979,20 @@ body {
   padding: 1px 4px;
 }
 
+.chat-msg.tool { align-self: flex-start; align-items: flex-start; max-width: 90%; }
+.chat-msg.tool .chat-bubble {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--dim);
+  font-family: var(--font);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.chat-tool-name { color: var(--cyan); font-weight: 600; display: block; margin-bottom: 2px; }
+.chat-tool-arg { color: var(--dim); margin-left: 8px; }
+.chat-tool-val { color: var(--text); }
+
 #chat-input-bar {
   flex-shrink: 0;
   padding: 12px 20px;
@@ -1301,9 +1315,10 @@ function appendLines(logEl, lines, isNew) {
     if (isNew) setTimeout(() => d.classList.remove('tl-new'), 1500);
     frag.appendChild(d);
   }
+  const atBottom = logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 40;
   logEl.appendChild(frag);
   while (logEl.children.length > 300) logEl.removeChild(logEl.firstChild);
-  logEl.scrollTop = logEl.scrollHeight;
+  if (atBottom) logEl.scrollTop = logEl.scrollHeight;
 }
 
 function setWorkingIndicator(logEl, show) {
@@ -2258,17 +2273,43 @@ function escHtmlChat(s) { return escHtml(s); }
 
 function chatMsgEl(msg) {
   const isUser = msg.role === 'user';
+  const isTool = msg.role === 'tool';
   const isTg   = msg.source === 'telegram';
   const div = document.createElement('div');
-  div.className = `chat-msg ${isUser ? 'user' : 'assistant'}`;
   div.dataset.id = msg.id || '';
   const ts = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
-  div.innerHTML = `
-    <div class="chat-bubble">${escHtml(msg.content || '')}</div>
-    <div class="chat-msg-meta">
-      ${ts}
-      ${isTg ? '<span class="chat-badge-tg">📱 Telegram</span>' : ''}
-    </div>`;
+
+  if (isTool) {
+    div.className = 'chat-msg tool';
+    const content = msg.content || '';
+    const m = content.match(/^\[tool\]\s+(\w+):\s+(\{.*\})$/s);
+    let bubbleInner;
+    if (m) {
+      const toolName = escHtml(m[1]);
+      let rows = '';
+      try {
+        const args = JSON.parse(m[2]);
+        for (const [k, v] of Object.entries(args)) {
+          const val = String(v).length > 120 ? String(v).slice(0, 120) + '…' : String(v);
+          rows += `<div><span class="chat-tool-arg">${escHtml(k)}:</span> <span class="chat-tool-val">${escHtml(val)}</span></div>`;
+        }
+      } catch {
+        rows = `<div><span class="chat-tool-val">${escHtml(m[2])}</span></div>`;
+      }
+      bubbleInner = `<span class="chat-tool-name">[tool] ${toolName}</span>${rows}`;
+    } else {
+      bubbleInner = escHtml(content);
+    }
+    div.innerHTML = `<div class="chat-bubble">${bubbleInner}</div><div class="chat-msg-meta">${ts}</div>`;
+  } else {
+    div.className = `chat-msg ${isUser ? 'user' : 'assistant'}`;
+    div.innerHTML = `
+      <div class="chat-bubble">${escHtml(msg.content || '')}</div>
+      <div class="chat-msg-meta">
+        ${ts}
+        ${isTg ? '<span class="chat-badge-tg">📱 Telegram</span>' : ''}
+      </div>`;
+  }
   return div;
 }
 
