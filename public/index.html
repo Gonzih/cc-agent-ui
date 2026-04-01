@@ -2357,12 +2357,7 @@ async function chatInit() {
   };
   chatSSE.onerror = () => { console.warn('chat SSE disconnected, will retry'); };
 
-  // Textarea auto-resize
   const ta = $('chat-textarea');
-  ta.addEventListener('input', () => {
-    ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
-  });
   ta.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); }
   });
@@ -2383,7 +2378,6 @@ async function chatSend() {
     if (!r.ok) throw new Error(await r.text());
     const msg = await r.json();
     ta.value = '';
-    ta.style.height = 'auto';
     chatAppend(msg);
   } catch (e) {
     alert('Error sending message: ' + e.message);
