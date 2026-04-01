@@ -102,6 +102,15 @@ body {
   letter-spacing: 0.03em;
 }
 
+#version-badge {
+  font-size: 9px;
+  color: var(--dim);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+#version-badge .vb-unknown { color: var(--dimmer); }
+
 #ws-dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--dim); flex-shrink:0;
@@ -1063,6 +1072,7 @@ body {
     <div class="jcount failed"><span class="jcount-n" id="c-failed">0</span><span class="jcount-l">failed</span></div>
   </div>
   <div class="topbar-hint">scroll · drag to pan · wheel to zoom · click job to focus</div>
+  <div id="version-badge" title="Component versions"></div>
   <div id="ws-dot" title="WebSocket"></div>
 </div>
 
@@ -1291,7 +1301,7 @@ function classifyLine(raw) {
 function formatLine(raw) {
   const s = raw.replace(/\x1b\[[0-9;]*m/g, '');
   // Enrich [tool] lines with icon
-  const toolMatch = s.match(/^\[tool\] (\w+)(.*)/);
+  const toolMatch = s.match(/^\[tool\] ([\w-]+)(.*)/);
   if (toolMatch) {
     const icon = TOOL_ICONS[toolMatch[1]] || '⚙';
     return `${icon} ${toolMatch[1]}${toolMatch[2]}`;
@@ -2282,7 +2292,7 @@ function chatMsgEl(msg) {
   if (isTool) {
     div.className = 'chat-msg tool';
     const content = msg.content || '';
-    const m = content.match(/^\[tool\]\s+(\w+):\s+(\{.*\})$/s);
+    const m = content.match(/^\[tool\]\s+([\w-]+):\s+(\{.*\})$/s);
     let bubbleInner;
     if (m) {
       const toolName = escHtml(m[1]);
@@ -2382,6 +2392,28 @@ async function chatSend() {
     ta.focus();
   }
 }
+
+// ── Version badge ─────────────────────────────────────────────────────────
+async function fetchVersions() {
+  try {
+    const r = await fetch('/versions');
+    if (!r.ok) return;
+    const v = await r.json();
+    const badge = document.getElementById('version-badge');
+    if (!badge) return;
+    const fmt = (label, val) => {
+      const cls = val === 'unknown' ? ' class="vb-unknown"' : '';
+      return `<span${cls}>${label}:${val}</span>`;
+    };
+    badge.innerHTML = [
+      fmt('ui', v['cc-agent-ui'] || 'unknown'),
+      fmt('agent', v['cc-agent'] || 'unknown'),
+      fmt('tg', v['cc-tg'] || 'unknown'),
+    ].join(' &nbsp;');
+  } catch {}
+}
+fetchVersions();
+setInterval(fetchVersions, 60000);
 </script>
 </body>
 </html>

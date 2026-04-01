@@ -446,6 +446,24 @@ const server = http.createServer((req, res) => {
       }
     })();
 
+  } else if (url.pathname === '/versions' && req.method === 'GET') {
+    (async () => {
+      try {
+        const pkgPath = path.join(__dirname, 'package.json');
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+        const [agentVer, tgVer] = await Promise.all([
+          redis.get('cca:meta:cc-agent:version').catch(() => null),
+          redis.get('cca:meta:cc-tg:version').catch(() => null),
+        ]);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          'cc-agent-ui': pkg.version,
+          'cc-agent': agentVer || 'unknown',
+          'cc-tg': tgVer || 'unknown',
+        }));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    })();
+
   } else {
     res.writeHead(404); res.end();
   }
