@@ -304,13 +304,11 @@ const server = http.createServer((req, res) => {
           await redis.rPush(`cca:job:${id}:output`, '[cc-agent-ui] Approved by UI — use MCP approve_job to start');
           broadcast({ type: 'job_output', id, lines: ['[cc-agent-ui] Approved by UI — use MCP approve_job to start'] });
         } else if (action === 'cancel') {
-          const updated = { ...job, status: 'cancelled', cancelledAt: new Date().toISOString() };
-          await redis.set(`cca:job:${id}`, JSON.stringify(updated));
-          broadcast({ type: 'job_update', job: updated });
+          await redis.set(`cca:job:${id}:signal`, 'cancel');
+          broadcast({ type: 'job_output', id, lines: ['[cc-agent-ui] cancel signal sent'] });
         } else if (action === 'wake') {
-          const updated = { ...job, status: 'running', wakedAt: new Date().toISOString() };
-          await redis.set(`cca:job:${id}`, JSON.stringify(updated));
-          broadcast({ type: 'job_update', job: updated });
+          await redis.set(`cca:job:${id}:signal`, 'wake');
+          broadcast({ type: 'job_output', id, lines: ['[cc-agent-ui] wake signal sent'] });
         } else if (action === 'message') {
           if (message) {
             // Queue for cc-agent to pick up (future: cc-agent polls cca:job:{id}:input)
@@ -415,7 +413,7 @@ const server = http.createServer((req, res) => {
     req.on('end', async () => {
       try {
         const { message } = JSON.parse(body);
-        const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, timestamp: Date.now() };
+        const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, timestamp: new Date().toISOString() };
         await redis.lPush(`cca:chat:log:${NAMESPACE}`, JSON.stringify(msg));
         await redis.lTrim(`cca:chat:log:${NAMESPACE}`, 0, 499);
         await redis.publish(`cca:chat:incoming:${NAMESPACE}`, JSON.stringify(msg));
