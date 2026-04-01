@@ -2300,7 +2300,7 @@ function chatMsgEl(msg) {
       try {
         const args = JSON.parse(m[2]);
         for (const [k, v] of Object.entries(args)) {
-          const val = String(v).length > 300 ? String(v).slice(0, 300) + '…' : String(v);
+          const val = String(v);
           rows += `<div><span class="chat-tool-arg">${escHtml(k)}:</span> <span class="chat-tool-val">${escHtml(val)}</span></div>`;
         }
       } catch {
