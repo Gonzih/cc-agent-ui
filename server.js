@@ -182,7 +182,7 @@ const server = http.createServer((req, res) => {
     try {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(fs.readFileSync(UI_FILE));
-    } catch { res.writeHead(500); res.end('UI not found'); }
+    } catch { if (!res.headersSent) res.writeHead(500); res.end('UI not found'); }
 
   } else if (url.pathname === '/api/browse') {
     // List directory or read file
