@@ -2361,11 +2361,8 @@ async function chatInit() {
   ta.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); }
   });
-  ta.addEventListener('input', () => {
-    ta.style.height = '0';
-    ta.style.height = ta.scrollHeight + 'px';
-  });
 }
+
 
 async function chatSend() {
   const ta = $('chat-textarea');
@@ -2380,10 +2377,8 @@ async function chatSend() {
       body: JSON.stringify({ message }),
     });
     if (!r.ok) throw new Error(await r.text());
-    const msg = await r.json();
+    await r.json();
     ta.value = '';
-    ta.style.height = '';
-    chatAppend(msg);
   } catch (e) {
     alert('Error sending message: ' + e.message);
   } finally {
