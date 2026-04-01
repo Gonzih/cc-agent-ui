@@ -1154,8 +1154,8 @@ body {
 <div id="chat-panel">
   <div id="chat-messages"></div>
   <div id="chat-input-bar">
-    <textarea id="chat-textarea" placeholder="Type a message… (Ctrl+Enter to send)" rows="1"></textarea>
-    <span class="chat-hint">Ctrl+Enter</span>
+    <textarea id="chat-textarea" placeholder="Type a message… (Enter to send)" rows="1"></textarea>
+    <span class="chat-hint">Enter</span>
     <button id="chat-send-btn" onclick="chatSend()">Send</button>
   </div>
 </div>
@@ -2300,7 +2300,7 @@ function chatMsgEl(msg) {
       try {
         const args = JSON.parse(m[2]);
         for (const [k, v] of Object.entries(args)) {
-          const val = String(v).length > 120 ? String(v).slice(0, 120) + '…' : String(v);
+          const val = String(v).length > 300 ? String(v).slice(0, 300) + '…' : String(v);
           rows += `<div><span class="chat-tool-arg">${escHtml(k)}:</span> <span class="chat-tool-val">${escHtml(val)}</span></div>`;
         }
       } catch {
@@ -2364,7 +2364,7 @@ async function chatInit() {
     ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
   });
   ta.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); chatSend(); }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); }
   });
 }
 
