@@ -414,11 +414,9 @@ const server = http.createServer((req, res) => {
       try {
         const { message } = JSON.parse(body);
         const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, timestamp: new Date().toISOString() };
-        await redis.lPush(`cca:chat:log:${NAMESPACE}`, JSON.stringify(msg));
-        await redis.lTrim(`cca:chat:log:${NAMESPACE}`, 0, 499);
         await redis.publish(`cca:chat:incoming:${NAMESPACE}`, JSON.stringify(msg));
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(msg));
+        res.end(JSON.stringify({ ok: true }));
       } catch (e) { res.writeHead(500); res.end(e.message); }
     });
 
