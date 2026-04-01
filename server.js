@@ -21,7 +21,7 @@ import { randomUUID } from 'crypto';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = parseInt(process.env.PORT || '7701', 10);
 const JOBS_DIR  = path.join(os.homedir(), '.cc-agent', 'jobs');
-const NAMESPACE = process.env.NAMESPACE || 'default';
+const NAMESPACE = process.env.CC_AGENT_NAMESPACE || process.env.NAMESPACE || 'default';
 const UI_FILE  = path.join(__dirname, 'public', 'index.html');
 const TAIL_LINES = 150;
 
