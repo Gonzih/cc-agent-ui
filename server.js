@@ -397,10 +397,15 @@ const server = http.createServer((req, res) => {
       } catch (e) { res.writeHead(500); res.end(e.message); }
     });
 
+  } else if (url.pathname === '/api/config' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ namespace: NAMESPACE }));
+
   } else if (url.pathname === '/chat/history' && req.method === 'GET') {
     (async () => {
       try {
-        const raw = await redis.lRange(`cca:chat:log:${NAMESPACE}`, 0, 99);
+        const namespace = url.searchParams.get('namespace') || NAMESPACE;
+        const raw = await redis.lRange(`cca:chat:log:${namespace}`, 0, 99);
         const messages = raw.map(v => JSON.parse(v)).reverse();
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(messages));
@@ -412,9 +417,13 @@ const server = http.createServer((req, res) => {
     req.on('data', d => body += d);
     req.on('end', async () => {
       try {
-        const { message } = JSON.parse(body);
-        const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, timestamp: new Date().toISOString() };
-        await redis.publish(`cca:chat:incoming:${NAMESPACE}`, JSON.stringify(msg));
+        const parsed = JSON.parse(body);
+        const namespace = parsed.namespace || NAMESPACE;
+        const message = parsed.message;
+        const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, namespace, timestamp: new Date().toISOString() };
+        await redis.publish(`cca:chat:incoming:${namespace}`, JSON.stringify(msg));
+        await redis.lPush(`cca:chat:log:${namespace}`, JSON.stringify(msg));
+        await redis.lTrim(`cca:chat:log:${namespace}`, 0, 499);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));
       } catch (e) { res.writeHead(500); res.end(e.message); }
@@ -426,15 +435,39 @@ const server = http.createServer((req, res) => {
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
     });
+    res.write(':ok\n\n');
     const sub = redis.duplicate();
     (async () => {
       try {
         await sub.connect();
-        await sub.subscribe(`cca:chat:outgoing:${NAMESPACE}`, (msg) => {
-          res.write(`data: ${msg}\n\n`);
-        });
+        const subscribed = new Set();
+        let closed = false;
+
+        async function subscribeToNamespaces() {
+          if (closed) return;
+          try {
+            const namespaces = await getNamespaces();
+            for (const ns of namespaces) {
+              if (!subscribed.has(ns)) {
+                subscribed.add(ns);
+                await sub.subscribe(`cca:chat:outgoing:${ns}`, (rawMsg) => {
+                  try {
+                    const parsed = JSON.parse(rawMsg);
+                    if (!parsed.namespace) parsed.namespace = ns;
+                    res.write(`data: ${JSON.stringify(parsed)}\n\n`);
+                  } catch {}
+                });
+              }
+            }
+          } catch {}
+        }
+
+        await subscribeToNamespaces();
+        const pollInterval = setInterval(subscribeToNamespaces, 30000);
+
         req.on('close', async () => {
-          try { await sub.unsubscribe(`cca:chat:outgoing:${NAMESPACE}`); } catch {}
+          closed = true;
+          clearInterval(pollInterval);
           try { await sub.disconnect(); } catch {}
         });
       } catch (e) {
