@@ -190,30 +190,50 @@ body {
 }
 #meta-bar-send:hover { background: rgba(99,102,241,0.35); }
 
-/* ── Per-column chat ──────────────────────────────────────────────────── */
-.col-chat {
-  margin-top: 4px;
-  border: 1px solid var(--border);
+/* ── Per-column META bar ──────────────────────────────────────────────── */
+.col-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(99, 102, 241, 0.07);
+  border: 1px solid rgba(99, 102, 241, 0.18);
   border-radius: 5px;
-  background: rgba(0,0,0,0.2);
-  padding: 6px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  padding: 5px 8px;
+  margin-bottom: 2px;
 }
-.col-chat-msgs {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-height: 0;
+.col-meta-label {
+  display: flex; align-items: center; gap: 5px; flex-shrink: 0;
 }
-.col-chat-input-row {
-  display: flex; gap: 4px;
+.col-meta-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #6366f1;
+  box-shadow: 0 0 5px #6366f1;
+  animation: breathe 2.5s ease-in-out infinite;
 }
-.col-chat-input {
+.col-meta-tag {
+  font-size: 9px; font-weight: 700; color: #818cf8;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.col-meta-msgs {
   flex: 1;
+  overflow: hidden;
+  min-width: 0;
+  font-size: 10px;
+  color: var(--dim);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.col-meta-msgs .meta-msg {
+  max-width: none;
+}
+.col-meta-input-row {
+  display: flex; gap: 4px; flex-shrink: 0;
+}
+.col-meta-input {
+  width: 120px;
   background: rgba(0,0,0,0.3);
-  border: 1px solid var(--border);
+  border: 1px solid rgba(99,102,241,0.25);
   border-radius: 3px;
   color: var(--text);
   font-family: var(--font);
@@ -221,18 +241,18 @@ body {
   padding: 3px 6px;
   outline: none;
 }
-.col-chat-input:focus { border-color: var(--border-hi); }
-.col-chat-send {
-  background: transparent;
-  border: 1px solid var(--border);
+.col-meta-input:focus { border-color: #6366f1; }
+.col-meta-send {
+  background: rgba(99,102,241,0.15);
+  border: 1px solid rgba(99,102,241,0.25);
   border-radius: 3px;
-  color: var(--dim);
+  color: #818cf8;
   font-size: 10px;
   padding: 3px 6px;
   cursor: pointer;
   font-family: var(--font);
 }
-.col-chat-send:hover { color: var(--text); border-color: var(--border-hi); }
+.col-meta-send:hover { background: rgba(99,102,241,0.3); }
 
 /* ── Layout ───────────────────────────────────────────────────────────── */
 #main {
@@ -1653,21 +1673,25 @@ function getOrCreateCol(key) {
       <span class="col-repo-name" title="${escHtml(key)}">${escHtml(key)}</span>
       <span class="col-counts"></span>
     </div>
-    <div class="col-cards"></div>
-    <div class="col-chat">
-      <div class="col-chat-msgs" id="col-chat-msgs-${safeKey}"></div>
-      <div class="col-chat-input-row">
-        <input class="col-chat-input" type="text" placeholder="message ${escHtml(key)}…" autocomplete="off" data-ns="${escHtml(key)}">
-        <button class="col-chat-send" data-ns="${escHtml(key)}">↵</button>
+    <div class="col-meta">
+      <div class="col-meta-label">
+        <span class="col-meta-dot"></span>
+        <span class="col-meta-tag">META</span>
+      </div>
+      <div class="col-meta-msgs" id="col-meta-msgs-${safeKey}"></div>
+      <div class="col-meta-input-row">
+        <input class="col-meta-input" type="text" placeholder="message…" autocomplete="off" data-ns="${escHtml(key)}">
+        <button class="col-meta-send" data-ns="${escHtml(key)}">↵</button>
       </div>
     </div>
+    <div class="col-cards"></div>
   `;
   cols[key] = { el, cardsEl: el.querySelector('.col-cards') };
   inner.appendChild(el);
 
   // Wire up per-column chat send
-  const colInput = el.querySelector('.col-chat-input');
-  const colBtn = el.querySelector('.col-chat-send');
+  const colInput = el.querySelector('.col-meta-input');
+  const colBtn = el.querySelector('.col-meta-send');
   const sendColMsg = async () => {
     const msg = colInput.value.trim();
     if (!msg) return;
@@ -2609,7 +2633,7 @@ function handleChatEvent(data) {
     }
     // Also update per-column chat if the column exists
     const safeNs = ns.replace(/[^a-z0-9]/gi, '-');
-    const colChat = document.getElementById(`col-chat-msgs-${safeNs}`);
+    const colChat = document.getElementById(`col-meta-msgs-${safeNs}`);
     if (colChat) {
       const d = document.createElement('div');
       d.className = `meta-msg ${parsed.role || 'assistant'}`;
