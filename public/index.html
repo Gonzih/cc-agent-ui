@@ -32,7 +32,6 @@
   --purple:     #c678dd;
   --orange:     #d19a66;
   --blue:       #61afef;
-  --indigo-glow: rgba(99,102,241,0.08);
   --font: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
 }
 
@@ -45,20 +44,6 @@ body {
   display: flex;
   flex-direction: column;
 }
-
-/* ── Animations ───────────────────────────────────────────────────────── */
-@keyframes breathe {
-  0%,100% { opacity:1; transform:scale(1); }
-  50%      { opacity:0.4; transform:scale(0.7); }
-}
-@keyframes pulse-dot {
-  0%,100% { opacity: 1; box-shadow: 0 0 6px var(--green); }
-  50%      { opacity: 0.5; box-shadow: 0 0 2px var(--green); }
-}
-@keyframes fadein { from { opacity:0; } to { opacity:1; } }
-@keyframes flash-g { 0%{background:rgba(152,195,121,0.2)} 100%{background:transparent} }
-@keyframes flash-r { 0%{background:rgba(224,108,117,0.2)} 100%{background:transparent} }
-@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Top bar ──────────────────────────────────────────────────────────── */
 #topbar {
@@ -89,6 +74,10 @@ body {
   box-shadow: 0 0 8px var(--cyan);
   animation: breathe 2.5s ease-in-out infinite;
 }
+@keyframes breathe {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.4; transform:scale(0.7); }
+}
 
 .topbar-sep { width: 1px; height: 20px; background: var(--border); flex-shrink:0; }
 
@@ -106,13 +95,19 @@ body {
 .jcount.failed  .jcount-n { color: var(--red); }
 .jcount.pending .jcount-n { color: var(--yellow); }
 
+.topbar-hint {
+  margin-left: auto;
+  color: var(--dimmer);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+}
+
 #version-badge {
   font-size: 9px;
   color: var(--dim);
   letter-spacing: 0.02em;
   white-space: nowrap;
   flex-shrink: 0;
-  margin-left: auto;
 }
 #version-badge .vb-unknown { color: var(--dimmer); }
 
@@ -123,6 +118,757 @@ body {
 }
 #ws-dot.ok  { background: var(--green); box-shadow: 0 0 6px var(--green); }
 #ws-dot.err { background: var(--red); }
+
+/* ── Meta-agent bar ───────────────────────────────────────────────────── */
+#meta-bar {
+  flex-shrink: 0;
+  background: rgba(99, 102, 241, 0.07);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px;
+  z-index: 150;
+}
+#meta-bar-label {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+#meta-bar-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #6366f1;
+  box-shadow: 0 0 6px #6366f1;
+  animation: breathe 2.5s ease-in-out infinite;
+}
+#meta-bar-ns {
+  font-size: 10px; font-weight: 700; color: #818cf8;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+#meta-bar-messages {
+  flex: 1;
+  display: flex;
+  gap: 10px;
+  overflow: hidden;
+  min-width: 0;
+}
+.meta-msg {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+  flex-shrink: 0;
+}
+.meta-msg.user { color: var(--dim); }
+.meta-msg.user::before { content: 'you: '; color: var(--dimmer); }
+.meta-msg.assistant { color: var(--text); }
+.meta-msg.assistant::before { content: '✦ '; color: #6366f1; }
+#meta-bar-input-row {
+  display: flex; gap: 6px; flex-shrink: 0;
+}
+#meta-bar-input {
+  width: 240px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 4px 8px;
+  outline: none;
+}
+#meta-bar-input:focus { border-color: #6366f1; }
+#meta-bar-send {
+  background: rgba(99,102,241,0.2);
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 4px;
+  color: #818cf8;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-family: var(--font);
+}
+#meta-bar-send:hover { background: rgba(99,102,241,0.35); }
+
+/* ── Per-column chat ──────────────────────────────────────────────────── */
+.col-chat {
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: rgba(0,0,0,0.2);
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.col-chat-msgs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+}
+.col-chat-input-row {
+  display: flex; gap: 4px;
+}
+.col-chat-input {
+  flex: 1;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 10px;
+  padding: 3px 6px;
+  outline: none;
+}
+.col-chat-input:focus { border-color: var(--border-hi); }
+.col-chat-send {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--dim);
+  font-size: 10px;
+  padding: 3px 6px;
+  cursor: pointer;
+  font-family: var(--font);
+}
+.col-chat-send:hover { color: var(--text); border-color: var(--border-hi); }
+
+/* ── Layout ───────────────────────────────────────────────────────────── */
+#main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────── */
+#sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#sidebar-header {
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#filter-btns {
+  display: flex; gap: 4px; margin-left: auto;
+}
+.fbtn {
+  font-family: var(--font);
+  font-size: 9px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--dim);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.fbtn:hover, .fbtn.active { border-color: var(--cyan); color: var(--cyan); }
+
+#job-list {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+#job-list::-webkit-scrollbar { width: 4px; }
+#job-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.job-item {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+}
+.job-item:hover { background: rgba(255,255,255,0.025); }
+.job-item.active { background: rgba(86,182,194,0.06); }
+.job-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--cyan);
+}
+
+.ji-top {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 4px;
+}
+.ji-status {
+  width: 6px; height: 6px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.ji-status.running  { background: var(--cyan); box-shadow: 0 0 5px var(--cyan); animation: breathe 1.5s ease-in-out infinite; }
+.ji-status.done     { background: var(--green); }
+.ji-status.failed   { background: var(--red); }
+.ji-status.cancelled{ background: var(--dim); }
+.ji-status.pending_approval { background: var(--yellow); animation: breathe 2s ease-in-out infinite; }
+.ji-status.cloning  { background: var(--blue); animation: breathe 1.5s ease-in-out infinite; }
+
+.ji-repo {
+  font-size: 9px; color: var(--dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1;
+}
+.ji-time { font-size: 9px; color: var(--dimmer); flex-shrink: 0; }
+
+.ji-task {
+  font-size: 10px; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.5;
+}
+
+/* ── Viewport (infinite canvas container) ─────────────────────────────── */
+#viewport {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  cursor: grab;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(86,182,194,0.03) 0%, transparent 70%),
+    var(--bg);
+  /* dot grid */
+  background-image:
+    radial-gradient(circle, var(--dimmer) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+#viewport:active { cursor: grabbing; }
+
+/* mini-map hint */
+#zoom-hint {
+  position: absolute;
+  bottom: 12px; right: 14px;
+  font-size: 10px; color: var(--dim);
+  pointer-events: none;
+  z-index: 10;
+}
+
+#canvas-inner {
+  position: absolute;
+  top: 0; left: 0;
+  transform-origin: 0 0;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 24px;
+  width: max-content;
+}
+
+/* ── Repo Column ──────────────────────────────────────────────────────── */
+.repo-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 460px;
+  flex-shrink: 0;
+}
+
+.col-header {
+  padding: 8px 12px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.col-repo-icon { color: var(--dimmer); font-size: 12px; }
+.col-repo-name {
+  font-size: 11px; font-weight: 600; color: var(--blue);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1;
+}
+.col-counts { font-size: 9px; color: var(--dim); flex-shrink: 0; }
+.col-counts.live { color: var(--cyan); }
+
+.col-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Terminal Card ────────────────────────────────────────────────────── */
+.tcard {
+  width: 460px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: border-color 0.25s, box-shadow 0.25s;
+  position: relative;
+}
+
+/* status colors */
+
+.tcard.done     { border-color: #1e2d1e; box-shadow: 0 0 16px var(--green-glow); }
+.tcard.failed   { border-color: #2d1e20; box-shadow: 0 0 16px var(--red-glow); }
+.tcard.pending_approval { border-color: #2d2a1e; box-shadow: 0 0 16px var(--yellow-glow); }
+.tcard.cloning  { border-color: #1e2233; box-shadow: 0 0 16px rgba(97,175,239,0.1); }
+
+@keyframes border-race {
+  0%   { box-shadow: 0 -1px 4px 0px #60a5fa, inset 0 0 0 1px #1e3a8a, 0 0 10px rgba(59,130,246,0.12); }
+  25%  { box-shadow: 2px 0 4px 0px #60a5fa, inset 0 0 0 1px #1e3a8a, 0 0 10px rgba(59,130,246,0.12); }
+  50%  { box-shadow: 0 2px 4px 0px #60a5fa, inset 0 0 0 1px #1e3a8a, 0 0 10px rgba(59,130,246,0.12); }
+  75%  { box-shadow: -2px 0 4px 0px #60a5fa, inset 0 0 0 1px #1e3a8a, 0 0 10px rgba(59,130,246,0.12); }
+  100% { box-shadow: 0 -1px 4px 0px #60a5fa, inset 0 0 0 1px #1e3a8a, 0 0 10px rgba(59,130,246,0.12); }
+}
+
+.tcard.running {
+  border-color: #1e3a8a;
+  animation: border-race 2s linear infinite;
+}
+
+/* ── Card Header ── */
+.card-hdr {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  height: 36px;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.2);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.card-hdr:hover { background: rgba(255,255,255,0.04); }
+
+.card-num {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--dim);
+  flex-shrink: 0;
+}
+.card-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  letter-spacing: 0.01em;
+}
+.card-status-badge {
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.badge-running  { background: rgba(86,182,194,0.15); color: var(--cyan);   border: 1px solid rgba(86,182,194,0.3); }
+.badge-done     { background: rgba(152,195,121,0.15); color: var(--green);  border: 1px solid rgba(152,195,121,0.3); }
+.badge-failed   { background: rgba(224,108,117,0.15); color: var(--red);    border: 1px solid rgba(224,108,117,0.3); }
+.badge-cancelled{ background: rgba(72,76,94,0.3);     color: var(--dim);    border: 1px solid var(--border); }
+.badge-pending_approval { background: rgba(229,192,123,0.15); color: var(--yellow); border: 1px solid rgba(229,192,123,0.3); }
+.badge-cloning  { background: rgba(97,175,239,0.15); color: var(--blue);    border: 1px solid rgba(97,175,239,0.3); }
+
+.card-id {
+  font-size: 9px;
+  color: var(--dimmer);
+  flex-shrink: 0;
+  font-weight: 400;
+}
+/* traffic lights */
+.card-dots { display:flex; gap:5px; margin-left:6px; flex-shrink:0; }
+.card-dot  { width:9px; height:9px; border-radius:50%; }
+.dot-r { background:#e06c75; }
+.dot-y { background:#e5c07b; }
+.dot-g { background:#98c379; }
+
+/* ── Card repo bar ── */
+.card-repo {
+  padding: 5px 12px;
+  font-size: 9px;
+  color: var(--dim);
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.1);
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-repo-icon { color: var(--dimmer); }
+.card-branch { color: var(--purple); margin-left: auto; flex-shrink:0; }
+.card-docker-badge { color: #38bdf8; font-size:9px; background: rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.3); border-radius:3px; padding:1px 5px; flex-shrink:0; }
+
+/* ── Terminal body ── */
+.card-term {
+  flex: 1;
+  background: var(--card-body);
+  padding: 10px 12px;
+  overflow-y: auto;
+  min-height: 220px;
+  max-height: 300px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.card-term::-webkit-scrollbar { width: 4px; }
+.card-term::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+/* Output line coloring */
+.tl { white-space: pre-wrap; word-break: break-all; }
+.tl-sys  { color: #7a8099; }              /* [cc-agent] meta lines */
+.tl-ok   { color: var(--green); }         /* success */
+.tl-err  { color: var(--red); }           /* errors */
+.tl-warn { color: var(--yellow); }        /* warnings */
+.tl-tool { color: var(--blue); opacity: 0.8; font-size: 10px; } /* tool calls */
+.tl-file { color: var(--orange); }        /* file operations */
+.tl-head { color: var(--cyan); font-weight:600; }  /* bold headings */
+.tl-dim  { color: var(--dim); }           /* faded */
+.tl-new  { color: var(--text); animation: fadein 0.25s ease-out; }
+@keyframes fadein { from { opacity:0; } to { opacity:1; } }
+
+/* ── Card footer (prompt bar) ── */
+.card-foot {
+  border-top: 1px solid var(--border);
+  background: rgba(0,0,0,0.2);
+  padding: 5px 12px;
+  display: flex; align-items: center; gap: 10px;
+  flex-shrink: 0;
+  min-height: 28px;
+}
+.card-prompt {
+  font-size: 10px; color: var(--dim);
+  display: flex; align-items: center; gap: 6px;
+}
+.prompt-arrow { color: var(--red); font-size: 11px; font-weight:700; }
+.card-foot-meta { margin-left: auto; font-size: 9px; color: var(--dimmer); white-space:nowrap; }
+
+/* ── Flash animations ── */
+@keyframes flash-g { 0%{background:rgba(152,195,121,0.2)} 100%{background:var(--card-bg)} }
+@keyframes flash-r { 0%{background:rgba(224,108,117,0.2)} 100%{background:var(--card-bg)} }
+.flash-ok  { animation: flash-g 0.8s ease-out; }
+.flash-err { animation: flash-r 0.8s ease-out; }
+
+/* ── File Browser Modal ──────────────────────────────────────────────────── */
+.fb-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fb-backdrop.hidden { display: none; }
+
+#fb-modal {
+  background: #0d1117;
+  border: 1px solid #2a2d3a;
+  border-radius: 8px;
+  width: 80vw;
+  max-width: 900px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.7);
+}
+
+#fb-modal-header {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  height: 42px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.3);
+}
+#fb-path {
+  flex: 1;
+  font-size: 11px;
+  color: var(--cyan);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+  font-family: var(--font);
+}
+#fb-close {
+  background: transparent;
+  border: none;
+  color: var(--dim);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  font-family: var(--font);
+}
+#fb-close:hover { color: var(--text); }
+#fb-back {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-family: var(--font);
+}
+#fb-back:hover { color: var(--text); border-color: var(--border-hi); }
+
+#fb-body {
+  flex: 1;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* Directory listing */
+.fb-entry {
+  display: flex;
+  align-items: center;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  gap: 10px;
+  font-size: 11px;
+  transition: background 0.12s;
+}
+.fb-entry:hover { background: rgba(255,255,255,0.03); }
+.fb-icon { font-size: 13px; flex-shrink: 0; width: 18px; text-align: center; }
+.fb-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-entry.is-dir .fb-name { color: var(--blue); }
+.fb-size { font-size: 9px; color: var(--dim); flex-shrink: 0; }
+
+/* File view */
+#fb-file-view {
+  padding: 12px 14px;
+  font-size: 11px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--text);
+}
+#fb-file-view.media-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#fb-file-view img, #fb-file-view video, #fb-file-view audio {
+  max-width: 100%;
+  max-height: calc(100vh - 120px);
+  border-radius: 4px;
+}
+
+/* ── Job Detail Panel ────────────────────────────────────────────────────── */
+#jobpanel {
+  position: fixed;
+  top: 40px; right: 0; bottom: 0;
+  width: 600px;
+  background: var(--sidebar-bg);
+  border-left: 1px solid var(--border-hi);
+  display: flex;
+  flex-direction: column;
+  z-index: 600;
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(.4,0,.2,1);
+}
+#jobpanel.open { transform: translateX(0); }
+
+#jp-topbar {
+  display: flex; align-items: center;
+  padding: 0 14px; height: 44px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px; flex-shrink: 0;
+}
+#jp-title {
+  flex: 1; font-size: 11px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+#jp-close {
+  background: transparent; border: none;
+  color: var(--dim); font-size: 16px; cursor: pointer;
+  padding: 0 4px; line-height: 1; font-family: var(--font);
+}
+#jp-close:hover { color: var(--text); }
+
+#jp-meta {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; flex-wrap: wrap; gap: 8px;
+  flex-shrink: 0;
+}
+.jp-badge {
+  font-size: 9px; padding: 3px 8px; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+}
+.jp-meta-row {
+  width: 100%; font-size: 10px; color: var(--dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jp-meta-row span { color: var(--text); }
+
+#jp-actions {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 8px; flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.jp-btn {
+  font-family: var(--font); font-size: 10px;
+  padding: 5px 14px; border-radius: 4px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text); transition: all 0.15s;
+  font-weight: 600; letter-spacing: 0.04em;
+}
+.jp-btn:hover { border-color: var(--border-hi); background: rgba(255,255,255,0.04); }
+.jp-btn.approve { border-color: rgba(152,195,121,0.5); color: var(--green); }
+.jp-btn.approve:hover { background: rgba(152,195,121,0.12); }
+.jp-btn.cancel  { border-color: rgba(224,108,117,0.5); color: var(--red); }
+.jp-btn.cancel:hover  { background: rgba(224,108,117,0.12); }
+.jp-btn.wake    { border-color: rgba(229,192,123,0.5); color: var(--yellow); }
+.jp-btn.wake:hover    { background: rgba(229,192,123,0.12); }
+.jp-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+#jp-log {
+  flex: 1; overflow-y: auto;
+  padding: 10px 14px;
+  font-size: 11px; line-height: 1.65;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  background: var(--card-body);
+}
+#jp-log::-webkit-scrollbar { width: 4px; }
+#jp-log::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+#jp-task {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 10px; color: var(--dim);
+  max-height: 100px; overflow-y: auto;
+  flex-shrink: 0;
+  white-space: pre-wrap; word-break: break-word;
+  line-height: 1.6;
+}
+#jp-task strong { color: var(--text); display: block; margin-bottom: 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* Clickable file paths in terminal */
+.tl-path {
+  color: #f4a261;
+  text-decoration: underline dotted;
+  cursor: pointer;
+  border-radius: 2px;
+}
+.tl-path:hover { color: #ffd166; }
+.tl-url {
+  color: #61afef;
+  text-decoration: underline;
+  text-decoration-color: rgba(97,175,239,0.4);
+  word-break: break-all;
+}
+.tl-url:hover {
+  text-decoration-color: #61afef;
+}
+
+/* ── Message bar (job panel) ── */
+#jp-msg-bar {
+  border-top: 1px solid var(--border);
+  padding: 8px 14px;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.15);
+}
+#jp-msg-bar.hidden { display: none; }
+#jp-msg-input {
+  flex: 1;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border-hi);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 5px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+#jp-msg-input::placeholder { color: var(--dim); }
+#jp-msg-input:focus { border-color: var(--cyan); }
+#jp-msg-send {
+  font-family: var(--font); font-size: 10px;
+  padding: 5px 14px; border-radius: 4px; cursor: pointer;
+  border: 1px solid rgba(86,182,194,0.4);
+  background: transparent; color: var(--cyan); font-weight: 600;
+  transition: all 0.15s; white-space: nowrap;
+}
+#jp-msg-send:hover { background: rgba(86,182,194,0.12); border-color: var(--cyan); }
+#jp-msg-send:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ── Working indicator on empty running terminal ── */
+.term-working {
+  padding: 12px 0 4px;
+  display: flex; align-items: center; gap: 8px;
+  color: var(--dim); font-size: 10px;
+}
+.term-spinner { animation: spin 1.2s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Empty state ── */
+#empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px;
+  color: var(--dim);
+  pointer-events: none;
+}
+#empty-state .e-icon { font-size: 48px; color: var(--dimmer); margin-bottom: 4px; }
+#empty-state .e-title { font-size: 16px; font-weight:700; color: var(--dim); }
+#empty-state .e-sub { font-size: 11px; color: var(--dimmer); }
+/* ── Loading overlay ──────────────────────────────────────────────────── */
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 9999;
+}
+#loading-spinner {
+  font-size: 24px;
+  color: var(--cyan);
+  text-shadow: 0 0 12px var(--cyan);
+  font-family: var(--font);
+  line-height: 1;
+}
+#loading-text {
+  font-size: 12px;
+  color: var(--dim);
+  letter-spacing: 0.08em;
+  font-family: var(--font);
+}
 
 /* ── Tab navigation ───────────────────────────────────────────────────── */
 #tab-nav {
@@ -144,362 +890,6 @@ body {
 }
 .tab-btn:hover { border-color: var(--cyan); color: var(--cyan); }
 .tab-btn.active { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-glow); }
-
-/* ── Meta-agent bar ───────────────────────────────────────────────────── */
-#meta-bar {
-  flex-shrink: 0;
-  background: linear-gradient(90deg, rgba(99,102,241,0.1), rgba(99,102,241,0.04));
-  border-bottom: 1px solid rgba(99,102,241,0.25);
-  padding: 0 16px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  min-height: 48px;
-  position: sticky;
-  top: 40px;
-  z-index: 100;
-}
-#meta-bar.hidden { display: none; }
-
-#meta-label {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-weight: 700;
-  color: #818cf8;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  white-space: nowrap;
-  letter-spacing: 0.03em;
-}
-#meta-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--green);
-  animation: pulse-dot 2s ease-in-out infinite;
-}
-
-#meta-messages {
-  flex: 1;
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  overflow: hidden;
-  min-width: 0;
-}
-.meta-msg {
-  font-size: 10px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 260px;
-}
-.meta-msg.user {
-  background: rgba(86,182,194,0.12);
-  border: 1px solid rgba(86,182,194,0.25);
-  color: var(--cyan);
-}
-.meta-msg.assistant {
-  background: rgba(99,102,241,0.1);
-  border: 1px solid rgba(99,102,241,0.2);
-  color: #a5b4fc;
-}
-
-#meta-chat-form {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-  align-items: center;
-}
-#meta-input {
-  font-family: var(--font);
-  font-size: 11px;
-  background: rgba(0,0,0,0.35);
-  border: 1px solid rgba(99,102,241,0.3);
-  color: var(--text);
-  padding: 5px 10px;
-  border-radius: 4px;
-  width: 240px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-#meta-input:focus { border-color: #818cf8; }
-#meta-input::placeholder { color: var(--dim); }
-#meta-send {
-  font-family: var(--font);
-  font-size: 10px;
-  font-weight: 600;
-  padding: 5px 12px;
-  border: 1px solid rgba(99,102,241,0.5);
-  background: rgba(99,102,241,0.1);
-  color: #818cf8;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-#meta-send:hover { background: rgba(99,102,241,0.2); }
-#meta-send:disabled { opacity: 0.4; cursor: not-allowed; }
-
-/* ── Page panels ──────────────────────────────────────────────────────── */
-#jobs-view {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-#jobs-view.hidden { display: none; }
-
-/* ── Spreadsheet ──────────────────────────────────────────────────────── */
-#spreadsheet {
-  flex: 1;
-  display: flex;
-  flex-direction: row;
-  gap: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-}
-#spreadsheet::-webkit-scrollbar { height: 6px; }
-#spreadsheet::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-/* ── Namespace column ─────────────────────────────────────────────────── */
-.ns-col {
-  flex-shrink: 0;
-  width: 300px;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--border);
-  background: var(--bg);
-  overflow: hidden;
-}
-.ns-col.primary {
-  background: rgba(99,102,241,0.03);
-  border-right-color: rgba(99,102,241,0.2);
-}
-
-.ns-col-header {
-  flex-shrink: 0;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(0,0,0,0.3);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-}
-.ns-col.primary .ns-col-header {
-  border-bottom-color: rgba(99,102,241,0.25);
-  background: rgba(99,102,241,0.06);
-}
-
-.ns-col-icon { color: var(--dimmer); font-size: 11px; flex-shrink: 0; }
-.ns-col-name {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--blue);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-}
-.ns-col.primary .ns-col-name { color: #818cf8; font-weight: 700; }
-.ns-col-counts {
-  font-size: 9px;
-  color: var(--dim);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.ns-col-counts.live { color: var(--cyan); }
-
-.ns-col-jobs {
-  flex: 1;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-}
-.ns-col-jobs::-webkit-scrollbar { width: 3px; }
-.ns-col-jobs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-/* ── Compact job card ─────────────────────────────────────────────────── */
-.jc {
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background 0.12s;
-  position: relative;
-}
-.jc:hover { background: rgba(255,255,255,0.025); }
-.jc.flash-ok  { animation: flash-g 0.8s ease-out; }
-.jc.flash-err { animation: flash-r 0.8s ease-out; }
-
-.jc-hdr {
-  padding: 8px 12px 6px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.jc-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  flex-shrink: 0;
-}
-.jc-dot.running  { background: var(--cyan); box-shadow: 0 0 5px var(--cyan); animation: breathe 1.5s ease-in-out infinite; }
-.jc-dot.done     { background: var(--green); }
-.jc-dot.failed   { background: var(--red); }
-.jc-dot.cancelled{ background: var(--dim); }
-.jc-dot.pending_approval { background: var(--yellow); animation: breathe 2s ease-in-out infinite; }
-.jc-dot.cloning  { background: var(--blue); animation: breathe 1.5s ease-in-out infinite; }
-
-.jc-badge {
-  font-size: 8px;
-  padding: 1px 5px;
-  border-radius: 2px;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  font-weight: 600;
-  flex-shrink: 0;
-}
-.badge-running  { background: rgba(86,182,194,0.15); color: var(--cyan);   border: 1px solid rgba(86,182,194,0.3); }
-.badge-done     { background: rgba(152,195,121,0.15); color: var(--green);  border: 1px solid rgba(152,195,121,0.3); }
-.badge-failed   { background: rgba(224,108,117,0.15); color: var(--red);    border: 1px solid rgba(224,108,117,0.3); }
-.badge-cancelled{ background: rgba(72,76,94,0.3);     color: var(--dim);    border: 1px solid var(--border); }
-.badge-pending_approval { background: rgba(229,192,123,0.15); color: var(--yellow); border: 1px solid rgba(229,192,123,0.3); }
-.badge-cloning  { background: rgba(97,175,239,0.15); color: var(--blue);    border: 1px solid rgba(97,175,239,0.3); }
-
-.jc-repo {
-  font-size: 9px;
-  color: var(--dim);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-}
-.jc-time {
-  font-size: 9px;
-  color: var(--dimmer);
-  flex-shrink: 0;
-}
-
-.jc-task {
-  padding: 0 12px 8px;
-  font-size: 10px;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* expandable output log within card */
-.jc-output {
-  border-top: 1px solid var(--border);
-  background: var(--card-body);
-  padding: 6px 10px;
-  font-size: 10px;
-  line-height: 1.6;
-  max-height: 160px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-  display: none;
-}
-.jc-output.open { display: block; }
-
-/* ── Column chat input (bottom of column) ────────────────────────────── */
-.ns-col-chat {
-  flex-shrink: 0;
-  padding: 8px 10px;
-  border-top: 1px solid var(--border);
-  background: rgba(0,0,0,0.2);
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.ns-chat-last {
-  padding: 4px 10px 0;
-  font-size: 9px;
-  color: var(--dimmer);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex-shrink: 0;
-  display: none;
-}
-.ns-chat-last.visible { display: block; }
-
-.ns-chat-input {
-  font-family: var(--font);
-  font-size: 10px;
-  background: rgba(0,0,0,0.4);
-  border: 1px solid var(--border-hi);
-  color: var(--text);
-  padding: 4px 8px;
-  border-radius: 3px;
-  flex: 1;
-  outline: none;
-  transition: border-color 0.15s;
-  min-width: 0;
-}
-.ns-chat-input:focus { border-color: var(--cyan); }
-.ns-chat-input::placeholder { color: var(--dim); }
-
-.ns-chat-send {
-  font-family: var(--font);
-  font-size: 10px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border: 1px solid rgba(86,182,194,0.4);
-  background: transparent;
-  color: var(--cyan);
-  border-radius: 3px;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.ns-chat-send:hover { background: rgba(86,182,194,0.12); border-color: var(--cyan); }
-.ns-chat-send:disabled { opacity: 0.35; cursor: not-allowed; }
-
-/* ── Empty state ── */
-#empty-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: var(--dim);
-}
-#empty-state .e-icon { font-size: 48px; color: var(--dimmer); margin-bottom: 4px; }
-#empty-state .e-title { font-size: 16px; font-weight:700; color: var(--dim); }
-#empty-state .e-sub { font-size: 11px; color: var(--dimmer); }
-
-/* ── Output line coloring ─────────────────────────────────────────────── */
-.tl { white-space: pre-wrap; word-break: break-all; }
-.tl-sys  { color: #7a8099; }
-.tl-ok   { color: var(--green); }
-.tl-err  { color: var(--red); }
-.tl-warn { color: var(--yellow); }
-.tl-tool { color: var(--blue); opacity: 0.8; font-size: 10px; }
-.tl-file { color: var(--orange); }
-.tl-head { color: var(--cyan); font-weight:600; }
-.tl-dim  { color: var(--dim); }
-.tl-new  { color: var(--text); animation: fadein 0.25s ease-out; }
-.tl-path {
-  color: #f4a261;
-  text-decoration: underline dotted;
-  cursor: pointer;
-  border-radius: 2px;
-}
-.tl-path:hover { color: #ffd166; }
-.tl-url {
-  color: #61afef;
-  text-decoration: underline;
-  text-decoration-color: rgba(97,175,239,0.4);
-  word-break: break-all;
-}
-.tl-url:hover { text-decoration-color: #61afef; }
 
 /* ── Crons Panel ──────────────────────────────────────────────────────── */
 #crons-panel {
@@ -645,11 +1035,12 @@ body {
   transition: all 0.15s;
 }
 .cron-delete-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-glow); }
+
 .cron-empty {
   color: var(--dimmer); font-size: 12px; padding: 24px 0;
 }
 
-/* ── Chat Panel (full-history, meta namespace) ───────────────────────── */
+/* ── Chat Panel ───────────────────────────────────────────────────────── */
 #chat-panel {
   display: none;
   flex: 1;
@@ -711,6 +1102,7 @@ body {
   border-radius: 3px;
   padding: 1px 4px;
 }
+
 .chat-msg.tool { align-self: flex-start; align-items: flex-start; max-width: 90%; }
 .chat-msg.tool .chat-bubble {
   background: rgba(255,255,255,0.04);
@@ -730,9 +1122,9 @@ body {
   padding: 12px 20px;
   background: var(--sidebar-bg);
   border-top: 1px solid var(--border);
-  display: flex; gap: 8px; align-items: center;
+  display: flex; gap: 8px; align-items: flex-end;
 }
-#chat-input {
+#chat-textarea {
   flex: 1;
   font-family: var(--font);
   font-size: 12px;
@@ -741,10 +1133,15 @@ body {
   color: var(--text);
   padding: 8px 10px;
   border-radius: 6px;
+  resize: none;
+  min-height: 38px;
+  max-height: 140px;
   outline: none;
   transition: border-color 0.15s;
+  line-height: 1.5;
+  overflow-y: auto;
 }
-#chat-input:focus { border-color: var(--cyan); }
+#chat-textarea:focus { border-color: var(--cyan); }
 #chat-send-btn {
   font-family: var(--font); font-size: 11px; font-weight: 600;
   padding: 8px 14px;
@@ -755,279 +1152,11 @@ body {
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
+  height: 38px;
 }
 #chat-send-btn:hover { background: rgba(86,182,194,0.2); }
 #chat-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.chat-hint { font-size: 9px; color: var(--dimmer); white-space: nowrap; }
-
-/* ── Job Detail Panel ─────────────────────────────────────────────────── */
-#jobpanel {
-  position: fixed;
-  top: 0; right: 0; bottom: 0;
-  width: 600px;
-  background: var(--sidebar-bg);
-  border-left: 1px solid var(--border-hi);
-  display: flex;
-  flex-direction: column;
-  z-index: 600;
-  transform: translateX(100%);
-  transition: transform 0.22s cubic-bezier(.4,0,.2,1);
-}
-#jobpanel.open { transform: translateX(0); }
-
-#jp-topbar {
-  display: flex; align-items: center;
-  padding: 0 14px; height: 44px;
-  border-bottom: 1px solid var(--border);
-  gap: 10px; flex-shrink: 0;
-}
-#jp-title {
-  flex: 1; font-size: 11px; font-weight: 600;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-#jp-close {
-  background: transparent; border: none;
-  color: var(--dim); font-size: 16px; cursor: pointer;
-  padding: 0 4px; line-height: 1; font-family: var(--font);
-}
-#jp-close:hover { color: var(--text); }
-
-#jp-meta {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  display: flex; flex-wrap: wrap; gap: 8px;
-  flex-shrink: 0;
-}
-.jp-badge {
-  font-size: 9px; padding: 3px 8px; border-radius: 3px;
-  text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
-}
-.jp-meta-row {
-  width: 100%; font-size: 10px; color: var(--dim);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.jp-meta-row span { color: var(--text); }
-
-#jp-actions {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  display: flex; gap: 8px; flex-shrink: 0;
-  flex-wrap: wrap;
-}
-.jp-btn {
-  font-family: var(--font); font-size: 10px;
-  padding: 5px 14px; border-radius: 4px; cursor: pointer;
-  border: 1px solid var(--border); background: transparent;
-  color: var(--text); transition: all 0.15s;
-  font-weight: 600; letter-spacing: 0.04em;
-}
-.jp-btn:hover { border-color: var(--border-hi); background: rgba(255,255,255,0.04); }
-.jp-btn.approve { border-color: rgba(152,195,121,0.5); color: var(--green); }
-.jp-btn.approve:hover { background: rgba(152,195,121,0.12); }
-.jp-btn.cancel  { border-color: rgba(224,108,117,0.5); color: var(--red); }
-.jp-btn.cancel:hover  { background: rgba(224,108,117,0.12); }
-.jp-btn.wake    { border-color: rgba(229,192,123,0.5); color: var(--yellow); }
-.jp-btn.wake:hover    { background: rgba(229,192,123,0.12); }
-.jp-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-
-#jp-log {
-  flex: 1; overflow-y: auto;
-  padding: 10px 14px;
-  font-size: 11px; line-height: 1.65;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-  background: var(--card-body);
-}
-#jp-log::-webkit-scrollbar { width: 4px; }
-#jp-log::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
-
-#jp-task {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  font-size: 10px; color: var(--dim);
-  max-height: 100px; overflow-y: auto;
-  flex-shrink: 0;
-  white-space: pre-wrap; word-break: break-word;
-  line-height: 1.6;
-}
-#jp-task strong { color: var(--text); display: block; margin-bottom: 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; }
-
-#jp-msg-bar {
-  border-top: 1px solid var(--border);
-  padding: 8px 14px;
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-  background: rgba(0,0,0,0.15);
-}
-#jp-msg-bar.hidden { display: none; }
-#jp-msg-input {
-  flex: 1;
-  background: rgba(0,0,0,0.4);
-  border: 1px solid var(--border-hi);
-  border-radius: 4px;
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 11px;
-  padding: 5px 10px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-#jp-msg-input::placeholder { color: var(--dim); }
-#jp-msg-input:focus { border-color: var(--cyan); }
-#jp-msg-send {
-  font-family: var(--font); font-size: 10px;
-  padding: 5px 14px; border-radius: 4px; cursor: pointer;
-  border: 1px solid rgba(86,182,194,0.4);
-  background: transparent; color: var(--cyan); font-weight: 600;
-  transition: all 0.15s; white-space: nowrap;
-}
-#jp-msg-send:hover { background: rgba(86,182,194,0.12); border-color: var(--cyan); }
-#jp-msg-send:disabled { opacity: 0.35; cursor: not-allowed; }
-
-.term-working {
-  padding: 12px 0 4px;
-  display: flex; align-items: center; gap: 8px;
-  color: var(--dim); font-size: 10px;
-}
-.term-spinner { animation: spin 1.2s linear infinite; display: inline-block; }
-
-/* ── File Browser Modal ─────────────────────────────────────────────────── */
-.fb-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.7);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.fb-backdrop.hidden { display: none; }
-
-#fb-modal {
-  background: #0d1117;
-  border: 1px solid #2a2d3a;
-  border-radius: 8px;
-  width: 80vw;
-  max-width: 900px;
-  height: 80vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 24px 64px rgba(0,0,0,0.7);
-}
-
-#fb-modal-header {
-  display: flex;
-  align-items: center;
-  padding: 0 14px;
-  height: 42px;
-  border-bottom: 1px solid var(--border);
-  gap: 10px;
-  flex-shrink: 0;
-  background: rgba(0,0,0,0.3);
-}
-#fb-path {
-  flex: 1;
-  font-size: 11px;
-  color: var(--cyan);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  cursor: default;
-  font-family: var(--font);
-}
-#fb-close {
-  background: transparent;
-  border: none;
-  color: var(--dim);
-  font-size: 16px;
-  cursor: pointer;
-  padding: 0 4px;
-  line-height: 1;
-  font-family: var(--font);
-}
-#fb-close:hover { color: var(--text); }
-#fb-back {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--dim);
-  font-size: 10px;
-  cursor: pointer;
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-family: var(--font);
-}
-#fb-back:hover { color: var(--text); border-color: var(--border-hi); }
-
-#fb-body {
-  flex: 1;
-  overflow: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-}
-
-.fb-entry {
-  display: flex;
-  align-items: center;
-  padding: 7px 14px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  gap: 10px;
-  font-size: 11px;
-  transition: background 0.12s;
-}
-.fb-entry:hover { background: rgba(255,255,255,0.03); }
-.fb-icon { font-size: 13px; flex-shrink: 0; width: 18px; text-align: center; }
-.fb-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fb-entry.is-dir .fb-name { color: var(--blue); }
-.fb-size { font-size: 9px; color: var(--dim); flex-shrink: 0; }
-
-#fb-file-view {
-  padding: 12px 14px;
-  font-size: 11px;
-  line-height: 1.65;
-  white-space: pre-wrap;
-  word-break: break-all;
-  color: var(--text);
-}
-#fb-file-view.media-view {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-#fb-file-view img, #fb-file-view video, #fb-file-view audio {
-  max-width: 100%;
-  max-height: calc(100vh - 120px);
-  border-radius: 4px;
-}
-
-/* ── Loading overlay ──────────────────────────────────────────────────── */
-#loading-overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  z-index: 9999;
-}
-#loading-spinner {
-  font-size: 24px;
-  color: var(--cyan);
-  text-shadow: 0 0 12px var(--cyan);
-  font-family: var(--font);
-  line-height: 1;
-}
-#loading-text {
-  font-size: 12px;
-  color: var(--dim);
-  letter-spacing: 0.08em;
-  font-family: var(--font);
-}
+.chat-hint { font-size: 9px; color: var(--dimmer); white-space: nowrap; padding-bottom: 10px; }
 </style>
 </head>
 <body>
@@ -1057,31 +1186,52 @@ body {
     <div class="jcount done"><span class="jcount-n" id="c-done">0</span><span class="jcount-l">done</span></div>
     <div class="jcount failed"><span class="jcount-n" id="c-failed">0</span><span class="jcount-l">failed</span></div>
   </div>
+  <div class="topbar-hint">scroll · drag to pan · wheel to zoom · click job to focus</div>
   <div id="version-badge" title="Component versions"></div>
   <div id="ws-dot" title="WebSocket"></div>
 </div>
 
-<!-- Meta-agent bar (always visible in jobs view) -->
-<div id="meta-bar" class="hidden">
-  <div id="meta-label">
-    <div id="meta-dot"></div>
-    META-AGENT: <span id="meta-ns-name">—</span>
+<!-- Meta-agent bar -->
+<div id="meta-bar">
+  <div id="meta-bar-label">
+    <span id="meta-bar-dot"></span>
+    <span id="meta-bar-ns">META-AGENT</span>
   </div>
-  <div id="meta-messages"></div>
-  <div id="meta-chat-form">
-    <input id="meta-input" type="text" placeholder="Message meta-agent…" autocomplete="off">
-    <button id="meta-send" onclick="metaSend()">↵ Send</button>
+  <div id="meta-bar-messages"></div>
+  <div id="meta-bar-input-row">
+    <input id="meta-bar-input" type="text" placeholder="message coordinator…" autocomplete="off">
+    <button id="meta-bar-send">↵</button>
   </div>
 </div>
 
-<!-- Jobs view -->
-<div id="jobs-view">
-  <div id="spreadsheet"></div>
-  <div id="empty-state" style="display:none">
-    <div class="e-icon">⬡</div>
-    <div class="e-title">No agents running</div>
-    <div class="e-sub">Spawn a job with cc-agent to see it here</div>
+<!-- Main -->
+<div id="main">
+
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div id="sidebar-header">
+      jobs
+      <div id="filter-btns">
+        <button class="fbtn active" data-filter="all">all</button>
+        <button class="fbtn" data-filter="running">live</button>
+        <button class="fbtn" data-filter="done">done</button>
+        <button class="fbtn" data-filter="failed">err</button>
+      </div>
+    </div>
+    <div id="job-list"></div>
   </div>
+
+  <!-- Infinite canvas viewport -->
+  <div id="viewport">
+    <div id="canvas-inner"></div>
+    <div id="empty-state">
+      <div class="e-icon">⬡</div>
+      <div class="e-title">No agents running</div>
+      <div class="e-sub">Spawn a job with cc-agent to see it here</div>
+    </div>
+    <div id="zoom-hint">100%</div>
+  </div>
+
 </div>
 
 <!-- Crons Panel -->
@@ -1128,11 +1278,11 @@ body {
   </div>
 </div>
 
-<!-- Chat Panel (full history for meta namespace) -->
+<!-- Chat Panel -->
 <div id="chat-panel">
   <div id="chat-messages"></div>
   <div id="chat-input-bar">
-    <input id="chat-input" type="text" placeholder="Type a message… (Enter to send)" autocomplete="off">
+    <textarea id="chat-textarea" placeholder="Type a message… (Enter to send)" rows="1"></textarea>
     <span class="chat-hint">Enter</span>
     <button id="chat-send-btn" onclick="chatSend()">Send</button>
   </div>
@@ -1170,47 +1320,88 @@ body {
 </div>
 
 <script>
-'use strict';
-
-// ── Global state ──────────────────────────────────────────────────────────
-const jobs    = {};     // id → { job, cardEl, logEl, n }
-const nsCols  = {};     // namespace → { el, jobsEl, chatEl, lastMsgEl }
-let jobCounter  = 0;
-let metaNs      = null; // primary namespace from /api/config
-let chatSSE     = null;
-let chatInitialized = false;
+// ── State ──────────────────────────────────────────────────────────────────
+const jobs = {};          // id → { job, card, logEl, n }
+const cols = {};          // repoKey → { el, cardsEl }
+let filterMode = 'all';
+let jobCounter = 0;
+let scale = 1, ox = 40, oy = 40;
+let dragging = false, dragX = 0, dragY = 0;
 
 const $ = id => document.getElementById(id);
+const viewport   = $('viewport');
+const inner      = $('canvas-inner');
+const jobList    = $('job-list');
+const emptyState = $('empty-state');
+const zoomHint   = $('zoom-hint');
 
-// ── Helpers ────────────────────────────────────────────────────────────────
-function escHtml(s) {
-  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+// ── Pan / Zoom ─────────────────────────────────────────────────────────────
+function applyTransform() {
+  inner.style.transform = `translate(${ox}px, ${oy}px) scale(${scale})`;
+  zoomHint.textContent = `${Math.round(scale * 100)}%`;
 }
-function escAttr(s) {
-  return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
+applyTransform();
 
-function shortRepo(url) {
-  if (!url) return 'local';
-  const m = url.match(/github\.com\/([^/]+\/[^/]+)/);
-  return m ? m[1] : url;
-}
+viewport.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.08 : 0.93;
+  const newScale = Math.max(0.25, Math.min(2.5, scale * factor));
+  // Zoom toward mouse position
+  const rect = viewport.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  ox = mx - (mx - ox) * (newScale / scale);
+  oy = my - (my - oy) * (newScale / scale);
+  scale = newScale;
+  applyTransform();
+}, { passive: false });
 
-function timeAgo(iso) {
-  if (!iso) return '';
-  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60)   return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s/60)}m ago`;
-  return `${Math.floor(s/3600)}h ago`;
-}
+viewport.addEventListener('mousedown', e => {
+  if (e.target.closest('.tcard')) return; // don't drag on cards
+  dragging = true; dragX = e.clientX; dragY = e.clientY;
+});
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  ox += e.clientX - dragX; oy += e.clientY - dragY;
+  dragX = e.clientX; dragY = e.clientY;
+  applyTransform();
+});
+window.addEventListener('mouseup', () => dragging = false);
 
-function shortTask(task) {
-  if (!task) return '(no task)';
-  const cleaned = task.replace(/^RESUMING interrupted job\..*?\n\nOriginal task:\n/s, '')
-                       .replace(/^RESUMING interrupted job\..+$/m, '').trim();
-  const firstLine = cleaned.split('\n')[0].trim();
-  return firstLine.slice(0, 80) || '(task)';
-}
+// Touch pan/pinch
+let lastTouchDist = null, lastTouchX = 0, lastTouchY = 0;
+viewport.addEventListener('touchstart', e => {
+  if (e.touches.length === 1) {
+    lastTouchX = e.touches[0].clientX;
+    lastTouchY = e.touches[0].clientY;
+  } else if (e.touches.length === 2) {
+    lastTouchDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+  }
+}, { passive: true });
+
+viewport.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    ox += e.touches[0].clientX - lastTouchX;
+    oy += e.touches[0].clientY - lastTouchY;
+    lastTouchX = e.touches[0].clientX;
+    lastTouchY = e.touches[0].clientY;
+    applyTransform();
+  } else if (e.touches.length === 2) {
+    const dist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    if (lastTouchDist) {
+      scale = Math.max(0.25, Math.min(2.5, scale * (dist / lastTouchDist)));
+      applyTransform();
+    }
+    lastTouchDist = dist;
+  }
+}, { passive: false });
 
 // ── Log line colorizer ─────────────────────────────────────────────────────
 const TOOL_ICONS = {
@@ -1230,13 +1421,14 @@ function classifyLine(raw) {
   if (/⚠|warn|Warning/i.test(s))        return 'tl tl-warn';
   if (/^(Read|Edit|Write|Bash|Glob|Grep|WebFetch|WebSearch|TodoWrite|Agent)\b/.test(s)) return 'tl tl-tool';
   if (/\.(ts|js|tsx|jsx|py|go|rs|md|json|yaml|sh)\b/.test(s)) return 'tl tl-file';
-  if (/^#{1,3}\s|^\*\*/.test(s))        return 'tl tl-head';
-  if (/^[\-–—>·]/.test(s))             return 'tl tl-dim';
+  if (/^#{1,3}\s|^\*\*/.test(s))         return 'tl tl-head';
+  if (/^[\-–—>·]/.test(s))              return 'tl tl-dim';
   return 'tl';
 }
 
 function formatLine(raw) {
   const s = raw.replace(/\x1b\[[0-9;]*m/g, '');
+  // Enrich [tool] lines with icon
   const toolMatch = s.match(/^\[tool\] ([\w-]+)(.*)/);
   if (toolMatch) {
     const icon = TOOL_ICONS[toolMatch[1]] || '⚙';
@@ -1246,6 +1438,7 @@ function formatLine(raw) {
 }
 
 function appendLines(logEl, lines, isNew) {
+  // Remove working indicator if present
   const working = logEl.querySelector('.term-working');
   if (working && lines.some(l => l.trim())) working.remove();
 
@@ -1278,193 +1471,130 @@ function setWorkingIndicator(logEl, show) {
   }
 }
 
-function linkifyPaths(text) {
-  const URL_RE  = /https?:\/\/[^\s<>"')\]]+/g;
-  const PATH_RE = /(?<![:/])(\/(var|Users|home|tmp|workspace|root|opt)\/[^\s"'`,;()[\]<>]{3,})/g;
-  const spans = [];
-  let m;
-  URL_RE.lastIndex = 0;
-  while ((m = URL_RE.exec(text)) !== null) {
-    spans.push({ type: 'url', value: m[0], start: m.index, end: m.index + m[0].length });
-  }
-  PATH_RE.lastIndex = 0;
-  while ((m = PATH_RE.exec(text)) !== null) {
-    const start = m.index, end = m.index + m[0].length;
-    if (spans.some(s => s.type === 'url' && start < s.end && end > s.start)) continue;
-    spans.push({ type: 'path', value: m[0], start, end });
-  }
-  spans.sort((a, b) => a.start - b.start);
-  const parts = [];
-  let last = 0;
-  for (const sp of spans) {
-    if (sp.start < last) continue;
-    if (sp.start > last) parts.push(escHtml(text.slice(last, sp.start)));
-    if (sp.type === 'url') {
-      parts.push(`<a href="${escAttr(sp.value)}" target="_blank" rel="noopener" class="tl-url">${escHtml(sp.value)}</a>`);
-    } else {
-      parts.push(`<span class="tl-path" data-path="${escAttr(sp.value)}">${escHtml(sp.value)}</span>`);
-    }
-    last = sp.end;
-  }
-  if (last < text.length) parts.push(escHtml(text.slice(last)));
-  return parts.join('');
+// ── Card factory ───────────────────────────────────────────────────────────
+function shortRepo(url) {
+  if (!url) return 'local';
+  const m = url.match(/github\.com\/([^/]+\/[^/]+)/);
+  return m ? m[1] : url;
 }
 
-// Delegated click for .tl-path
-document.addEventListener('click', e => {
-  const link = e.target.closest('.tl-path');
-  if (link) {
-    e.stopPropagation();
-    fetch('/api/open?path=' + encodeURIComponent(link.dataset.path));
-  }
-});
-
-// ── Namespace column management ────────────────────────────────────────────
-const spreadsheet = $('spreadsheet');
-
-function getOrCreateNsCol(namespace) {
-  if (nsCols[namespace]) return nsCols[namespace];
-
-  const isPrimary = namespace === metaNs;
-  const colId = 'nscol-' + namespace.replace(/[^a-z0-9]/gi, '-');
-
-  const el = document.createElement('div');
-  el.className = 'ns-col' + (isPrimary ? ' primary' : '');
-  el.id = colId;
-
-  el.innerHTML = `
-    <div class="ns-col-header">
-      <span class="ns-col-icon">${isPrimary ? '★' : '⎇'}</span>
-      <span class="ns-col-name" title="${escHtml(namespace)}">${escHtml(namespace)}</span>
-      <span class="ns-col-counts"></span>
-    </div>
-    <div class="ns-col-jobs"></div>
-    <div class="ns-chat-last" id="nslast-${colId}"></div>
-    <div class="ns-col-chat">
-      <input type="text" class="ns-chat-input" placeholder="Chat with ${escHtml(namespace)}…" autocomplete="off" data-namespace="${escHtml(namespace)}">
-      <button class="ns-chat-send" data-namespace="${escHtml(namespace)}">↵</button>
-    </div>
-  `;
-
-  const jobsEl  = el.querySelector('.ns-col-jobs');
-  const chatEl  = el.querySelector('.ns-col-chat');
-  const lastEl  = el.querySelector('.ns-chat-last');
-  const input   = el.querySelector('.ns-chat-input');
-  const sendBtn = el.querySelector('.ns-chat-send');
-
-  sendBtn.addEventListener('click', () => nsColSend(namespace, input, sendBtn));
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); nsColSend(namespace, input, sendBtn); }
-  });
-
-  nsCols[namespace] = { el, jobsEl, chatEl, lastEl };
-
-  // Insert: primary namespace goes first
-  if (isPrimary && spreadsheet.firstChild) {
-    spreadsheet.insertBefore(el, spreadsheet.firstChild);
-  } else {
-    spreadsheet.appendChild(el);
-  }
-  return nsCols[namespace];
+function timeAgo(iso) {
+  if (!iso) return '';
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60)   return `${s}s ago`;
+  if (s < 3600) return `${Math.floor(s/60)}m ago`;
+  return `${Math.floor(s/3600)}h ago`;
 }
 
-async function nsColSend(namespace, inputEl, btnEl) {
-  const message = inputEl.value.trim();
-  if (!message) return;
-  btnEl.disabled = true;
-  inputEl.value = '';
-  try {
-    const r = await fetch('/chat/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, namespace }),
-    });
-    if (!r.ok) throw new Error(await r.text());
-  } catch (e) {
-    console.error('nsColSend', e);
-    inputEl.value = message; // restore on error
-  } finally {
-    btnEl.disabled = false;
-    inputEl.focus();
-  }
+function shortTask(task) {
+  if (!task) return '(no task)';
+  // Strip "RESUMING interrupted job..." prefix
+  const cleaned = task.replace(/^RESUMING interrupted job\..*?\n\nOriginal task:\n/s, '')
+                       .replace(/^RESUMING interrupted job\..+$/m, '').trim();
+  const firstLine = cleaned.split('\n')[0].trim();
+  return firstLine.slice(0, 80) || '(task)';
 }
 
-function updateNsColHeader(namespace) {
-  const col = nsCols[namespace];
-  if (!col) return;
-  const colJobs = Object.values(jobs).filter(e => e.job.namespace === namespace);
-  const running = colJobs.filter(e => ['running','cloning','pending_approval'].includes(e.job.status)).length;
-  const countsEl = col.el.querySelector('.ns-col-counts');
-  if (!countsEl) return;
-  if (running > 0) {
-    countsEl.textContent = `${running} live · ${colJobs.length}`;
-    countsEl.className = 'ns-col-counts live';
-  } else {
-    countsEl.textContent = colJobs.length;
-    countsEl.className = 'ns-col-counts';
-  }
-}
-
-function updateNsColLastMsg(namespace, msg) {
-  const col = nsCols[namespace];
-  if (!col) return;
-  const label = msg.role === 'user' ? 'you' : (msg.source || 'agent');
-  col.lastEl.textContent = `${label}: ${(msg.content || '').slice(0, 60)}`;
-  col.lastEl.classList.add('visible');
-}
-
-// ── Compact job card ───────────────────────────────────────────────────────
-function makeCompactCard(job, n) {
+function makeCard(job, n) {
   const card = document.createElement('div');
   const status = job.status || 'unknown';
-  card.className = 'jc';
-  card.id = `jc-${job.id}`;
+  card.className = `tcard ${status}`;
+  card.id = `card-${job.id}`;
 
   const repoStr = shortRepo(job.repoUrl);
   const taskStr = shortTask(job.task);
+  const idShort = job.id.slice(0, 8);
 
   card.innerHTML = `
-    <div class="jc-hdr">
-      <div class="jc-dot ${status}"></div>
-      <span class="jc-badge badge-${status}">${status.replace('_',' ')}</span>
-      <span class="jc-repo" title="${escHtml(repoStr)}">${escHtml(repoStr)}</span>
-      <span class="jc-time" data-started="${escHtml(job.startedAt || '')}">${timeAgo(job.startedAt)}</span>
+    <div class="card-hdr">
+      <span class="card-num">${n} ·</span>
+      <span class="card-title" title="${escHtml(taskStr)}">${escHtml(taskStr)}</span>
+      <span class="card-status-badge badge-${status}">${status.replace('_',' ')}</span>
+      <span class="card-id">#${idShort}</span>
+      <div class="card-dots">
+        <div class="card-dot dot-r"></div>
+        <div class="card-dot dot-y"></div>
+        <div class="card-dot dot-g"></div>
+      </div>
     </div>
-    <div class="jc-task" title="${escHtml(taskStr)}">${escHtml(taskStr)}</div>
-    <div class="jc-output"></div>
+    <div class="card-repo">
+      <span class="card-repo-icon">⎇</span>
+      <span>${escHtml(repoStr)}</span>
+      ${job.branch ? `<span class="card-branch">${escHtml(job.branch)}</span>` : ''}
+      ${job.dockerIsolation ? `<span class="card-docker-badge" title="Running in Docker container">🐳 isolated</span>` : ''}
+    </div>
+    <div class="card-term"></div>
+    <div class="card-foot">
+      <span class="card-prompt">
+        <span class="prompt-arrow">▶▶</span>
+        <span>${status === 'running' ? 'claude running' : status}</span>
+      </span>
+      <span class="card-foot-meta">${timeAgo(job.startedAt)}</span>
+    </div>
   `;
 
-  const logEl = card.querySelector('.jc-output');
-
-  // Click header to open job detail panel
-  card.querySelector('.jc-hdr').addEventListener('click', () => jpOpen(job.id));
-  // Click task line to toggle inline output
-  card.querySelector('.jc-task').addEventListener('click', () => {
-    logEl.classList.toggle('open');
-    if (logEl.classList.contains('open')) {
-      logEl.scrollTop = logEl.scrollHeight;
-    }
-  });
-
+  const logEl = card.querySelector('.card-term');
   return { card, logEl };
 }
 
-function insertCardInNsCol(namespace, card, job) {
-  const col = nsCols[namespace];
-  if (!col) return;
-  const { jobsEl } = col;
-  const t = new Date(job.startedAt || 0).getTime();
-  for (const sib of jobsEl.children) {
-    const sibEntry = jobs[sib.id.replace('jc-', '')];
-    if (t >= new Date(sibEntry?.job?.startedAt || 0).getTime()) {
-      jobsEl.insertBefore(card, sib);
-      return;
-    }
-  }
-  jobsEl.appendChild(card);
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// ── Count updates ──────────────────────────────────────────────────────────
+// ── Sidebar item ───────────────────────────────────────────────────────────
+function makeSidebarItem(job) {
+  const item = document.createElement('div');
+  item.className = `job-item`;
+  item.id = `si-${job.id}`;
+  item.dataset.startedAt = job.startedAt || '';
+  const status = job.status || 'unknown';
+
+  item.innerHTML = `
+    <div class="ji-top">
+      <div class="ji-status ${status}"></div>
+      <span class="ji-repo">${escHtml(shortRepo(job.repoUrl))}</span>
+      <span class="ji-time">${timeAgo(job.startedAt)}</span>
+    </div>
+    <div class="ji-task">${escHtml(shortTask(job.task))}</div>
+  `;
+
+  item.addEventListener('click', () => focusCard(job.id));
+  return item;
+}
+
+function focusCard(id) {
+  // Highlight sidebar
+  document.querySelectorAll('.job-item').forEach(e => e.classList.remove('active'));
+  const si = $(`si-${id}`);
+  if (si) { si.classList.add('active'); si.scrollIntoView({ block: 'nearest' }); }
+
+  const entry = jobs[id];
+  const card = $(`card-${id}`);
+  if (!card) return;
+
+  // If card is hidden by filter, switch to 'all'
+  if (card.style.display === 'none') {
+    document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.fbtn[data-filter="all"]').classList.add('active');
+    filterMode = 'all';
+    applyFilter();
+  }
+
+  // Walk offsetParent chain up to inner for accurate canvas coordinates
+  let cx = 0, cy = 0, el = card;
+  while (el && el !== inner) { cx += el.offsetLeft; cy += el.offsetTop; el = el.offsetParent; }
+  const cardW = card.offsetWidth  || 460;
+  const cardH = card.offsetHeight || 370;
+  const vw = viewport.clientWidth, vh = viewport.clientHeight;
+  ox = vw/2 - (cx + cardW/2) * scale;
+  oy = vh/2 - (cy + cardH/2) * scale;
+  applyTransform();
+
+  // Scroll terminal to bottom
+  if (entry?.logEl) entry.logEl.scrollTop = entry.logEl.scrollHeight;
+}
+
+// ── Update sidebar counts ──────────────────────────────────────────────────
 function updateCounts() {
   let running=0, pending=0, done=0, failed=0;
   for (const { job } of Object.values(jobs)) {
@@ -1479,60 +1609,190 @@ function updateCounts() {
   $('c-failed').textContent  = failed;
 }
 
-// ── Add job ────────────────────────────────────────────────────────────────
-function addJob(job, lines) {
-  if (jobs[job.id]) return;
-  jobCounter++;
-  const namespace = job.namespace || 'default';
-  getOrCreateNsCol(namespace);
-  const { card, logEl } = makeCompactCard(job, jobCounter);
-  insertCardInNsCol(namespace, card, job);
-  jobs[job.id] = { job: { ...job }, card, logEl, n: jobCounter };
-  if (lines.length) appendLines(logEl, lines, false);
-  else if (job.status === 'running' || job.status === 'cloning') setWorkingIndicator(logEl, true);
-  updateNsColHeader(namespace);
+// ── Apply filter to sidebar + canvas ──────────────────────────────────────
+function applyFilter() {
+  for (const { job, card } of Object.values(jobs)) {
+    const show = filterMode === 'all'
+      || (filterMode === 'running' && ['running','cloning','pending_approval'].includes(job.status))
+      || (filterMode === 'done' && job.status === 'done')
+      || (filterMode === 'failed' && job.status === 'failed');
+    const item = $(`si-${job.id}`);
+    if (item) item.style.display = show ? '' : 'none';
+    if (card) card.style.display = show ? '' : 'none';
+  }
+  // Hide columns with no visible cards
+  for (const [key, col] of Object.entries(cols)) {
+    const hasVisible = [...col.cardsEl.children].some(c => c.style.display !== 'none');
+    col.el.style.display = hasVisible ? '' : 'none';
+  }
 }
 
-// ── Snapshot handler ───────────────────────────────────────────────────────
+document.querySelectorAll('.fbtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterMode = btn.dataset.filter;
+    applyFilter();
+  });
+});
+
+// ── Column helpers ─────────────────────────────────────────────────────────
+function repoKey(job) {
+  return shortRepo(job.repoUrl) || 'local';
+}
+
+function getOrCreateCol(key) {
+  if (cols[key]) return cols[key];
+  const el = document.createElement('div');
+  el.className = 'repo-col';
+  const safeKey = key.replace(/[^a-z0-9]/gi, '-');
+  el.id = `col-${safeKey}`;
+  el.innerHTML = `
+    <div class="col-header">
+      <span class="col-repo-icon">⎇</span>
+      <span class="col-repo-name" title="${escHtml(key)}">${escHtml(key)}</span>
+      <span class="col-counts"></span>
+    </div>
+    <div class="col-cards"></div>
+    <div class="col-chat">
+      <div class="col-chat-msgs" id="col-chat-msgs-${safeKey}"></div>
+      <div class="col-chat-input-row">
+        <input class="col-chat-input" type="text" placeholder="message ${escHtml(key)}…" autocomplete="off" data-ns="${escHtml(key)}">
+        <button class="col-chat-send" data-ns="${escHtml(key)}">↵</button>
+      </div>
+    </div>
+  `;
+  cols[key] = { el, cardsEl: el.querySelector('.col-cards') };
+  inner.appendChild(el);
+
+  // Wire up per-column chat send
+  const colInput = el.querySelector('.col-chat-input');
+  const colBtn = el.querySelector('.col-chat-send');
+  const sendColMsg = async () => {
+    const msg = colInput.value.trim();
+    if (!msg) return;
+    colInput.value = '';
+    try {
+      await fetch('/chat/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, namespace: key })
+      });
+    } catch (err) { console.error('col chat send', err); }
+  };
+  colBtn.addEventListener('click', sendColMsg);
+  colInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendColMsg(); });
+
+  return cols[key];
+}
+
+function insertCardInColumn(key, card, job) {
+  const { cardsEl } = cols[key];
+  const t = new Date(job.startedAt || 0).getTime();
+  for (const sib of cardsEl.children) {
+    const sibJob = jobs[sib.id.replace('card-', '')]?.job;
+    if (t >= new Date(sibJob?.startedAt || 0).getTime()) {
+      cardsEl.insertBefore(card, sib);
+      return;
+    }
+  }
+  cardsEl.appendChild(card);
+}
+
+function updateColHeader(key) {
+  const col = cols[key];
+  if (!col) return;
+  const colJobs = Object.values(jobs).filter(e => repoKey(e.job) === key);
+  const running = colJobs.filter(e => ['running','cloning','pending_approval'].includes(e.job.status)).length;
+  const el = col.el.querySelector('.col-counts');
+  if (!el) return;
+  if (running > 0) {
+    el.textContent = `${running} live · ${colJobs.length}`;
+    el.className = 'col-counts live';
+  } else {
+    el.textContent = `${colJobs.length}`;
+    el.className = 'col-counts';
+  }
+}
+
+function sortColumns() {
+  // Order columns by their most recent job's startedAt, descending
+  const keys = Object.keys(cols).sort((a, b) => {
+    const latest = key => Math.max(0, ...Object.values(jobs)
+      .filter(e => repoKey(e.job) === key)
+      .map(e => new Date(e.job.startedAt || 0).getTime()));
+    return latest(b) - latest(a);
+  });
+  for (const key of keys) inner.appendChild(cols[key].el);
+}
+
+// ── Handle snapshot (initial load) ────────────────────────────────────────
 function handleSnapshot(data) {
+  // Sort purely by time descending — columns handle repo grouping visually
   const sorted = [...data.jobs].sort((a, b) =>
     new Date(b.startedAt||0) - new Date(a.startedAt||0)
   );
   for (const job of sorted) addJob(job, job.lines || []);
+  sortColumns();
   updateCounts();
-  const hasJobs = Object.keys(jobs).length > 0;
-  $('empty-state').style.display = hasJobs ? 'none' : '';
-  if (hasJobs) spreadsheet.style.display = '';
+  applyFilter();
+  if (Object.keys(jobs).length > 0) emptyState.style.display = 'none';
   if (typeof hideLoader === 'function') hideLoader();
 }
 
-// ── Job update handler ─────────────────────────────────────────────────────
+function addJob(job, lines) {
+  if (jobs[job.id]) return;
+  jobCounter++;
+  const { card, logEl } = makeCard(job, jobCounter);
+  const key = repoKey(job);
+  getOrCreateCol(key);
+  insertCardInColumn(key, card, job);
+  const sidebarItem = makeSidebarItem(job);
+  const jobTime = new Date(job.startedAt || 0).getTime();
+  const after = Array.from(jobList.children).find(el =>
+    new Date(el.dataset.startedAt || 0).getTime() < jobTime
+  );
+  if (after) jobList.insertBefore(sidebarItem, after);
+  else jobList.appendChild(sidebarItem);
+  jobs[job.id] = { job: { ...job }, card, logEl, n: jobCounter };
+  if (lines.length) appendLines(logEl, lines, false);
+  else if (job.status === 'running' || job.status === 'cloning') setWorkingIndicator(logEl, true);
+  updateColHeader(key);
+  wireCardClick(card, job.id);
+}
+
+// ── Handle job update ──────────────────────────────────────────────────────
 function handleJobUpdate(data) {
   const job = data.job;
   const entry = jobs[job.id];
+
   if (!entry) {
+    // New job we haven't seen yet
     addJob(job, []);
-    $('empty-state').style.display = 'none';
-    spreadsheet.style.display = '';
+    emptyState.style.display = 'none';
     updateCounts();
+    applyFilter();
     return;
   }
 
   const prev = entry.job.status;
   entry.job = { ...entry.job, ...job };
   const status = job.status;
-  const namespace = job.namespace || entry.job.namespace || 'default';
 
+  // Working indicator
   if (status === 'running' || status === 'cloning') setWorkingIndicator(entry.logEl, true);
   else setWorkingIndicator(entry.logEl, false);
 
-  // Update dot
-  const dot = entry.card.querySelector('.jc-dot');
-  if (dot) dot.className = `jc-dot ${status}`;
+  // Update card class
+  entry.card.className = `tcard ${status}`;
 
   // Update badge
-  const badge = entry.card.querySelector('.jc-badge');
-  if (badge) { badge.className = `jc-badge badge-${status}`; badge.textContent = status.replace('_',' '); }
+  const badge = entry.card.querySelector('.card-status-badge');
+  if (badge) { badge.className = `card-status-badge badge-${status}`; badge.textContent = status.replace('_',' '); }
+
+  // Update prompt
+  const prompt = entry.card.querySelector('.card-prompt span:last-child');
+  if (prompt) prompt.textContent = status === 'running' ? 'claude running' : status;
 
   // Flash
   if (status === 'done' && prev !== 'done') {
@@ -1544,43 +1804,54 @@ function handleJobUpdate(data) {
     setTimeout(() => entry.card.classList.remove('flash-err'), 900);
   }
 
-  // Refresh job panel if open
+  // Update sidebar dot
+  const dot = $(`si-${job.id}`)?.querySelector('.ji-status');
+  if (dot) { dot.className = `ji-status ${status}`; }
+
+  // Refresh job panel if this job is open
   if (jpCurrentId === job.id) {
-    const badge2 = jpMeta.querySelector('.jp-badge');
-    if (badge2) { badge2.className = `jp-badge badge-${status}`; badge2.textContent = status.replace('_', ' '); }
+    jpMeta.querySelector('.jp-badge').className = `jp-badge badge-${status}`;
+    jpMeta.querySelector('.jp-badge').textContent = status.replace('_', ' ');
     renderActions(status);
     const msgBar = $('jp-msg-bar');
     if (status === 'running') msgBar.classList.remove('hidden');
     else msgBar.classList.add('hidden');
   }
 
-  updateNsColHeader(namespace);
+  updateColHeader(repoKey(job));
   updateCounts();
+  applyFilter();
 }
 
-// ── Job new handler ────────────────────────────────────────────────────────
+// ── Handle job_new ─────────────────────────────────────────────────────────
 function handleJobNew(data) {
   addJob(data.job, data.job.lines || []);
-  $('empty-state').style.display = 'none';
-  spreadsheet.style.display = '';
+  sortColumns();
+  emptyState.style.display = 'none';
   updateCounts();
+  applyFilter();
 }
 
-// ── Output handler ─────────────────────────────────────────────────────────
+// ── Handle output ──────────────────────────────────────────────────────────
 function handleOutput(data) {
   const entry = jobs[data.id];
   if (!entry) return;
   appendLines(entry.logEl, data.lines, true);
-  if (jpCurrentId === data.id) appendLines(jpLog, data.lines, true);
+  // Mirror to job panel if open
+  if (jpCurrentId === data.id) {
+    appendLines(jpLog, data.lines, true);
+  }
 }
 
 // ── WebSocket ──────────────────────────────────────────────────────────────
 function connect() {
   const ws = new WebSocket(`ws://${location.host}`);
   const dot = $('ws-dot');
-  ws.onopen  = () => { dot.className = 'ok'; };
+
+  ws.onopen = () => { dot.className = 'ok'; };
   ws.onclose = () => { dot.className = 'err'; setTimeout(connect, 2000); };
   ws.onerror = () => dot.className = 'err';
+
   ws.onmessage = ({ data }) => {
     let evt;
     try { evt = JSON.parse(data); } catch { return; }
@@ -1594,11 +1865,11 @@ function connect() {
 }
 
 // ── Job Detail Panel ───────────────────────────────────────────────────────
-const jp       = $('jobpanel');
-const jpLog    = $('jp-log');
-const jpTitle  = $('jp-title');
-const jpMeta   = $('jp-meta');
-const jpTask   = $('jp-task');
+const jp = $('jobpanel');
+const jpLog = $('jp-log');
+const jpTitle = $('jp-title');
+const jpMeta = $('jp-meta');
+const jpTask = $('jp-task');
 const jpActions = $('jp-actions');
 let jpCurrentId = null;
 
@@ -1615,11 +1886,12 @@ async function jpSendMessage() {
   input.value = '';
   btn.disabled = true;
   try {
-    await fetch('/api/job/action', {
+    const r = await fetch('/api/job/action', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: jpCurrentId, action: 'message', message: text }),
     });
+    await r.json();
   } catch (e) {
     const d = document.createElement('div');
     d.className = 'tl tl-err';
@@ -1631,8 +1903,11 @@ async function jpSendMessage() {
   }
 }
 
-$('jp-msg-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); jpSendMessage(); }
+// Enter key submits message
+document.addEventListener('DOMContentLoaded', () => {
+  $('jp-msg-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); jpSendMessage(); }
+  });
 });
 
 async function jpOpen(id) {
@@ -1647,19 +1922,21 @@ async function jpOpen(id) {
   jpTitle.textContent = shortTask(job.task);
   jpTask.innerHTML = `<strong>Task</strong>${escHtml(job.task || '(no task)')}`;
 
+  // Meta
   jpMeta.innerHTML = `
     <span class="jp-badge badge-${status}">${status.replace('_',' ')}</span>
-    <span class="jp-meta-row">namespace <span>${escHtml(job.namespace || '—')}</span>
-      · repo <span>${escHtml(shortRepo(job.repoUrl) || 'local')}</span>
+    <span class="jp-meta-row">repo <span>${escHtml(shortRepo(job.repoUrl) || 'local')}</span>
       ${job.branch ? ` · branch <span>${escHtml(job.branch)}</span>` : ''}
-      ${job.dockerIsolation ? ` · <span style="color:#38bdf8">🐳 docker</span>` : ''}
+      ${job.dockerIsolation ? ` · <span style="color:#38bdf8">🐳 docker isolated</span>` : ''}
     </span>
     <span class="jp-meta-row">id <span>${escHtml(job.id || id)}</span></span>
     <span class="jp-meta-row">started <span>${job.startedAt ? new Date(job.startedAt).toLocaleString() : '—'}</span></span>
   `;
 
+  // Actions
   renderActions(status);
 
+  // Show/hide message bar
   const msgBar = $('jp-msg-bar');
   if (status === 'running') {
     msgBar.classList.remove('hidden');
@@ -1668,6 +1945,7 @@ async function jpOpen(id) {
     msgBar.classList.add('hidden');
   }
 
+  // Load full log
   jpLog.innerHTML = '<div style="color:var(--dim);padding:4px">loading…</div>';
   try {
     const r = await fetch(`/api/job/output?id=${encodeURIComponent(id)}`);
@@ -1682,18 +1960,20 @@ async function jpOpen(id) {
 
 function renderActions(status) {
   jpActions.innerHTML = '';
-  const add = (label, cls, action) => {
+  const add = (label, cls, action, extra = {}) => {
     const b = document.createElement('button');
     b.className = `jp-btn ${cls}`;
     b.textContent = label;
+    if (extra.disabled) b.disabled = true;
     b.addEventListener('click', () => jobAction(jpCurrentId, action));
     jpActions.appendChild(b);
   };
+
   if (status === 'pending_approval') add('✓ Approve', 'approve', 'approve');
   if (['running','cloning','pending_approval'].includes(status)) add('✕ Cancel', 'cancel', 'cancel');
   if (status === 'failed' || status === 'cancelled') add('⟳ Wake', 'wake', 'wake');
   if (jpActions.children.length === 0) {
-    jpActions.innerHTML = `<span style="font-size:10px;color:var(--dim)">no actions for ${status} jobs</span>`;
+    jpActions.innerHTML = `<span style="font-size:10px;color:var(--dim)">no actions available for ${status} jobs</span>`;
   }
 }
 
@@ -1709,6 +1989,7 @@ async function jobAction(id, action) {
     });
     const data = await r.json();
     if (data.ok) {
+      // Append confirmation to panel log
       const d = document.createElement('div');
       d.className = 'tl tl-ok';
       d.textContent = `[ui] Action "${action}" sent`;
@@ -1725,6 +2006,14 @@ async function jobAction(id, action) {
   }
 }
 
+// Wire card clicks to open job panel
+function wireCardClick(card, id) {
+  card.querySelector('.card-hdr').addEventListener('click', (e) => {
+    if (e.target.closest('.tl-path')) return; // don't interfere with file links
+    jpOpen(id);
+  });
+}
+
 // ── File Browser Modal ─────────────────────────────────────────────────────
 const fbBackdrop = $('fb-backdrop');
 const fbBody = $('fb-body');
@@ -1735,22 +2024,26 @@ function fbOpen(p) {
   fbBackdrop.classList.remove('hidden');
   fbNavigate(p);
 }
+
 function fbClose() {
   fbBackdrop.classList.add('hidden');
   fbHistory = [];
 }
+
 function fbGoBack() {
   if (fbHistory.length > 1) {
     fbHistory.pop();
     fbNavigate(fbHistory.pop(), true);
   }
 }
+
 function fbParentDir(p) {
   const trimmed = p.replace(/\/+$/, '');
   if (!trimmed || trimmed === '/') return null;
   const parent = trimmed.replace(/\/[^/]+$/, '') || '/';
   return parent;
 }
+
 async function fbNavigate(p, fromBack) {
   if (!fromBack) fbHistory.push(p);
   fbPathEl.textContent = p;
@@ -1760,6 +2053,7 @@ async function fbNavigate(p, fromBack) {
     if (!statRes.ok) throw new Error(await statRes.text());
     const stat = await statRes.json();
     if (!stat.exists) throw new Error('not found: ' + p);
+
     if (stat.type === 'dir') {
       const lsRes = await fetch(`/api/fs/ls?path=${encodeURIComponent(p)}`);
       if (!lsRes.ok) throw new Error(await lsRes.text());
@@ -1772,12 +2066,14 @@ async function fbNavigate(p, fromBack) {
     fbBody.innerHTML = `<div style="padding:14px;color:var(--red)">${escHtml(e.message)}</div>`;
   }
 }
+
 function fmtSize(n) {
   if (n == null) return '';
   if (n < 1024) return n + 'B';
   if (n < 1048576) return (n/1024).toFixed(1) + 'KB';
   return (n/1048576).toFixed(1) + 'MB';
 }
+
 function fileIcon(name, type) {
   if (type === 'dir') return '📁';
   const ext = name.split('.').pop().toLowerCase();
@@ -1791,8 +2087,11 @@ function fileIcon(name, type) {
   if (['yaml','yml'].includes(ext)) return '⚙';
   return '📄';
 }
+
 function renderDir(basePath, entries) {
   const frag = document.createDocumentFragment();
+
+  // Parent dir entry
   const parent = fbParentDir(basePath);
   if (parent) {
     const up = document.createElement('div');
@@ -1801,6 +2100,7 @@ function renderDir(basePath, entries) {
     up.addEventListener('click', () => fbNavigate(parent));
     frag.appendChild(up);
   }
+
   for (const e of entries) {
     const entryPath = basePath.replace(/\/$/, '') + '/' + e.name;
     const row = document.createElement('div');
@@ -1809,6 +2109,7 @@ function renderDir(basePath, entries) {
     row.addEventListener('click', () => fbNavigate(entryPath));
     frag.appendChild(row);
   }
+
   fbBody.innerHTML = '';
   if (entries.length === 0 && !parent) {
     fbBody.innerHTML = '<div style="padding:14px;color:var(--dim)">empty directory</div>';
@@ -1816,46 +2117,57 @@ function renderDir(basePath, entries) {
     fbBody.appendChild(frag);
   }
 }
+
 async function renderFile(p) {
   const ext = p.split('.').pop().toLowerCase();
   const rawUrl = `/api/fs/raw?path=${encodeURIComponent(p)}`;
   const div = document.createElement('div');
   div.id = 'fb-file-view';
+
   const imageExts = ['png','jpg','jpeg','gif','svg','webp'];
   const videoExts = ['mp4','webm','mov'];
   const audioExts = ['mp3','wav','ogg'];
   const textExts = ['js','ts','tsx','jsx','py','go','rs','md','json','yaml','yml',
                     'sh','bash','html','css','txt','log','clj','cljs','sql','toml',
                     'env','gitignore','dockerfile','makefile','lock'];
+
   if (imageExts.includes(ext)) {
     div.className = 'media-view';
     div.innerHTML = `<img src="${rawUrl}" alt="${escHtml(p)}">`;
-    fbBody.innerHTML = ''; fbBody.appendChild(div);
+    fbBody.innerHTML = '';
+    fbBody.appendChild(div);
   } else if (videoExts.includes(ext)) {
     div.className = 'media-view';
     div.innerHTML = `<video controls src="${rawUrl}"></video>`;
-    fbBody.innerHTML = ''; fbBody.appendChild(div);
+    fbBody.innerHTML = '';
+    fbBody.appendChild(div);
   } else if (audioExts.includes(ext)) {
     div.className = 'media-view';
     div.innerHTML = `<audio controls src="${rawUrl}"></audio>`;
-    fbBody.innerHTML = ''; fbBody.appendChild(div);
+    fbBody.innerHTML = '';
+    fbBody.appendChild(div);
   } else if (textExts.includes(ext) || !ext || p.split('/').pop().indexOf('.') === -1) {
     div.style.cssText = 'padding:12px 14px;font-size:11px;line-height:1.65;white-space:pre-wrap;word-break:break-all;color:var(--text);overflow:auto;flex:1';
     div.textContent = 'loading…';
-    fbBody.innerHTML = ''; fbBody.appendChild(div);
+    fbBody.innerHTML = '';
+    fbBody.appendChild(div);
     try {
       const r = await fetch(`/api/fs/cat?path=${encodeURIComponent(p)}`);
       if (!r.ok) { div.style.color = 'var(--red)'; div.textContent = await r.text(); return; }
       const data = await r.json();
       div.textContent = data.content;
     } catch (e) {
-      div.style.color = 'var(--red)'; div.textContent = e.message;
+      div.style.color = 'var(--red)';
+      div.textContent = e.message;
     }
   } else {
     div.innerHTML = `<div style="color:var(--dim);padding:14px">Binary file — <a href="${rawUrl}" download style="color:var(--cyan)">download</a></div>`;
-    fbBody.innerHTML = ''; fbBody.appendChild(div);
+    fbBody.innerHTML = '';
+    fbBody.appendChild(div);
   }
 }
+
+// Close modal on backdrop click or ESC
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && !fbBackdrop.classList.contains('hidden')) fbClose();
 });
@@ -1863,131 +2175,266 @@ $('fb-backdrop').addEventListener('click', e => {
   if (e.target === $('fb-backdrop')) fbClose();
 });
 
-// ── Meta-agent bar ─────────────────────────────────────────────────────────
-async function initMetaBar(ns) {
-  metaNs = ns;
-  $('meta-ns-name').textContent = ns;
-  $('meta-bar').classList.remove('hidden');
+// ── File path detection in terminal lines ─────────────────────────────────
+function escAttr(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 
-  // Load last 5 messages for meta namespace
-  try {
-    const r = await fetch(`/chat/history?namespace=${encodeURIComponent(ns)}`);
-    if (r.ok) {
-      const msgs = await r.json();
-      const metaMsgsEl = $('meta-messages');
-      metaMsgsEl.innerHTML = '';
-      // Show last 5 in left-to-right chronological order
-      const recent = msgs.slice(-5);
-      for (const m of recent) {
-        const d = document.createElement('div');
-        d.className = `meta-msg ${m.role === 'user' ? 'user' : 'assistant'}`;
-        d.textContent = (m.content || '').slice(0, 80);
-        d.title = m.content || '';
-        metaMsgsEl.appendChild(d);
-      }
+// Delegated click handler for .tl-path spans
+document.addEventListener('click', e => {
+  const link = e.target.closest('.tl-path');
+  if (link) {
+    e.stopPropagation();
+    fetch('/api/open?path=' + encodeURIComponent(link.dataset.path));
+  }
+});
+
+function linkifyPaths(text) {
+  // Process in segments: URL first, then file paths, then escape remainder.
+  // This prevents https://github.com/... from being mis-matched as a file path.
+  const URL_RE  = /https?:\/\/[^\s<>"')\]]+/g;
+  const PATH_RE = /(?<![:/])(\/(var|Users|home|tmp|workspace|root|opt)\/[^\s"'`,;()[\]<>]{3,})/g;
+
+  // Build a list of non-overlapping segments
+  const spans = [];
+
+  let m;
+  URL_RE.lastIndex = 0;
+  while ((m = URL_RE.exec(text)) !== null) {
+    spans.push({ type: 'url', value: m[0], start: m.index, end: m.index + m[0].length });
+  }
+
+  PATH_RE.lastIndex = 0;
+  while ((m = PATH_RE.exec(text)) !== null) {
+    const start = m.index, end = m.index + m[0].length;
+    // Skip if overlapping with an already-captured URL span
+    if (spans.some(s => s.type === 'url' && start < s.end && end > s.start)) continue;
+    spans.push({ type: 'path', value: m[0], start, end });
+  }
+
+  // Sort by start position; URLs win over paths when overlapping
+  spans.sort((a, b) => a.start - b.start);
+
+  const parts = [];
+  let last = 0;
+  for (const sp of spans) {
+    if (sp.start < last) continue; // overlapping — skip
+    if (sp.start > last) parts.push(escHtml(text.slice(last, sp.start)));
+    if (sp.type === 'url') {
+      parts.push(`<a href="${escAttr(sp.value)}" target="_blank" rel="noopener" class="tl-url">${escHtml(sp.value)}</a>`);
+    } else {
+      parts.push(`<span class="tl-path" data-path="${escAttr(sp.value)}">${escHtml(sp.value)}</span>`);
     }
-  } catch (e) { console.error('meta history', e); }
+    last = sp.end;
+  }
+  if (last < text.length) parts.push(escHtml(text.slice(last)));
+  return parts.join('');
 }
 
-function metaAddMsg(msg) {
-  const metaMsgsEl = $('meta-messages');
-  const d = document.createElement('div');
-  d.className = `meta-msg ${msg.role === 'user' ? 'user' : 'assistant'}`;
-  d.textContent = (msg.content || '').slice(0, 80);
-  d.title = msg.content || '';
-  metaMsgsEl.appendChild(d);
-  // Keep only last 5
-  while (metaMsgsEl.children.length > 5) metaMsgsEl.removeChild(metaMsgsEl.firstChild);
-}
+// Update time-ago labels every 30s
+setInterval(() => {
+  for (const { job, card } of Object.values(jobs)) {
+    const meta = card.querySelector('.card-foot-meta');
+    if (meta) meta.textContent = timeAgo(job.startedAt);
+    const si = $(`si-${job.id}`);
+    if (si) {
+      const t = si.querySelector('.ji-time');
+      if (t) t.textContent = timeAgo(job.startedAt);
+    }
+  }
+}, 30000);
 
-async function metaSend() {
-  const input = $('meta-input');
-  const btn = $('meta-send');
-  const message = input.value.trim();
-  if (!message || !metaNs) return;
-  input.value = '';
-  btn.disabled = true;
-  try {
-    const r = await fetch('/chat/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, namespace: metaNs }),
-    });
-    if (!r.ok) throw new Error(await r.text());
-  } catch (e) {
-    console.error('metaSend', e);
-    input.value = message;
-  } finally {
-    btn.disabled = false;
-    input.focus();
+// ── Loading overlay ────────────────────────────────────────────────────────
+(function() {
+  const overlay = document.getElementById('loading-overlay');
+  const spinnerEl = document.getElementById('loading-spinner');
+  const textEl = document.getElementById('loading-text');
+  const frames = ['⣾','⣽','⣻','⢿','⡿','⣟','⣯','⣷'];
+  let frame = 0;
+  const spinInterval = setInterval(() => {
+    spinnerEl.textContent = frames[frame++ % frames.length];
+  }, 100);
+
+  let snapshotReceived = false;
+  const fallbackTimer = setTimeout(() => {
+    if (!snapshotReceived) {
+      textEl.textContent = 'Reconnecting…';
+    }
+  }, 8000);
+
+  window.hideLoader = function() {
+    snapshotReceived = true;
+    clearInterval(spinInterval);
+    clearTimeout(fallbackTimer);
+    overlay.style.display = 'none';
+  };
+})();
+
+connect();
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+const mainEl     = $('main');
+const cronsPanel = $('crons-panel');
+const chatPanel  = $('chat-panel');
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (tab === 'jobs') {
+      mainEl.style.display = 'flex';
+      cronsPanel.classList.remove('active');
+      chatPanel.classList.remove('active');
+    } else if (tab === 'crons') {
+      mainEl.style.display = 'none';
+      cronsPanel.classList.add('active');
+      chatPanel.classList.remove('active');
+      cronLoad();
+    } else if (tab === 'chat') {
+      mainEl.style.display = 'none';
+      cronsPanel.classList.remove('active');
+      chatPanel.classList.add('active');
+      chatInit();
+    }
+  });
+});
+
+// ── Crons ─────────────────────────────────────────────────────────────────
+let cronPollTimer = null;
+let cronFormVisible = false;
+
+function cronToggleForm() {
+  cronFormVisible = !cronFormVisible;
+  const form = $('cron-add-form');
+  if (cronFormVisible) {
+    form.classList.add('visible');
+    $('cf-name').focus();
+  } else {
+    form.classList.remove('visible');
+    cronClearForm();
   }
 }
 
-$('meta-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') { e.preventDefault(); metaSend(); }
-});
-
-// ── Chat SSE (namespace-aware) ─────────────────────────────────────────────
-function initChatSSE() {
-  if (chatSSE) return;
-  chatSSE = new EventSource('/chat/stream');
-  chatSSE.onmessage = e => {
-    try {
-      const msg = JSON.parse(e.data);
-      const ns = msg.namespace;
-
-      // Deduplicate
-      if (msg.id && document.querySelector(`[data-id="${CSS.escape(msg.id)}"]`)) return;
-
-      // Update meta bar if this is the meta namespace
-      if (ns && ns === metaNs) {
-        metaAddMsg(msg);
-      }
-
-      // Update per-column last message
-      if (ns && nsCols[ns]) {
-        updateNsColLastMsg(ns, msg);
-      }
-
-      // Append to full chat panel if visible (meta namespace)
-      if (ns && ns === metaNs) {
-        const messagesEl = $('chat-messages');
-        if (messagesEl) {
-          const el = chatMsgEl(msg);
-          if (el) {
-            messagesEl.appendChild(el);
-            messagesEl.scrollTop = messagesEl.scrollHeight;
-          }
-        }
-      }
-    } catch {}
-  };
-  chatSSE.onerror = () => console.warn('chat SSE disconnected');
+function cronClearForm() {
+  $('cf-name').value = '';
+  $('cf-schedule').value = '';
+  $('cf-repo').value = '';
+  $('cf-prompt').value = '';
+  $('cf-enabled').checked = true;
 }
 
-// ── Full Chat Panel (meta namespace history) ───────────────────────────────
-async function chatInit() {
-  if (chatInitialized) return;
-  chatInitialized = true;
-
-  const ns = metaNs || 'default';
+function fmtTs(iso) {
+  if (!iso) return '—';
   try {
-    const r = await fetch(`/chat/history?namespace=${encodeURIComponent(ns)}`);
-    if (r.ok) {
-      const msgs = await r.json();
-      const messagesEl = $('chat-messages');
-      messagesEl.innerHTML = '';
-      for (const m of msgs) {
-        const el = chatMsgEl(m);
-        if (el) { el.dataset.id = m.id || ''; messagesEl.appendChild(el); }
-      }
-    }
-  } catch (e) { console.error('chat history', e); }
-
-  $('chat-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); }
-  });
+    const d = new Date(iso);
+    return d.toLocaleString();
+  } catch { return iso; }
 }
+
+function renderCrons(crons) {
+  const list = $('cron-list');
+  if (!crons.length) {
+    list.innerHTML = '<div class="cron-empty">No crons yet. Click "+ Add Cron" to create one.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  for (const c of crons) {
+    const repoShort = (c.repoUrl || '').length > 40 ? c.repoUrl.slice(0, 40) + '…' : (c.repoUrl || '—');
+    const card = document.createElement('div');
+    card.className = 'cron-card';
+    card.innerHTML = `
+      <div class="cron-card-main">
+        <div class="cron-card-name">${escHtml(c.name || '(unnamed)')}</div>
+        <div class="cron-card-meta">
+          <div class="cron-meta-item">schedule: <span>${escHtml(c.schedule || '—')}</span></div>
+          <div class="cron-meta-item">repo: <span title="${escHtml(c.repoUrl || '')}">${escHtml(repoShort)}</span></div>
+        </div>
+        <div class="cron-card-prompt">${escHtml(c.prompt || '')}</div>
+        <div class="cron-card-times">
+          <div class="cron-time-item">last run: <span>${fmtTs(c.lastRun)}</span></div>
+          <div class="cron-time-item">next run: <span>${fmtTs(c.nextRun)}</span></div>
+        </div>
+      </div>
+      <div class="cron-card-actions">
+        <label class="cron-toggle" title="${c.enabled ? 'Enabled' : 'Disabled'}">
+          <input type="checkbox" ${c.enabled ? 'checked' : ''} data-id="${escHtml(c.id)}">
+          <div class="cron-toggle-track"></div>
+          <div class="cron-toggle-thumb"></div>
+        </label>
+        <button class="cron-delete-btn" data-id="${escHtml(c.id)}" title="Delete cron">×</button>
+      </div>`;
+    // Toggle enabled
+    card.querySelector('.cron-toggle input').addEventListener('change', async e => {
+      e.stopPropagation();
+      const enabled = e.target.checked;
+      try {
+        await fetch(`/crons/${c.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled }),
+        });
+      } catch (err) { console.error('patch cron', err); }
+    });
+    // Delete
+    card.querySelector('.cron-delete-btn').addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm(`Delete cron "${c.name}"?`)) return;
+      try {
+        await fetch(`/crons/${c.id}`, { method: 'DELETE' });
+        await cronLoad();
+      } catch (err) { console.error('delete cron', err); }
+    });
+    list.appendChild(card);
+  }
+}
+
+async function cronLoad() {
+  try {
+    const r = await fetch('/crons');
+    if (!r.ok) throw new Error(await r.text());
+    const crons = await r.json();
+    renderCrons(crons);
+  } catch (e) {
+    $('cron-list').innerHTML = `<div class="cron-empty" style="color:var(--red)">Error loading crons: ${escHtml(e.message)}</div>`;
+  }
+}
+
+async function cronSubmit() {
+  const name = $('cf-name').value.trim();
+  const schedule = $('cf-schedule').value.trim();
+  const repoUrl = $('cf-repo').value.trim();
+  const prompt = $('cf-prompt').value.trim();
+  const enabled = $('cf-enabled').checked;
+  if (!name || !schedule || !repoUrl || !prompt) {
+    alert('Please fill in all fields.');
+    return;
+  }
+  try {
+    const r = await fetch('/crons', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, schedule, repoUrl, prompt, enabled }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    cronClearForm();
+    cronToggleForm();
+    await cronLoad();
+  } catch (e) {
+    alert('Error creating cron: ' + e.message);
+  }
+}
+
+// Poll crons every 10s when panel is active
+setInterval(() => {
+  if (cronsPanel.classList.contains('active')) cronLoad();
+}, 10000);
+
+// ── Chat ─────────────────────────────────────────────────────────────────
+let chatInitialized = false;
+let chatSSE = null;
+
+function escHtmlChat(s) { return escHtml(s); }
 
 function chatMsgEl(msg) {
   const isUser = msg.role === 'user';
@@ -2031,175 +2478,150 @@ function chatMsgEl(msg) {
   return div;
 }
 
+function chatAppend(msg) {
+  const messagesEl = $('chat-messages');
+  const el = chatMsgEl(msg);
+  messagesEl.appendChild(el);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+async function chatInit() {
+  if (chatInitialized) return;
+  chatInitialized = true;
+
+  // Load history
+  try {
+    const r = await fetch('/chat/history');
+    if (r.ok) {
+      const msgs = await r.json();
+      const messagesEl = $('chat-messages');
+      messagesEl.innerHTML = '';
+      for (const m of msgs) chatAppend(m);
+    }
+  } catch (e) { console.error('chat history', e); }
+
+  // SSE
+  chatSSE = new EventSource('/chat/stream');
+  chatSSE.onmessage = e => {
+    try {
+      const msg = JSON.parse(e.data);
+      // Deduplicate: skip if we already have this id (sent by us)
+      if (msg.id && document.querySelector(`[data-id="${CSS.escape(msg.id)}"]`)) return;
+      chatAppend(msg);
+      handleChatEvent(e.data);
+    } catch {}
+  };
+  chatSSE.onerror = () => { console.warn('chat SSE disconnected, will retry'); };
+
+  const ta = $('chat-textarea');
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); }
+  });
+}
+
+
 async function chatSend() {
-  const input = $('chat-input');
-  const message = input.value.trim();
+  const ta = $('chat-textarea');
+  const message = ta.value.trim();
   if (!message) return;
   const btn = $('chat-send-btn');
   btn.disabled = true;
   try {
-    const ns = metaNs || 'default';
     const r = await fetch('/chat/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, namespace: ns }),
+      body: JSON.stringify({ message }),
     });
     if (!r.ok) throw new Error(await r.text());
-    input.value = '';
+    await r.json();
+    ta.value = '';
   } catch (e) {
     alert('Error sending message: ' + e.message);
   } finally {
     btn.disabled = false;
-    input.focus();
+    ta.focus();
   }
 }
 
-// ── Tab switching ──────────────────────────────────────────────────────────
-const jobsView   = $('jobs-view');
-const cronsPanel = $('crons-panel');
-const chatPanel  = $('chat-panel');
-const metaBar    = $('meta-bar');
+// ── Meta-agent bar ─────────────────────────────────────────────────────────
+let primaryNamespace = '';
 
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const tab = btn.dataset.tab;
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    if (tab === 'jobs') {
-      jobsView.classList.remove('hidden');
-      metaBar.classList.remove('hidden');
-      cronsPanel.classList.remove('active');
-      chatPanel.classList.remove('active');
-    } else if (tab === 'crons') {
-      jobsView.classList.add('hidden');
-      metaBar.classList.add('hidden');
-      cronsPanel.classList.add('active');
-      chatPanel.classList.remove('active');
-      cronLoad();
-    } else if (tab === 'chat') {
-      jobsView.classList.add('hidden');
-      metaBar.classList.add('hidden');
-      cronsPanel.classList.remove('active');
-      chatPanel.classList.add('active');
-      chatInit();
-    }
-  });
+async function initMetaBar() {
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    primaryNamespace = cfg.namespace || '';
+    const nsEl = document.getElementById('meta-bar-ns');
+    if (nsEl && primaryNamespace) nsEl.textContent = `★ ${primaryNamespace}`;
+  } catch {}
+  await loadMetaBarHistory();
+}
+
+async function loadMetaBarHistory() {
+  if (!primaryNamespace) return;
+  try {
+    const msgs = await fetch(`/chat/history?namespace=${encodeURIComponent(primaryNamespace)}`).then(r => r.json());
+    const container = document.getElementById('meta-bar-messages');
+    if (!container) return;
+    container.innerHTML = '';
+    const last5 = msgs.slice(-5);
+    for (const m of last5) appendMetaMsg(m);
+  } catch {}
+}
+
+function appendMetaMsg(msg) {
+  const container = document.getElementById('meta-bar-messages');
+  if (!container) return;
+  const div = document.createElement('div');
+  div.className = `meta-msg ${msg.role || 'assistant'}`;
+  div.textContent = msg.content || '';
+  div.title = msg.content || '';
+  container.appendChild(div);
+  // Keep last 5
+  while (container.children.length > 5) container.removeChild(container.firstChild);
+}
+
+document.getElementById('meta-bar-send').addEventListener('click', sendMetaMsg);
+document.getElementById('meta-bar-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendMetaMsg();
 });
 
-// ── Crons ─────────────────────────────────────────────────────────────────
-let cronFormVisible = false;
-
-function cronToggleForm() {
-  cronFormVisible = !cronFormVisible;
-  const form = $('cron-add-form');
-  if (cronFormVisible) { form.classList.add('visible'); $('cf-name').focus(); }
-  else { form.classList.remove('visible'); cronClearForm(); }
-}
-function cronClearForm() {
-  $('cf-name').value = '';
-  $('cf-schedule').value = '';
-  $('cf-repo').value = '';
-  $('cf-prompt').value = '';
-  $('cf-enabled').checked = true;
-}
-function fmtTs(iso) {
-  if (!iso) return '—';
-  try { return new Date(iso).toLocaleString(); } catch { return iso; }
-}
-function renderCrons(crons) {
-  const list = $('cron-list');
-  if (!crons.length) {
-    list.innerHTML = '<div class="cron-empty">No crons yet. Click "+ Add Cron" to create one.</div>';
-    return;
-  }
-  list.innerHTML = '';
-  for (const c of crons) {
-    const repoShort = (c.repoUrl || '').length > 40 ? c.repoUrl.slice(0, 40) + '…' : (c.repoUrl || '—');
-    const card = document.createElement('div');
-    card.className = 'cron-card';
-    card.innerHTML = `
-      <div class="cron-card-main">
-        <div class="cron-card-name">${escHtml(c.name || '(unnamed)')}</div>
-        <div class="cron-card-meta">
-          <div class="cron-meta-item">schedule: <span>${escHtml(c.schedule || '—')}</span></div>
-          <div class="cron-meta-item">repo: <span title="${escHtml(c.repoUrl || '')}">${escHtml(repoShort)}</span></div>
-        </div>
-        <div class="cron-card-prompt">${escHtml(c.prompt || '')}</div>
-        <div class="cron-card-times">
-          <div class="cron-time-item">last run: <span>${fmtTs(c.lastRun)}</span></div>
-          <div class="cron-time-item">next run: <span>${fmtTs(c.nextRun)}</span></div>
-        </div>
-      </div>
-      <div class="cron-card-actions">
-        <label class="cron-toggle" title="${c.enabled ? 'Enabled' : 'Disabled'}">
-          <input type="checkbox" ${c.enabled ? 'checked' : ''} data-id="${escHtml(c.id)}">
-          <div class="cron-toggle-track"></div>
-          <div class="cron-toggle-thumb"></div>
-        </label>
-        <button class="cron-delete-btn" data-id="${escHtml(c.id)}" title="Delete cron">×</button>
-      </div>`;
-    card.querySelector('.cron-toggle input').addEventListener('change', async e => {
-      e.stopPropagation();
-      const enabled = e.target.checked;
-      try {
-        await fetch(`/crons/${c.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enabled }),
-        });
-      } catch (err) { console.error('patch cron', err); }
-    });
-    card.querySelector('.cron-delete-btn').addEventListener('click', async e => {
-      e.stopPropagation();
-      if (!confirm(`Delete cron "${c.name}"?`)) return;
-      try {
-        await fetch(`/crons/${c.id}`, { method: 'DELETE' });
-        await cronLoad();
-      } catch (err) { console.error('delete cron', err); }
-    });
-    list.appendChild(card);
-  }
-}
-async function cronLoad() {
+async function sendMetaMsg() {
+  const input = document.getElementById('meta-bar-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
   try {
-    const r = await fetch('/crons');
-    if (!r.ok) throw new Error(await r.text());
-    const crons = await r.json();
-    renderCrons(crons);
-  } catch (e) {
-    $('cron-list').innerHTML = `<div class="cron-empty" style="color:var(--red)">Error: ${escHtml(e.message)}</div>`;
-  }
-}
-async function cronSubmit() {
-  const name = $('cf-name').value.trim();
-  const schedule = $('cf-schedule').value.trim();
-  const repoUrl = $('cf-repo').value.trim();
-  const prompt = $('cf-prompt').value.trim();
-  const enabled = $('cf-enabled').checked;
-  if (!name || !schedule || !repoUrl || !prompt) { alert('Please fill in all fields.'); return; }
-  try {
-    const r = await fetch('/crons', {
+    await fetch('/chat/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, schedule, repoUrl, prompt, enabled }),
+      body: JSON.stringify({ message: msg, namespace: primaryNamespace })
     });
-    if (!r.ok) throw new Error(await r.text());
-    cronClearForm();
-    cronToggleForm();
-    await cronLoad();
-  } catch (e) { alert('Error creating cron: ' + e.message); }
+  } catch (err) { console.error('meta-bar send', err); }
 }
-setInterval(() => {
-  if (cronsPanel.classList.contains('active')) cronLoad();
-}, 10000);
 
-// ── Time-ago refresh ───────────────────────────────────────────────────────
-setInterval(() => {
-  document.querySelectorAll('.jc-time[data-started]').forEach(el => {
-    const iso = el.dataset.started;
-    if (iso) el.textContent = timeAgo(iso);
-  });
-}, 30000);
+// Route SSE chat events to meta-bar or per-column chat
+function handleChatEvent(data) {
+  try {
+    const parsed = JSON.parse(data);
+    const ns = parsed.namespace || primaryNamespace;
+    if (!primaryNamespace || ns === primaryNamespace) {
+      appendMetaMsg(parsed);
+    }
+    // Also update per-column chat if the column exists
+    const safeNs = ns.replace(/[^a-z0-9]/gi, '-');
+    const colChat = document.getElementById(`col-chat-msgs-${safeNs}`);
+    if (colChat) {
+      const d = document.createElement('div');
+      d.className = `meta-msg ${parsed.role || 'assistant'}`;
+      d.textContent = parsed.content || '';
+      d.title = parsed.content || '';
+      colChat.appendChild(d);
+      while (colChat.children.length > 3) colChat.removeChild(colChat.firstChild);
+    }
+  } catch {}
+}
+
+initMetaBar();
 
 // ── Version badge ─────────────────────────────────────────────────────────
 async function fetchVersions() {
@@ -2207,7 +2629,7 @@ async function fetchVersions() {
     const r = await fetch('/versions');
     if (!r.ok) return;
     const v = await r.json();
-    const badge = $('version-badge');
+    const badge = document.getElementById('version-badge');
     if (!badge) return;
     const fmt = (label, val) => {
       const cls = val === 'unknown' ? ' class="vb-unknown"' : '';
@@ -2222,49 +2644,6 @@ async function fetchVersions() {
 }
 fetchVersions();
 setInterval(fetchVersions, 60000);
-
-// ── Loading overlay ────────────────────────────────────────────────────────
-(function() {
-  const overlay = $('loading-overlay');
-  const spinnerEl = $('loading-spinner');
-  const textEl = $('loading-text');
-  const frames = ['⣾','⣽','⣻','⢿','⡿','⣟','⣯','⣷'];
-  let frame = 0;
-  const spinInterval = setInterval(() => {
-    spinnerEl.textContent = frames[frame++ % frames.length];
-  }, 100);
-  let snapshotReceived = false;
-  const fallbackTimer = setTimeout(() => {
-    if (!snapshotReceived) textEl.textContent = 'Reconnecting…';
-  }, 8000);
-  window.hideLoader = function() {
-    snapshotReceived = true;
-    clearInterval(spinInterval);
-    clearTimeout(fallbackTimer);
-    overlay.style.display = 'none';
-  };
-})();
-
-// ── Init ───────────────────────────────────────────────────────────────────
-(async function init() {
-  // Fetch config to know primary namespace
-  try {
-    const r = await fetch('/api/config');
-    if (r.ok) {
-      const cfg = await r.json();
-      await initMetaBar(cfg.namespace || 'default');
-    }
-  } catch (e) {
-    console.error('config fetch failed', e);
-    await initMetaBar('default');
-  }
-
-  // Start chat SSE
-  initChatSSE();
-
-  // Connect WebSocket for jobs
-  connect();
-})();
 </script>
 </body>
 </html>
