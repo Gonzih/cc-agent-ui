@@ -1132,10 +1132,20 @@ body {
   font-family: var(--font);
   padding: 6px 10px;
   border-radius: 6px;
+  max-height: 400px;
+  overflow-y: auto;
 }
 .chat-tool-name { color: var(--cyan); font-weight: 600; display: block; margin-bottom: 2px; }
 .chat-tool-arg { color: var(--dim); margin-left: 8px; }
-.chat-tool-val { color: var(--text); }
+/* DO NOT ADD overflow:hidden OR max-height here — full content must be visible */
+.chat-tool-val {
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  font-family: var(--font);
+  font-size: 10px;
+}
 
 #chat-input-bar {
   flex-shrink: 0;
@@ -2479,8 +2489,9 @@ function chatMsgEl(msg) {
       try {
         const args = JSON.parse(m[2]);
         for (const [k, v] of Object.entries(args)) {
-          const val = String(v);
-          rows += `<div><span class="chat-tool-arg">${escHtml(k)}:</span> <span class="chat-tool-val">${escHtml(val)}</span></div>`;
+          // DO NOT TRUNCATE. Full value always. Objects → JSON, primitives → string.
+          const val = (v !== null && typeof v === 'object') ? JSON.stringify(v, null, 2) : String(v);
+          rows += `<div><span class="chat-tool-arg">${escHtml(k)}:</span><pre class="chat-tool-val">${escHtml(val)}</pre></div>`;
         }
       } catch {
         rows = `<div><span class="chat-tool-val">${escHtml(m[2])}</span></div>`;
