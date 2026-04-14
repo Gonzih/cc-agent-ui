@@ -165,6 +165,8 @@ body {
 .meta-msg.user::before { content: 'you: '; color: var(--dimmer); }
 .meta-msg.assistant { color: var(--text); }
 .meta-msg.assistant::before { content: '✦ '; color: #6366f1; }
+.meta-msg.coordinator { color: #f59e0b; }
+.meta-msg.coordinator::before { content: '↗ '; color: #d97706; }
 #meta-bar-input-row {
   display: flex; gap: 6px; flex-shrink: 0;
 }
@@ -1003,7 +1005,7 @@ body {
 
 .mp-msg { display: flex; flex-direction: column; gap: 2px; }
 .mp-msg.user { align-items: flex-end; }
-.mp-msg.assistant, .mp-msg.tool { align-items: flex-start; }
+.mp-msg.assistant, .mp-msg.coordinator, .mp-msg.tool { align-items: flex-start; }
 .mp-bubble {
   max-width: 90%;
   padding: 6px 10px;
@@ -1022,6 +1024,19 @@ body {
   border: 1px solid var(--border);
   color: var(--text);
   white-space: pre-wrap;
+}
+.mp-msg.coordinator .mp-bubble {
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.25);
+  color: #f59e0b;
+  white-space: pre-wrap;
+}
+.mp-msg-coordinator-label {
+  font-size: 8px;
+  color: #d97706;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
 }
 .mp-msg.tool .mp-bubble {
   padding: 2px 6px;
@@ -1311,6 +1326,7 @@ body {
 }
 .chat-msg.user { align-self: flex-end; align-items: flex-end; }
 .chat-msg.assistant { align-self: flex-start; align-items: flex-start; }
+.chat-msg.coordinator { align-self: flex-start; align-items: flex-start; }
 .chat-bubble {
   padding: 9px 13px;
   border-radius: 12px;
@@ -1330,6 +1346,19 @@ body {
   border: 1px solid var(--border);
   color: var(--text);
   border-bottom-left-radius: 3px;
+}
+.chat-msg.coordinator .chat-bubble {
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.3);
+  color: #f59e0b;
+  border-bottom-left-radius: 3px;
+}
+.chat-badge-coordinator {
+  font-size: 9px; color: #d97706;
+  background: rgba(245,158,11,0.12);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 3px;
+  padding: 1px 4px;
 }
 .chat-msg-meta {
   font-size: 9px; color: var(--dimmer);
@@ -2233,8 +2262,10 @@ function mpClose() {
 }
 
 function mpMsgEl(msg) {
+  const isCoordinator = msg.role === 'assistant' && msg.source && msg.source !== 'claude';
+  const cssRole = isCoordinator ? 'coordinator' : (msg.role || 'assistant');
   const div = document.createElement('div');
-  div.className = `mp-msg ${msg.role || 'assistant'}`;
+  div.className = `mp-msg ${cssRole}`;
   const ts = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
   const bubble = document.createElement('div');
   bubble.className = 'mp-bubble';
@@ -2244,7 +2275,14 @@ function mpMsgEl(msg) {
     const name = m ? m[1] : 'tool';
     bubble.textContent = `${icon} ${name}`;
   } else {
-    bubble.textContent = msg.content || '';
+    if (isCoordinator) {
+      const label = document.createElement('div');
+      label.className = 'mp-msg-coordinator-label';
+      label.textContent = msg.source || 'coordinator';
+      bubble.appendChild(label);
+    }
+    const text = document.createTextNode(msg.content || '');
+    bubble.appendChild(text);
   }
   const timeel = document.createElement('div');
   timeel.className = 'mp-msg-time';
@@ -3059,6 +3097,7 @@ function chatMsgEl(msg) {
   const isUser = msg.role === 'user';
   const isTool = msg.role === 'tool';
   const isTg   = msg.source === 'telegram';
+  const isCoordinator = !isUser && !isTool && msg.source && msg.source !== 'claude';
   const div = document.createElement('div');
   div.dataset.id = msg.id || '';
   const ts = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
@@ -3124,12 +3163,17 @@ function chatMsgEl(msg) {
     div.appendChild(bubble);
     div.appendChild(meta);
   } else {
-    div.className = `chat-msg ${isUser ? 'user' : 'assistant'}`;
+    const roleClass = isUser ? 'user' : (isCoordinator ? 'coordinator' : 'assistant');
+    div.className = `chat-msg ${roleClass}`;
+    const coordinatorBadge = isCoordinator
+      ? `<span class="chat-badge-coordinator">↗ ${escHtml(msg.source || 'coordinator')}</span>`
+      : '';
     div.innerHTML = `
       <div class="chat-bubble">${escHtml(msg.content || '')}</div>
       <div class="chat-msg-meta">
         ${ts}
         ${isTg ? '<span class="chat-badge-tg">📱 Telegram</span>' : ''}
+        ${coordinatorBadge}
       </div>`;
   }
   return div;
@@ -3228,9 +3272,11 @@ async function loadMetaBarHistory() {
 function appendMetaMsg(msg) {
   const container = document.getElementById('meta-bar-messages');
   if (!container) return;
+  const isCoordinator = msg.role === 'assistant' && msg.source && msg.source !== 'claude';
+  const cssRole = isCoordinator ? 'coordinator' : (msg.role || 'assistant');
   const div = document.createElement('div');
-  div.className = `meta-msg ${msg.role || 'assistant'}`;
-  div.textContent = msg.content || '';
+  div.className = `meta-msg ${cssRole}`;
+  div.textContent = isCoordinator ? `[${msg.source}] ${msg.content || ''}` : (msg.content || '');
   div.title = msg.content || '';
   container.appendChild(div);
   // Keep last 5
@@ -3268,9 +3314,10 @@ function handleChatEvent(data) {
     const safeNs = ns.replace(/[^a-z0-9]/gi, '-');
     const colChat = document.getElementById(`col-meta-msgs-${safeNs}`);
     if (colChat) {
+      const isCoordinator = parsed.role === 'assistant' && parsed.source && parsed.source !== 'claude';
       const d = document.createElement('div');
-      d.className = `meta-msg ${parsed.role || 'assistant'}`;
-      d.textContent = parsed.content || '';
+      d.className = `meta-msg ${isCoordinator ? 'coordinator' : (parsed.role || 'assistant')}`;
+      d.textContent = isCoordinator ? `[${parsed.source}] ${parsed.content || ''}` : (parsed.content || '');
       d.title = parsed.content || '';
       colChat.appendChild(d);
       while (colChat.children.length > 3) colChat.removeChild(colChat.firstChild);
