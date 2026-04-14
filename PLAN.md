@@ -1,19 +1,36 @@
-# Plan: Meta-agent namespace resolution — canonical registry, auto-provision, fallback
+# Plan: coordinator messages render distinctly (not as assistant bubbles)
 
 ## Task restatement
-Three precise changes to fix how the server discovers meta-agents and how the frontend resolves namespaces:
-1. **Change A** — Both `buildSnapshot()` and `/api/meta-agents` currently scan `cca:chat:log:*` (storage) to discover meta-agents. Replace with reads from `cca:meta:agents:index` (the canonical registry). Remove `buildRepoToMetaNsMap()` (it was a workaround). Add `cleanGhostChatLogs()` on startup to delete ghost keys.
-2. **Change B** — `/api/meta-chat/send` currently calls `buildRepoToMetaNsMap()`. Replace with inline short-name derivation + auto-provision: if the canonical ns isn't in the registry, register it. Also update `subscribeToNamespaces()` to read from `cca:meta:agents:index` instead of `cca:chat:log:*`.
-3. **Change C** — `resolveMetaNs(ns)` in `public/index.html` falls back to the registry lookup only. Add a second fallback: `ns.includes('/') ? ns.split('/').pop() : ns` so any `owner/repo` format works without a registry entry.
+When a coordinator (e.g. cc-tg) sends a message via `message_meta_agent`, it ends up in
+`cca:chat:log:{namespace}` with `source: "cc-tg"` (or similar) and `role: "assistant"`.
+Currently the UI renders it identically to the meta-agent's own AI responses — same purple
+`✦ ` prefix, same color. This is confusing when reviewing sessions.
+
+## What we observed in Redis
+`cca:chat:log:money-brain` contains messages with these (source, role) combos:
+- `("claude", "assistant")` — meta-agent AI responses (current "assistant" style)
+- `("cc-tg", "assistant")` — coordinator's Claude text sent into money-brain (BUG: renders as assistant)
+- `("cc-tg", "tool")` — coordinator's tool calls (already rendered as tool bubbles)
+- `("telegram", "user")` — Telegram user messages (already rendered as user with badge)
+- `("ui", "user")` — UI user messages
+
+The distinguishing signal: `role === "assistant" && source !== "claude"` → coordinator message.
 
 ## Approach
-Direct in-place edits to `server.js` and `public/index.html`. No new files.
+Pure UI fix in `public/index.html`. Two render functions need updating:
+1. `mpMsgEl()` — meta-agent panel (full chat view)
+2. `chatMsgEl()` — primary /chat/ panel
+
+**Visual treatment for coordinator messages:**
+- CSS class `coordinator` on the wrapper div (currently uses `assistant`)
+- Amber/orange color (distinct from the indigo AI `✦ ` prefix)
+- Label `↗ <source>:` prefix so it reads like "↗ cc-tg: <text>"
+- Keep `role: "tool"` rendering unchanged (collapsible tool bubbles are fine)
 
 ## Files to touch
-- `server.js` — buildSnapshot(), /api/meta-agents, buildRepoToMetaNsMap(), /api/meta-chat/send, subscribeToNamespaces(), startup
-- `public/index.html` — resolveMetaNs()
+- `public/index.html` — CSS, `mpMsgEl()`, `chatMsgEl()`, `appendMetaMsg()`
 - `package.json` — version bump
 
 ## Risks
-- `cca:meta:agents:index` may not exist yet on a fresh instance → `sMembers` returns empty array, handled gracefully
-- Ghost log cleanup on startup is intentionally conservative: only deletes keys containing `/` not in canonical set
+- Some edge case where `source` is undefined on old log entries — default to "assistant" class
+- Coordinator label width might overflow narrow bubbles — use `overflow: hidden; text-overflow: ellipsis`
