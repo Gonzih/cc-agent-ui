@@ -91,6 +91,32 @@ async function fetchMetaStatus(ns) {
   } catch { return null; }
 }
 
+/**
+ * Build a map from "owner/repo" path → canonical meta-agent namespace.
+ * e.g. "gonzih/cc-agent" → "cc-agent"
+ * Reads from cca:meta:agents:index + per-namespace state keys.
+ */
+async function buildRepoToMetaNsMap() {
+  const map = {};
+  try {
+    const namespaces = await redis.sMembers('cca:meta:agents:index');
+    for (const ns of namespaces) {
+      if (ns === 'default') continue;
+      const raw = await redis.get(`cca:meta:${ns}`);
+      if (!raw) continue;
+      try {
+        const state = JSON.parse(raw);
+        if (state.repoUrl) {
+          // https://github.com/gonzih/cc-agent → "gonzih/cc-agent"
+          const repoPath = state.repoUrl.replace(/^https?:\/\/[^/]+\//, '');
+          map[repoPath] = ns;
+        }
+      } catch {}
+    }
+  } catch {}
+  return map;
+}
+
 /** Get last N lines from Redis output list (or disk fallback) */
 async function getOutputTail(id, n = TAIL_LINES) {
   try {
@@ -165,7 +191,19 @@ async function buildSnapshot() {
     }
     metaAgents.push({ namespace: ns, count: len, ...(agentStatus || {}) });
   }
-  return { namespaces, jobs: withOutput, metaAgents };
+
+  // Deduplicate: filter out ghost entries that are repo-path aliases for canonical namespaces
+  const repoToNs = await buildRepoToMetaNsMap();
+  const deduped = metaAgents.filter(a => !repoToNs[a.namespace]);
+  // Ensure canonical namespaces appear even if their chat:log key doesn't exist yet
+  for (const [, canonicalNs] of Object.entries(repoToNs)) {
+    if (!deduped.find(a => a.namespace === canonicalNs)) {
+      const agentStatus = await fetchMetaStatus(canonicalNs);
+      if (agentStatus) deduped.push({ namespace: canonicalNs, count: 0, ...agentStatus });
+    }
+  }
+
+  return { namespaces, jobs: withOutput, metaAgents: deduped };
 }
 
 // ── File browser helpers ───────────────────────────────────────────────────
@@ -545,13 +583,23 @@ const server = http.createServer((req, res) => {
     (async () => {
       try {
         const keys = await redis.keys('cca:chat:log:*');
-        const agents = (await Promise.all(keys.map(async key => {
+        const raw = (await Promise.all(keys.map(async key => {
           const ns = key.replace('cca:chat:log:', '');
           if (ns === 'default') return null; // money-brain is the default namespace
           const len = await redis.lLen(key);
           const agentStatus = await fetchMetaStatus(ns);
           return { namespace: ns, count: len, ...(agentStatus || {}) };
         }))).filter(Boolean);
+        // Deduplicate: filter out ghost repo-path aliases
+        const repoToNs = await buildRepoToMetaNsMap();
+        const agents = raw.filter(a => !repoToNs[a.namespace]);
+        // Ensure canonical namespaces appear even if their chat:log key doesn't exist yet
+        for (const [, canonicalNs] of Object.entries(repoToNs)) {
+          if (!agents.find(a => a.namespace === canonicalNs)) {
+            const agentStatus = await fetchMetaStatus(canonicalNs);
+            if (agentStatus) agents.push({ namespace: canonicalNs, count: 0, ...agentStatus });
+          }
+        }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(agents));
       } catch (e) { res.writeHead(500); res.end(e.message); }
@@ -576,13 +624,16 @@ const server = http.createServer((req, res) => {
       try {
         const { ns, message } = JSON.parse(body);
         if (!ns || !message) { res.writeHead(400); res.end('missing ns/message'); return; }
+        // Resolve to canonical namespace (e.g. "gonzih/cc-agent" → "cc-agent")
+        const repoToNs = await buildRepoToMetaNsMap();
+        const canonicalNs = repoToNs[ns] || ns;
         const inputEntry = { id: randomUUID(), content: message, timestamp: new Date().toISOString() };
-        await redis.lPush(`cca:meta:${ns}:input`, JSON.stringify(inputEntry));
+        await redis.lPush(`cca:meta:${canonicalNs}:input`, JSON.stringify(inputEntry));
         const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, timestamp: Date.now() };
-        const newLen = await redis.lPush(`cca:chat:log:${ns}`, JSON.stringify(msg));
-        await redis.lTrim(`cca:chat:log:${ns}`, 0, 499);
-        metaChatLengths[ns] = newLen;
-        broadcast({ type: 'meta_msg', ns, msg });
+        const newLen = await redis.lPush(`cca:chat:log:${canonicalNs}`, JSON.stringify(msg));
+        await redis.lTrim(`cca:chat:log:${canonicalNs}`, 0, 499);
+        metaChatLengths[canonicalNs] = newLen;
+        broadcast({ type: 'meta_msg', ns: canonicalNs, msg });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));
       } catch (e) { res.writeHead(500); res.end(e.message); }
