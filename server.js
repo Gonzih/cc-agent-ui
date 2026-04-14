@@ -146,6 +146,7 @@ async function buildSnapshot() {
   const metaAgents = [];
   for (const key of metaKeys) {
     const ns = key.replace('cca:chat:log:', '');
+    if (ns === 'default') continue; // money-brain is the default namespace
     const len = await redis.lLen(key);
     metaChatLengths[ns] = len; // initialize length tracker
     metaAgents.push({ namespace: ns, count: len });
@@ -507,11 +508,12 @@ const server = http.createServer((req, res) => {
     (async () => {
       try {
         const keys = await redis.keys('cca:chat:log:*');
-        const agents = await Promise.all(keys.map(async key => {
+        const agents = (await Promise.all(keys.map(async key => {
           const ns = key.replace('cca:chat:log:', '');
+          if (ns === 'default') return null; // money-brain is the default namespace
           const len = await redis.lLen(key);
           return { namespace: ns, count: len };
-        }));
+        }))).filter(Boolean);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(agents));
       } catch (e) { res.writeHead(500); res.end(e.message); }
@@ -664,6 +666,7 @@ setInterval(async () => {
     const keys = await redis.keys('cca:chat:log:*');
     for (const key of keys) {
       const ns = key.replace('cca:chat:log:', '');
+      if (ns === 'default') continue; // money-brain is the default namespace
       const len = await redis.lLen(key);
       const prev = metaChatLengths[ns];
       if (prev === undefined) { metaChatLengths[ns] = len; continue; } // first see
