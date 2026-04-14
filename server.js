@@ -446,7 +446,24 @@ const server = http.createServer((req, res) => {
         const namespace = parsed.namespace || NAMESPACE;
         const message = parsed.message;
         const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, namespace, timestamp: new Date().toISOString() };
-        await redis.publish(`cca:chat:incoming:${namespace}`, JSON.stringify(msg));
+
+        // Check if a meta-agent is running for this namespace
+        let metaStatus = null;
+        try {
+          const metaStatusRaw = await redis.get(`cca:meta-agent:status:${namespace}`);
+          metaStatus = metaStatusRaw ? JSON.parse(metaStatusRaw) : null;
+        } catch {}
+
+        if (metaStatus && metaStatus.status === 'running') {
+          // Route directly to meta-agent input queue
+          const inputEntry = { id: msg.id, content: message, timestamp: msg.timestamp };
+          await redis.lPush(`cca:meta:${namespace}:input`, JSON.stringify(inputEntry));
+        } else {
+          // No meta-agent running — route to coordinator/cc-tg as before
+          await redis.publish(`cca:chat:incoming:${namespace}`, JSON.stringify(msg));
+        }
+
+        // Always write to chat log regardless of routing
         await redis.lPush(`cca:chat:log:${namespace}`, JSON.stringify(msg));
         await redis.lTrim(`cca:chat:log:${namespace}`, 0, 499);
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -472,7 +489,13 @@ const server = http.createServer((req, res) => {
           if (closed) return;
           try {
             const namespaces = await getNamespaces();
-            for (const ns of namespaces) {
+            // Also include meta-agent namespaces that may not have jobs
+            const metaKeys = await redis.keys('cca:chat:log:*');
+            const metaNs = metaKeys
+              .map(k => k.replace('cca:chat:log:', ''))
+              .filter(ns => ns !== 'default' && !namespaces.includes(ns));
+            const allNamespaces = [...namespaces, ...metaNs];
+            for (const ns of allNamespaces) {
               if (!subscribed.has(ns)) {
                 subscribed.add(ns);
                 await sub.subscribe(`cca:chat:outgoing:${ns}`, (rawMsg) => {
@@ -553,7 +576,8 @@ const server = http.createServer((req, res) => {
       try {
         const { ns, message } = JSON.parse(body);
         if (!ns || !message) { res.writeHead(400); res.end('missing ns/message'); return; }
-        await redis.lPush(`cca:meta:${ns}:input`, message);
+        const inputEntry = { id: randomUUID(), content: message, timestamp: new Date().toISOString() };
+        await redis.lPush(`cca:meta:${ns}:input`, JSON.stringify(inputEntry));
         const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, timestamp: Date.now() };
         const newLen = await redis.lPush(`cca:chat:log:${ns}`, JSON.stringify(msg));
         await redis.lTrim(`cca:chat:log:${ns}`, 0, 499);

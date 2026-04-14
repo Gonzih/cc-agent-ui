@@ -1,23 +1,47 @@
-# PLAN: Meta Agents Sidebar + Right-Side Panel (0.5.3)
+# PLAN: Fix meta-agent chat routing (0.5.7)
 
 ## Task Restatement
 
-Add a "meta agents" section at the bottom of the sidebar that lists all `cca:chat:log:*` namespaces found in Redis. Clicking a meta agent opens a right-side slide-in panel showing:
-- An icon-strip (compressed activity view of recent tool/message icons)
-- A scrollable chat view (user/assistant messages)
-- A send bar to push messages to `cca:meta:{ns}:input`
+Meta-chat messages are being routed to the wrong destination. When a user sends a
+message in the main chat or meta-bar with a namespace that has a running meta-agent,
+the message should go to `cca:meta:{namespace}:input` (the LIST the meta-agent polls),
+not to `cca:chat:incoming:{namespace}` (which routes to the coordinator/cc-tg).
+
+Additionally, `/chat/stream` only subscribes to namespaces that have jobs (from
+`cca:jobs:*`), so meta-agent namespaces without jobs never get their outgoing messages
+streamed to the UI.
+
+## Affected Code
+
+### 1. `/chat/send` endpoint (server.js ~line 440)
+**Current:** Always publishes to `cca:chat:incoming:{namespace}`
+**Fix:** Check `cca:meta-agent:status:{namespace}` → if running, push to
+`cca:meta:{namespace}:input` with JSON format `{id, content, timestamp}`.
+
+### 2. `/api/meta-chat/send` endpoint (server.js ~line 549)
+**Current:** Pushes raw `message` string to `cca:meta:${ns}:input`
+**Fix:** Push `JSON.stringify({id, content, timestamp})` to match meta-agent expectations.
+
+### 3. `/chat/stream` endpoint (server.js ~line 457)
+**Current:** Only calls `getNamespaces()` which scans `cca:jobs:*` — misses namespaces
+that have only chat logs (meta-agent namespaces).
+**Fix:** Also scan `cca:chat:log:*` keys, filter out 'default', and subscribe to
+`cca:chat:outgoing:{ns}` for those namespaces.
 
 ## Approach
 
-Single approach — the spec is fully detailed with exact code snippets. Implement it faithfully.
+Single approach — straightforward targeted fixes to three existing endpoints. No new
+abstractions needed; the routing logic is self-contained per endpoint.
 
-**Files to touch:**
-- `server.js` — add metaChatLengths tracker, update buildSnapshot, 3 new endpoints, 1 new polling interval
-- `public/index.html` — CSS, HTML (sidebar section + panel), JS (state, functions, event wiring)
-- `package.json` — bump to 0.5.3
+## Files to Touch
+
+- `server.js` — three endpoint changes
+- `package.json` — version bump to 0.5.7
 
 ## Risks
 
-- `buildSnapshot` already runs on WS connect — meta agent list will be included in initial snapshot, so `initMetaAgents` called from `handleSnapshot` is the right trigger
-- `mpEl` and `mpClose` must be defined before `jpOpen` references them; the spec handles this by using direct DOM calls inside `jpOpen` instead of the function reference
-- Tool icon regex `^\[tool\]\s+([\w:]+)` must handle mcp-style names — `m[1].split(':').pop()` handles this
+- `/chat/send` change: if meta-agent status is stale (process died but status not cleared),
+  messages may go to the queue instead of the coordinator. Acceptable risk — the meta-agent
+  poller will time out; the status key should have a TTL set by the meta-agent process.
+- `/chat/stream` change: subscribing to more channels is additive and safe.
+- `randomUUID` is already imported at line 19 — no new import needed.
