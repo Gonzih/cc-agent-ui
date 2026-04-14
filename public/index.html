@@ -143,7 +143,9 @@ body {
   font-size: 10px; font-weight: 700; color: #818cf8;
   text-transform: uppercase; letter-spacing: 0.08em;
   white-space: nowrap;
+  cursor: pointer;
 }
+#meta-bar-ns:hover { color: #a5b4fc; text-decoration: underline; }
 #meta-bar-messages {
   flex: 1;
   display: flex;
@@ -1351,12 +1353,26 @@ body {
   font-family: var(--font);
   padding: 6px 10px;
   border-radius: 6px;
+}
+.chat-tool-header {
+  display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;
+}
+.chat-tool-header:hover .chat-tool-name { color: var(--blue); }
+.chat-tool-chevron {
+  color: var(--dimmer); font-size: 9px; transition: transform 0.15s; flex-shrink: 0;
+}
+.chat-tool-chevron.open { transform: rotate(90deg); }
+.chat-tool-name { color: var(--cyan); font-weight: 600; }
+.chat-tool-body {
+  display: none;
+  margin-top: 6px;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
   max-height: 400px;
   overflow-y: auto;
 }
-.chat-tool-name { color: var(--cyan); font-weight: 600; display: block; margin-bottom: 2px; }
+.chat-tool-body.open { display: block; }
 .chat-tool-arg { color: var(--dim); margin-left: 8px; }
-/* DO NOT ADD overflow:hidden OR max-height here — full content must be visible */
 .chat-tool-val {
   color: var(--text);
   white-space: pre-wrap;
@@ -2858,28 +2874,34 @@ const mainEl     = $('main');
 const cronsPanel = $('crons-panel');
 const chatPanel  = $('chat-panel');
 
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const tab = btn.dataset.tab;
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    if (tab === 'jobs') {
-      mainEl.style.display = 'flex';
-      cronsPanel.classList.remove('active');
-      chatPanel.classList.remove('active');
-    } else if (tab === 'crons') {
-      mainEl.style.display = 'none';
-      cronsPanel.classList.add('active');
-      chatPanel.classList.remove('active');
-      cronLoad();
-    } else if (tab === 'chat') {
-      mainEl.style.display = 'none';
-      cronsPanel.classList.remove('active');
-      chatPanel.classList.add('active');
-      chatInit();
-    }
+function switchToTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
   });
+  if (tab === 'jobs') {
+    mainEl.style.display = 'flex';
+    cronsPanel.classList.remove('active');
+    chatPanel.classList.remove('active');
+  } else if (tab === 'crons') {
+    mainEl.style.display = 'none';
+    cronsPanel.classList.add('active');
+    chatPanel.classList.remove('active');
+    cronLoad();
+  } else if (tab === 'chat') {
+    mainEl.style.display = 'none';
+    cronsPanel.classList.remove('active');
+    chatPanel.classList.add('active');
+    chatInit();
+  }
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchToTab(btn.dataset.tab));
 });
+
+// Namespace label in meta-bar → navigate to Chat tab
+const metaBarNs = document.getElementById('meta-bar-ns');
+if (metaBarNs) metaBarNs.addEventListener('click', () => switchToTab('chat'));
 
 // ── Crons ─────────────────────────────────────────────────────────────────
 let cronPollTimer = null;
@@ -3029,25 +3051,62 @@ function chatMsgEl(msg) {
     div.className = 'chat-msg tool';
     const content = msg.content || '';
     const m = content.match(/^\[tool\]\s+([\w-]+):\s+(\{.*\})$/s);
-    let bubbleInner;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+
+    const header = document.createElement('div');
+    header.className = 'chat-tool-header';
+
+    const chevron = document.createElement('span');
+    chevron.className = 'chat-tool-chevron';
+    chevron.textContent = '▶';
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'chat-tool-name';
+
+    const body = document.createElement('div');
+    body.className = 'chat-tool-body';
+
     if (m) {
-      const toolName = escHtml(m[1]);
-      let rows = '';
+      nameSpan.textContent = `[tool] ${m[1]}`;
       try {
         const args = JSON.parse(m[2]);
         for (const [k, v] of Object.entries(args)) {
           // DO NOT TRUNCATE. Full value always. Objects → JSON, primitives → string.
           const val = (v !== null && typeof v === 'object') ? JSON.stringify(v, null, 2) : String(v);
-          rows += `<div><span class="chat-tool-arg">${escHtml(k)}:</span><pre class="chat-tool-val">${escHtml(val)}</pre></div>`;
+          const row = document.createElement('div');
+          row.innerHTML = `<span class="chat-tool-arg">${escHtml(k)}:</span><pre class="chat-tool-val">${escHtml(val)}</pre>`;
+          body.appendChild(row);
         }
       } catch {
-        rows = `<div><span class="chat-tool-val">${escHtml(m[2])}</span></div>`;
+        const row = document.createElement('div');
+        row.innerHTML = `<span class="chat-tool-val">${escHtml(m[2])}</span>`;
+        body.appendChild(row);
       }
-      bubbleInner = `<span class="chat-tool-name">[tool] ${toolName}</span>${rows}`;
     } else {
-      bubbleInner = escHtml(content);
+      nameSpan.textContent = '[tool]';
+      const row = document.createElement('div');
+      row.innerHTML = `<span class="chat-tool-val">${escHtml(content)}</span>`;
+      body.appendChild(row);
     }
-    div.innerHTML = `<div class="chat-bubble">${bubbleInner}</div><div class="chat-msg-meta">${ts}</div>`;
+
+    header.appendChild(chevron);
+    header.appendChild(nameSpan);
+    header.addEventListener('click', () => {
+      const open = body.classList.toggle('open');
+      chevron.classList.toggle('open', open);
+    });
+
+    bubble.appendChild(header);
+    bubble.appendChild(body);
+
+    const meta = document.createElement('div');
+    meta.className = 'chat-msg-meta';
+    meta.textContent = ts;
+
+    div.appendChild(bubble);
+    div.appendChild(meta);
   } else {
     div.className = `chat-msg ${isUser ? 'user' : 'assistant'}`;
     div.innerHTML = `
