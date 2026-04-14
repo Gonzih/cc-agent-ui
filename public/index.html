@@ -1992,8 +1992,8 @@ function getOrCreateCol(key) {
   };
   colBtn.addEventListener('click', sendColMsg);
   colInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendColMsg(); });
-  // META label click → open right panel
-  el.querySelector('.col-meta-label').addEventListener('click', () => mpOpen(key));
+  // META label click → open right panel (resolve job namespace to canonical meta-agent ns)
+  el.querySelector('.col-meta-label').addEventListener('click', () => mpOpen(resolveMetaNs(key)));
 
   return cols[key];
 }
@@ -2050,6 +2050,7 @@ function handleSnapshot(data) {
   applyFilter();
   if (Object.keys(jobs).length > 0) emptyState.style.display = 'none';
   if (typeof hideLoader === 'function') hideLoader();
+  window._metaAgentsData = data.metaAgents || [];
   initMetaAgents(data.metaAgents);
 }
 
@@ -2264,6 +2265,17 @@ function mpAppendIcon(msg) {
   mpIcons.appendChild(span);
   while (mpIcons.children.length > 120) mpIcons.removeChild(mpIcons.firstChild);
   mpIcons.scrollTop = mpIcons.scrollHeight;
+}
+
+/**
+ * Resolve a job namespace (e.g. "gonzih/cc-agent") to the canonical meta-agent
+ * namespace (e.g. "cc-agent") using the repoUrl stored in _metaAgentsData.
+ */
+function resolveMetaNs(ns) {
+  const found = (window._metaAgentsData || []).find(a =>
+    a.repoUrl && a.repoUrl.replace(/^https?:\/\/[^/]+\//, '') === ns
+  );
+  return found ? found.namespace : ns;
 }
 
 async function mpOpen(ns) {
