@@ -879,17 +879,54 @@ body {
   width: 2px;
   background: var(--yellow);
 }
-.mi-top { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.mi-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
 .mi-dot {
   width: 6px; height: 6px; border-radius: 50%;
-  background: var(--yellow);
-  box-shadow: 0 0 4px var(--yellow);
-  animation: breathe 2s ease-in-out infinite;
+  background: var(--dim);
   flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
 }
+.mi-dot.running  { background: var(--green); box-shadow: 0 0 5px var(--green); animation: breathe 2s ease-in-out infinite; }
+.mi-dot.stopped  { background: var(--red); box-shadow: none; animation: none; }
+.mi-dot.unknown  { background: var(--yellow); box-shadow: 0 0 4px var(--yellow); animation: breathe 2s ease-in-out infinite; }
 .mi-ns {
   font-size: 10px; font-weight: 600; color: var(--text);
   flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mi-tool-badge {
+  font-size: 8px; font-weight: 700;
+  padding: 1px 5px; border-radius: 3px;
+  background: rgba(86,182,194,0.12); color: var(--cyan); border: 1px solid rgba(86,182,194,0.25);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+.mi-typing {
+  font-size: 9px; color: var(--cyan); flex-shrink: 0;
+  animation: typing-pulse 1.1s ease-in-out infinite;
+}
+@keyframes typing-pulse {
+  0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+}
+.mi-meta-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 2px; min-height: 14px;
+}
+.mi-last-msg {
+  font-size: 9px; color: var(--dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1;
+}
+.mi-footer {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 2px;
+}
+.mi-turn-count {
+  font-size: 8px; color: var(--dimmer);
+  flex-shrink: 0;
+}
+.mi-last-active {
+  font-size: 8px; color: var(--dimmer);
+  margin-left: auto; flex-shrink: 0;
 }
 .mi-icons { font-size: 11px; color: var(--dim); letter-spacing: 0.05em; line-height: 1; }
 
@@ -2116,11 +2153,12 @@ function connect() {
     let evt;
     try { evt = JSON.parse(data); } catch { return; }
     switch (evt.type) {
-      case 'snapshot':   handleSnapshot(evt); break;
-      case 'job_update': handleJobUpdate(evt); break;
-      case 'job_new':    handleJobNew(evt); break;
-      case 'job_output': handleOutput(evt); break;
-      case 'meta_msg':   handleMetaMsg(evt); break;
+      case 'snapshot':    handleSnapshot(evt); break;
+      case 'job_update':  handleJobUpdate(evt); break;
+      case 'job_new':     handleJobNew(evt); break;
+      case 'job_output':  handleOutput(evt); break;
+      case 'meta_msg':    handleMetaMsg(evt); break;
+      case 'meta_status': handleMetaStatus(evt); break;
     }
   };
 }
@@ -2267,15 +2305,22 @@ function handleMetaMsg(data) {
   metaState[ns].msgs.push(msg);
   if (metaState[ns].msgs.length > 300) metaState[ns].msgs.shift();
 
+  // Update last-msg snippet in sidebar card
   const si = document.querySelector(`.meta-item[data-ns="${CSS.escape(ns)}"]`);
-  if (si) {
-    const iconsEl = si.querySelector('.mi-icons');
-    if (iconsEl) {
-      const icon = metaMsgIcon(msg);
-      if (icon) {
-        const cur = iconsEl.textContent === '…' ? '' : iconsEl.textContent;
-        iconsEl.textContent = (cur + icon).slice(-10);
-      }
+  if (si && msg.role !== 'tool') {
+    const lastMsgRow = si.querySelector('.mi-meta-row');
+    const snippet = (msg.content || '').slice(0, 80);
+    if (lastMsgRow) {
+      const el = lastMsgRow.querySelector('.mi-last-msg');
+      if (el) { el.textContent = snippet; el.title = snippet; }
+    } else {
+      // insert before footer
+      const footer = si.querySelector('.mi-footer');
+      const row = document.createElement('div');
+      row.className = 'mi-meta-row';
+      row.innerHTML = `<span class="mi-last-msg" title="${escHtml(snippet)}">${escHtml(snippet)}</span>`;
+      if (footer) si.insertBefore(row, footer);
+      else si.appendChild(row);
     }
   }
 
@@ -2287,6 +2332,118 @@ function handleMetaMsg(data) {
       if (atBottom) mpChat.scrollTop = mpChat.scrollHeight;
     }
   }
+}
+
+function handleMetaStatus(data) {
+  const { ns, status } = data;
+  if (!status) return;
+  // Update the metaState cache with status fields
+  if (!metaState[ns]) metaState[ns] = { msgs: [] };
+  metaState[ns].agentStatus = status;
+
+  const si = document.querySelector(`.meta-item[data-ns="${CSS.escape(ns)}"]`);
+  if (!si) return;
+
+  // Update status dot
+  const dot = si.querySelector('.mi-dot');
+  if (dot) {
+    dot.className = `mi-dot ${status.status === 'running' ? 'running' : status.status === 'stopped' ? 'stopped' : 'unknown'}`;
+  }
+
+  // Update typing indicator
+  const top = si.querySelector('.mi-top');
+  if (top) {
+    let typingEl = top.querySelector('.mi-typing');
+    if (status.isTyping) {
+      if (!typingEl) {
+        typingEl = document.createElement('span');
+        typingEl.className = 'mi-typing';
+        typingEl.textContent = '●●●';
+        top.appendChild(typingEl);
+      }
+    } else {
+      if (typingEl) typingEl.remove();
+    }
+
+    // Update tool badge
+    let toolBadge = top.querySelector('.mi-tool-badge');
+    if (status.currentTool) {
+      if (!toolBadge) {
+        toolBadge = document.createElement('span');
+        toolBadge.className = 'mi-tool-badge';
+        // Insert before typing indicator
+        const typing = top.querySelector('.mi-typing');
+        if (typing) top.insertBefore(toolBadge, typing);
+        else top.appendChild(toolBadge);
+      }
+      toolBadge.textContent = status.currentTool;
+    } else {
+      if (toolBadge) toolBadge.remove();
+    }
+  }
+
+  // Update last message
+  if (status.lastMessage) {
+    const snippet = status.lastMessage.slice(0, 80);
+    let lastMsgRow = si.querySelector('.mi-meta-row');
+    if (lastMsgRow) {
+      const el = lastMsgRow.querySelector('.mi-last-msg');
+      if (el) { el.textContent = snippet; el.title = snippet; }
+    } else {
+      const footer = si.querySelector('.mi-footer');
+      const row = document.createElement('div');
+      row.className = 'mi-meta-row';
+      row.innerHTML = `<span class="mi-last-msg" title="${escHtml(snippet)}">${escHtml(snippet)}</span>`;
+      if (footer) si.insertBefore(row, footer);
+      else si.appendChild(row);
+    }
+  }
+
+  // Update footer (turn count + last active)
+  let footer = si.querySelector('.mi-footer');
+  if (!footer) {
+    footer = document.createElement('div');
+    footer.className = 'mi-footer';
+    si.appendChild(footer);
+  }
+  const turnEl = footer.querySelector('.mi-turn-count');
+  const activeEl = footer.querySelector('.mi-last-active');
+  if (status.turnCount != null) {
+    if (turnEl) turnEl.textContent = `${status.turnCount} turns`;
+    else { const s = document.createElement('span'); s.className = 'mi-turn-count'; s.textContent = `${status.turnCount} turns`; footer.prepend(s); }
+  }
+  if (status.lastActivity) {
+    const t = timeAgo(status.lastActivity);
+    if (activeEl) activeEl.textContent = t;
+    else { const s = document.createElement('span'); s.className = 'mi-last-active'; s.textContent = t; footer.appendChild(s); }
+  }
+}
+
+function metaItemHTML(a) {
+  const status = a.status || 'unknown';
+  const dotClass = status === 'running' ? 'running' : status === 'stopped' ? 'stopped' : 'unknown';
+  const toolBadge = a.currentTool
+    ? `<span class="mi-tool-badge">${escHtml(a.currentTool)}</span>`
+    : '';
+  const typingEl = a.isTyping
+    ? `<span class="mi-typing">●●●</span>`
+    : '';
+  const lastMsg = a.lastMessage
+    ? `<div class="mi-meta-row"><span class="mi-last-msg" title="${escHtml(a.lastMessage)}">${escHtml(a.lastMessage)}</span></div>`
+    : '';
+  const turnCount = a.turnCount != null ? `<span class="mi-turn-count">${a.turnCount} turns</span>` : '';
+  const lastActive = a.lastActivity ? `<span class="mi-last-active">${timeAgo(a.lastActivity)}</span>` : '';
+  const footer = (turnCount || lastActive)
+    ? `<div class="mi-footer">${turnCount}${lastActive}</div>`
+    : '';
+  return `
+    <div class="mi-top">
+      <div class="mi-dot ${dotClass}"></div>
+      <span class="mi-ns">${escHtml(a.namespace)}</span>
+      ${toolBadge}${typingEl}
+    </div>
+    ${lastMsg}
+    ${footer}`;
 }
 
 function renderMetaAgents(agents) {
@@ -2301,16 +2458,7 @@ function renderMetaAgents(agents) {
     const item = document.createElement('div');
     item.className = 'meta-item';
     item.dataset.ns = a.namespace;
-    const state = metaState[a.namespace];
-    const recentIcons = state
-      ? state.msgs.slice(-10).map(metaMsgIcon).filter(Boolean).join('')
-      : '…';
-    item.innerHTML = `
-      <div class="mi-top">
-        <div class="mi-dot"></div>
-        <span class="mi-ns">${escHtml(a.namespace)}</span>
-      </div>
-      <div class="mi-icons">${escHtml(recentIcons || '…')}</div>`;
+    item.innerHTML = metaItemHTML(a);
     item.addEventListener('click', () => mpOpen(a.namespace));
     list.appendChild(item);
   }
@@ -2319,6 +2467,16 @@ function renderMetaAgents(agents) {
 function initMetaAgents(agents) {
   renderMetaAgents(agents);
 }
+
+// Refresh relative timestamps in meta-agent cards every 30s
+setInterval(() => {
+  document.querySelectorAll('.meta-item').forEach(si => {
+    const ns = si.dataset.ns;
+    if (!ns || !metaState[ns]?.agentStatus?.lastActivity) return;
+    const el = si.querySelector('.mi-last-active');
+    if (el) el.textContent = timeAgo(metaState[ns].agentStatus.lastActivity);
+  });
+}, 30000);
 
 // Enter key submits message
 document.addEventListener('DOMContentLoaded', () => {
