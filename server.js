@@ -32,9 +32,10 @@ await redis.connect();
 console.log('[redis] connected');
 
 // ── State ──────────────────────────────────────────────────────────────────
-const clients       = new Set();
-const jobCache      = {};   // id → job object (latest known)
-const outputLengths = {};   // id → last known Redis list length
+const clients        = new Set();
+const jobCache       = {};   // id → job object (latest known)
+const outputLengths  = {};   // id → last known Redis list length
+const metaChatLengths = {}; // ns → last known list length (for polling)
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function broadcast(evt) {
@@ -140,7 +141,16 @@ async function buildSnapshot() {
     batch.forEach((j, k) => withOutput.push({ ...j, lines: outputs[k] }));
   }
 
-  return { namespaces, jobs: withOutput };
+  // Meta agents: discover from cca:chat:log:* keys
+  const metaKeys = await redis.keys('cca:chat:log:*');
+  const metaAgents = [];
+  for (const key of metaKeys) {
+    const ns = key.replace('cca:chat:log:', '');
+    const len = await redis.lLen(key);
+    metaChatLengths[ns] = len; // initialize length tracker
+    metaAgents.push({ namespace: ns, count: len });
+  }
+  return { namespaces, jobs: withOutput, metaAgents };
 }
 
 // ── File browser helpers ───────────────────────────────────────────────────
@@ -493,6 +503,50 @@ const server = http.createServer((req, res) => {
       } catch (e) { res.writeHead(500); res.end(e.message); }
     })();
 
+  } else if (url.pathname === '/api/meta-agents') {
+    (async () => {
+      try {
+        const keys = await redis.keys('cca:chat:log:*');
+        const agents = await Promise.all(keys.map(async key => {
+          const ns = key.replace('cca:chat:log:', '');
+          const len = await redis.lLen(key);
+          return { namespace: ns, count: len };
+        }));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(agents));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    })();
+
+  } else if (url.pathname === '/api/meta-chat/log') {
+    const ns = url.searchParams.get('ns');
+    if (!ns) { res.writeHead(400); res.end('missing ns'); return; }
+    (async () => {
+      try {
+        const raw = await redis.lRange(`cca:chat:log:${ns}`, 0, 99);
+        const msgs = raw.map(v => { try { return JSON.parse(v); } catch { return null; } }).filter(Boolean).reverse();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(msgs));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    })();
+
+  } else if (url.pathname === '/api/meta-chat/send' && req.method === 'POST') {
+    let body = '';
+    req.on('data', d => body += d);
+    req.on('end', async () => {
+      try {
+        const { ns, message } = JSON.parse(body);
+        if (!ns || !message) { res.writeHead(400); res.end('missing ns/message'); return; }
+        await redis.lPush(`cca:meta:${ns}:input`, message);
+        const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, timestamp: Date.now() };
+        const newLen = await redis.lPush(`cca:chat:log:${ns}`, JSON.stringify(msg));
+        await redis.lTrim(`cca:chat:log:${ns}`, 0, 499);
+        metaChatLengths[ns] = newLen;
+        broadcast({ type: 'meta_msg', ns, msg });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    });
+
   } else {
     res.writeHead(404); res.end();
   }
@@ -603,6 +657,25 @@ setInterval(async () => {
     if (now - ts > 30000) recentlyFinished.delete(id);
   }
 }, 900);
+
+// ── Polling: meta agent chat logs ──────────────────────────────────────────
+setInterval(async () => {
+  try {
+    const keys = await redis.keys('cca:chat:log:*');
+    for (const key of keys) {
+      const ns = key.replace('cca:chat:log:', '');
+      const len = await redis.lLen(key);
+      const prev = metaChatLengths[ns];
+      if (prev === undefined) { metaChatLengths[ns] = len; continue; } // first see
+      if (len <= prev) continue;
+      const newCount = len - prev;
+      metaChatLengths[ns] = len;
+      const raw = await redis.lRange(key, 0, newCount - 1); // newest first
+      const msgs = raw.map(v => { try { return JSON.parse(v); } catch { return null; } }).filter(Boolean).reverse();
+      for (const msg of msgs) broadcast({ type: 'meta_msg', ns, msg });
+    }
+  } catch (e) { console.error('[poll:meta-chat]', e.message); }
+}, 2500);
 
 // ── Start ──────────────────────────────────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {

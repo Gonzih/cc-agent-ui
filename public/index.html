@@ -842,6 +842,188 @@ body {
 #jp-msg-send:hover { background: rgba(86,182,194,0.12); border-color: var(--cyan); }
 #jp-msg-send:disabled { opacity: 0.35; cursor: not-allowed; }
 
+/* ── Meta Agents sidebar section ── */
+#meta-section {
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  max-height: 180px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+#meta-section::-webkit-scrollbar { width: 4px; }
+#meta-section::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+#meta-header {
+  padding: 7px 14px;
+  font-size: 9px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--border);
+  background: var(--sidebar-bg);
+  position: sticky; top: 0; z-index: 1;
+}
+.meta-item {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+}
+.meta-item:hover { background: rgba(255,255,255,0.025); }
+.meta-item.active { background: rgba(229,192,123,0.06); }
+.meta-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--yellow);
+}
+.mi-top { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.mi-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 4px var(--yellow);
+  animation: breathe 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.mi-ns {
+  font-size: 10px; font-weight: 600; color: var(--text);
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mi-icons { font-size: 11px; color: var(--dim); letter-spacing: 0.05em; line-height: 1; }
+
+/* ── Meta Agent Panel ── */
+#metapanel {
+  position: fixed;
+  top: 40px; right: 0; bottom: 0;
+  width: 600px;
+  background: var(--sidebar-bg);
+  border-left: 1px solid var(--border-hi);
+  display: flex;
+  flex-direction: column;
+  z-index: 600;
+  transform: translateX(100%);
+  transition: transform 0.22s cubic-bezier(.4,0,.2,1);
+}
+#metapanel.open { transform: translateX(0); }
+
+#mp-topbar {
+  display: flex; align-items: center;
+  padding: 0 14px; height: 44px;
+  border-bottom: 1px solid var(--border);
+  gap: 10px; flex-shrink: 0;
+}
+#mp-title {
+  flex: 1; font-size: 11px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mp-run-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 6px var(--yellow);
+  animation: breathe 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+#mp-close {
+  background: transparent; border: none;
+  color: var(--dim); font-size: 16px; cursor: pointer;
+  padding: 0 4px; line-height: 1; font-family: var(--font);
+}
+#mp-close:hover { color: var(--text); }
+
+#mp-icon-strip {
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  min-height: 28px; max-height: 72px;
+  overflow-y: auto;
+  display: flex; flex-wrap: wrap; gap: 2px; align-content: flex-start;
+  background: rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+.mp-icon {
+  font-size: 12px;
+  opacity: 0.7;
+  cursor: default;
+  line-height: 1.5;
+  transition: opacity 0.1s;
+}
+.mp-icon:hover { opacity: 1; }
+
+#mp-chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  background: var(--card-body);
+}
+#mp-chat::-webkit-scrollbar { width: 4px; }
+#mp-chat::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+.mp-msg { display: flex; flex-direction: column; gap: 2px; }
+.mp-msg.user { align-items: flex-end; }
+.mp-msg.assistant, .mp-msg.tool { align-items: flex-start; }
+.mp-bubble {
+  max-width: 90%;
+  padding: 6px 10px;
+  border-radius: 5px;
+  font-size: 10px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+.mp-msg.user .mp-bubble {
+  background: rgba(86,182,194,0.12);
+  border: 1px solid rgba(86,182,194,0.25);
+  color: var(--text);
+}
+.mp-msg.assistant .mp-bubble {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  white-space: pre-wrap;
+}
+.mp-msg.tool .mp-bubble {
+  padding: 2px 6px;
+  background: transparent;
+  color: var(--blue);
+  opacity: 0.65;
+  font-size: 9px;
+  border: none;
+}
+.mp-msg-time { font-size: 9px; color: var(--dimmer); padding: 0 2px; }
+
+#mp-msg-bar {
+  border-top: 1px solid var(--border);
+  padding: 8px 14px;
+  display: flex; gap: 8px;
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.15);
+}
+#mp-msg-input {
+  flex: 1;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border-hi);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 5px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+#mp-msg-input::placeholder { color: var(--dim); }
+#mp-msg-input:focus { border-color: var(--yellow); }
+#mp-msg-send {
+  font-family: var(--font); font-size: 10px;
+  padding: 5px 14px; border-radius: 4px; cursor: pointer;
+  border: 1px solid rgba(229,192,123,0.4);
+  background: transparent; color: var(--yellow); font-weight: 600;
+  transition: all 0.15s; white-space: nowrap;
+}
+#mp-msg-send:hover { background: rgba(229,192,123,0.12); border-color: var(--yellow); }
+
 /* ── Working indicator on empty running terminal ── */
 .term-working {
   padding: 12px 0 4px;
@@ -1249,6 +1431,10 @@ body {
       </div>
     </div>
     <div id="job-list"></div>
+    <div id="meta-section">
+      <div id="meta-header">meta agents</div>
+      <div id="meta-list"></div>
+    </div>
   </div>
 
   <!-- Infinite canvas viewport -->
@@ -1334,6 +1520,21 @@ body {
   </div>
 </div>
 
+<!-- Meta Agent Panel -->
+<div id="metapanel">
+  <div id="mp-topbar">
+    <span id="mp-title">—</span>
+    <div class="mp-run-dot"></div>
+    <button id="mp-close" onclick="mpClose()">✕</button>
+  </div>
+  <div id="mp-icon-strip"></div>
+  <div id="mp-chat"></div>
+  <div id="mp-msg-bar">
+    <input id="mp-msg-input" type="text" placeholder="Message meta agent…" autocomplete="off">
+    <button id="mp-msg-send" onclick="mpSend()">↵ Send</button>
+  </div>
+</div>
+
 <!-- File Browser Modal -->
 <div id="fb-backdrop" class="fb-backdrop hidden">
   <div id="fb-modal">
@@ -1355,6 +1556,7 @@ const jobs = {};          // id → { job, card, logEl, n }
 const cols = {};          // repoKey → { el, cardsEl }
 let filterMode = 'all';
 let jobCounter = 0;
+const metaState = {}; // ns → { msgs: [] }
 let scale = 1, ox = 40, oy = 40;
 let dragging = false, dragX = 0, dragY = 0;
 
@@ -1439,6 +1641,27 @@ const TOOL_ICONS = {
   WebFetch:'🌐', WebSearch:'🌐', TodoWrite:'✅', Agent:'🤖',
   MultiEdit:'✏️', NotebookEdit:'📓', Dispatch:'⚡',
 };
+
+const META_TOOL_ICONS = {
+  Read:'📖', Edit:'✏️', Write:'💾', Bash:'$', Glob:'🔍', Grep:'🔎',
+  WebFetch:'🌐', WebSearch:'🌐', TodoWrite:'✅', Agent:'🤖',
+  MultiEdit:'✏️', NotebookEdit:'📓', Dispatch:'⚡', AskUserQuestion:'❓',
+};
+
+function metaMsgIcon(msg) {
+  if (!msg) return '';
+  if (msg.role === 'user') return '💬';
+  if (msg.role === 'assistant') return '🤖';
+  if (msg.role === 'tool') {
+    const m = (msg.content||'').match(/^\[tool\]\s+([\w:]+)/);
+    if (m) {
+      const toolName = m[1].split(':').pop();
+      return META_TOOL_ICONS[toolName] || '⚙';
+    }
+    return '⚙';
+  }
+  return '';
+}
 
 function classifyLine(raw) {
   const s = raw.replace(/\x1b\[[0-9;]*m/g, '').trim();
@@ -1772,6 +1995,7 @@ function handleSnapshot(data) {
   applyFilter();
   if (Object.keys(jobs).length > 0) emptyState.style.display = 'none';
   if (typeof hideLoader === 'function') hideLoader();
+  initMetaAgents(data.metaAgents);
 }
 
 function addJob(job, lines) {
@@ -1894,6 +2118,7 @@ function connect() {
       case 'job_update': handleJobUpdate(evt); break;
       case 'job_new':    handleJobNew(evt); break;
       case 'job_output': handleOutput(evt); break;
+      case 'meta_msg':   handleMetaMsg(evt); break;
     }
   };
 }
@@ -1937,16 +2162,178 @@ async function jpSendMessage() {
   }
 }
 
+// ── Meta Agent Panel ───────────────────────────────────────────────────────
+const mpEl    = document.getElementById('metapanel');
+const mpTitle = document.getElementById('mp-title');
+const mpIcons = document.getElementById('mp-icon-strip');
+const mpChat  = document.getElementById('mp-chat');
+let mpCurrentNs = null;
+
+function mpClose() {
+  mpEl.classList.remove('open');
+  mpCurrentNs = null;
+  document.querySelectorAll('.meta-item').forEach(e => e.classList.remove('active'));
+}
+
+function mpMsgEl(msg) {
+  const div = document.createElement('div');
+  div.className = `mp-msg ${msg.role || 'assistant'}`;
+  const ts = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
+  const bubble = document.createElement('div');
+  bubble.className = 'mp-bubble';
+  if (msg.role === 'tool') {
+    const m = (msg.content||'').match(/^\[tool\]\s+([\w:]+)/);
+    const icon = m ? (META_TOOL_ICONS[m[1].split(':').pop()] || '⚙') : '⚙';
+    const name = m ? m[1] : 'tool';
+    bubble.textContent = `${icon} ${name}`;
+  } else {
+    bubble.textContent = msg.content || '';
+  }
+  const timeel = document.createElement('div');
+  timeel.className = 'mp-msg-time';
+  timeel.textContent = ts;
+  div.appendChild(bubble);
+  div.appendChild(timeel);
+  return div;
+}
+
+function mpAppendIcon(msg) {
+  const icon = metaMsgIcon(msg);
+  if (!icon) return;
+  const span = document.createElement('span');
+  span.className = 'mp-icon';
+  span.textContent = icon;
+  const ts = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
+  span.title = `${msg.role}${ts ? ' · ' + ts : ''}`;
+  mpIcons.appendChild(span);
+  while (mpIcons.children.length > 120) mpIcons.removeChild(mpIcons.firstChild);
+  mpIcons.scrollTop = mpIcons.scrollHeight;
+}
+
+async function mpOpen(ns) {
+  document.getElementById('jobpanel').classList.remove('open');
+  mpCurrentNs = ns;
+  mpEl.classList.add('open');
+  mpTitle.textContent = ns;
+  document.querySelectorAll('.meta-item').forEach(e => e.classList.remove('active'));
+  const si = document.querySelector(`.meta-item[data-ns="${CSS.escape(ns)}"]`);
+  if (si) si.classList.add('active');
+
+  mpIcons.innerHTML = '<span style="color:var(--dim);font-size:9px">loading…</span>';
+  mpChat.innerHTML = '<div style="color:var(--dim);font-size:10px;padding:4px">loading…</div>';
+  try {
+    const r = await fetch(`/api/meta-chat/log?ns=${encodeURIComponent(ns)}`);
+    const msgs = await r.json();
+    if (!metaState[ns]) metaState[ns] = { msgs: [] };
+    metaState[ns].msgs = msgs;
+
+    mpIcons.innerHTML = '';
+    for (const m of msgs) mpAppendIcon(m);
+
+    mpChat.innerHTML = '';
+    for (const m of msgs) {
+      if (m.role !== 'tool') mpChat.appendChild(mpMsgEl(m));
+    }
+    mpChat.scrollTop = mpChat.scrollHeight;
+  } catch (e) {
+    mpIcons.innerHTML = `<span style="color:var(--red);font-size:9px">${e.message}</span>`;
+    mpChat.innerHTML = `<div style="color:var(--red);font-size:10px">${e.message}</div>`;
+  }
+  setTimeout(() => document.getElementById('mp-msg-input').focus(), 50);
+}
+
+async function mpSend() {
+  const input = document.getElementById('mp-msg-input');
+  const btn = document.getElementById('mp-msg-send');
+  const text = input.value.trim();
+  if (!text || !mpCurrentNs) return;
+  input.value = '';
+  btn.disabled = true;
+  try {
+    await fetch('/api/meta-chat/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ns: mpCurrentNs, message: text }),
+    });
+  } catch(e) { console.error('mpSend', e); }
+  finally { btn.disabled = false; input.focus(); }
+}
+
+function handleMetaMsg(data) {
+  const { ns, msg } = data;
+  if (!metaState[ns]) metaState[ns] = { msgs: [] };
+  metaState[ns].msgs.push(msg);
+  if (metaState[ns].msgs.length > 300) metaState[ns].msgs.shift();
+
+  const si = document.querySelector(`.meta-item[data-ns="${CSS.escape(ns)}"]`);
+  if (si) {
+    const iconsEl = si.querySelector('.mi-icons');
+    if (iconsEl) {
+      const icon = metaMsgIcon(msg);
+      if (icon) {
+        const cur = iconsEl.textContent === '…' ? '' : iconsEl.textContent;
+        iconsEl.textContent = (cur + icon).slice(-10);
+      }
+    }
+  }
+
+  if (mpCurrentNs === ns) {
+    mpAppendIcon(msg);
+    if (msg.role !== 'tool') {
+      mpChat.appendChild(mpMsgEl(msg));
+      const atBottom = mpChat.scrollHeight - mpChat.scrollTop - mpChat.clientHeight < 60;
+      if (atBottom) mpChat.scrollTop = mpChat.scrollHeight;
+    }
+  }
+}
+
+function renderMetaAgents(agents) {
+  const list = document.getElementById('meta-list');
+  if (!list) return;
+  if (!agents || !agents.length) {
+    list.innerHTML = '<div style="padding:8px 14px;font-size:9px;color:var(--dimmer)">none</div>';
+    return;
+  }
+  list.innerHTML = '';
+  for (const a of agents) {
+    const item = document.createElement('div');
+    item.className = 'meta-item';
+    item.dataset.ns = a.namespace;
+    const state = metaState[a.namespace];
+    const recentIcons = state
+      ? state.msgs.slice(-10).map(metaMsgIcon).filter(Boolean).join('')
+      : '…';
+    item.innerHTML = `
+      <div class="mi-top">
+        <div class="mi-dot"></div>
+        <span class="mi-ns">${escHtml(a.namespace)}</span>
+      </div>
+      <div class="mi-icons">${escHtml(recentIcons || '…')}</div>`;
+    item.addEventListener('click', () => mpOpen(a.namespace));
+    list.appendChild(item);
+  }
+}
+
+function initMetaAgents(agents) {
+  renderMetaAgents(agents);
+}
+
 // Enter key submits message
 document.addEventListener('DOMContentLoaded', () => {
   $('jp-msg-input').addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); jpSendMessage(); }
+  });
+  $('mp-msg-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); mpSend(); }
   });
 });
 
 async function jpOpen(id) {
   const entry = jobs[id];
   if (!entry) return;
+  // Close meta panel if open
+  document.getElementById('metapanel')?.classList.remove('open');
+  document.querySelectorAll('.meta-item').forEach(e => e.classList.remove('active'));
   jpCurrentId = id;
   jp.classList.add('open');
 
