@@ -1,39 +1,19 @@
-# PLAN: meta-agent namespace deduplication + column META button routing
+# Plan: Meta-agent namespace resolution — canonical registry, auto-provision, fallback
 
-## Task Restatement
-
-Two bugs in how meta-agent namespaces are resolved:
-
-**Bug 1 — Ghost sidebar entry:** `cca:chat:log:*` scan returns both `cc-agent`
-(canonical) and `gonzih/cc-agent` (ghost from old UI messages). Both appear in the
-sidebar META AGENTS list. `gonzih/cc-agent` is dead — no poller reads from its input
-queue.
-
-**Bug 2 — META button routes to wrong namespace:** Clicking META on the
-`gonzih/cc-agent` kanban column calls `mpOpen("gonzih/cc-agent")`. The meta-agent is
-registered as `cc-agent` (with `repoUrl: "https://github.com/gonzih/cc-agent"`), so
-the panel opens the dead namespace.
+## Task restatement
+Three precise changes to fix how the server discovers meta-agents and how the frontend resolves namespaces:
+1. **Change A** — Both `buildSnapshot()` and `/api/meta-agents` currently scan `cca:chat:log:*` (storage) to discover meta-agents. Replace with reads from `cca:meta:agents:index` (the canonical registry). Remove `buildRepoToMetaNsMap()` (it was a workaround). Add `cleanGhostChatLogs()` on startup to delete ghost keys.
+2. **Change B** — `/api/meta-chat/send` currently calls `buildRepoToMetaNsMap()`. Replace with inline short-name derivation + auto-provision: if the canonical ns isn't in the registry, register it. Also update `subscribeToNamespaces()` to read from `cca:meta:agents:index` instead of `cca:chat:log:*`.
+3. **Change C** — `resolveMetaNs(ns)` in `public/index.html` falls back to the registry lookup only. Add a second fallback: `ns.includes('/') ? ns.split('/').pop() : ns` so any `owner/repo` format works without a registry entry.
 
 ## Approach
+Direct in-place edits to `server.js` and `public/index.html`. No new files.
 
-Single targeted approach: add a `buildRepoToMetaNsMap()` helper that reads
-`cca:meta:agents:index` and maps repo paths to canonical namespaces. Use this map to:
-1. Filter ghost entries from `metaAgents` in `buildSnapshot()` and `/api/meta-agents`
-2. Resolve canonical ns before pushing to meta input queue in `/api/meta-chat/send`
-3. Add `resolveMetaNs(ns)` in the frontend to translate job namespace → canonical ns
-   for the column META click handler
-
-## Files to Touch
-
-- `server.js` — add helper, 3 endpoint changes
-- `public/index.html` — store `_metaAgentsData`, add `resolveMetaNs()`, update META click
-- `package.json` — version bump (patch)
+## Files to touch
+- `server.js` — buildSnapshot(), /api/meta-agents, buildRepoToMetaNsMap(), /api/meta-chat/send, subscribeToNamespaces(), startup
+- `public/index.html` — resolveMetaNs()
+- `package.json` — version bump
 
 ## Risks
-
-- `cca:meta:agents:index` may be empty or absent; `buildRepoToMetaNsMap()` handles
-  this gracefully (returns empty map), so the dedup is a no-op if the index is missing.
-- The dedup filter removes entries where `repoToNs[a.namespace]` is truthy; if a
-  canonical namespace happens to look like a repo path, it won't appear. Very unlikely.
-- Adding canonical namespaces that don't have a chat:log key yet: handled by the
-  `deduped.find(a => a.namespace === canonicalNs)` check before pushing.
+- `cca:meta:agents:index` may not exist yet on a fresh instance → `sMembers` returns empty array, handled gracefully
+- Ghost log cleanup on startup is intentionally conservative: only deletes keys containing `/` not in canonical set
