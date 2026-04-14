@@ -36,6 +36,7 @@ const clients        = new Set();
 const jobCache       = {};   // id → job object (latest known)
 const outputLengths  = {};   // id → last known Redis list length
 const metaChatLengths = {}; // ns → last known list length (for polling)
+const metaStatusCache = {}; // ns → last known status JSON string (for change detection)
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function broadcast(evt) {
@@ -80,6 +81,14 @@ async function fetchJobs(ids) {
   return results
     .map((raw, i) => { const j = parseJob(raw); if (j) j.id = j.id || ids[i]; return j; })
     .filter(Boolean);
+}
+
+/** Fetch meta-agent status from Redis, returns object or null */
+async function fetchMetaStatus(ns) {
+  try {
+    const raw = await redis.get(`cca:meta-agent:status:${ns}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
 }
 
 /** Get last N lines from Redis output list (or disk fallback) */
@@ -149,7 +158,12 @@ async function buildSnapshot() {
     if (ns === 'default') continue; // money-brain is the default namespace
     const len = await redis.lLen(key);
     metaChatLengths[ns] = len; // initialize length tracker
-    metaAgents.push({ namespace: ns, count: len });
+    const agentStatus = await fetchMetaStatus(ns);
+    if (agentStatus) {
+      const raw = JSON.stringify(agentStatus);
+      metaStatusCache[ns] = raw;
+    }
+    metaAgents.push({ namespace: ns, count: len, ...(agentStatus || {}) });
   }
   return { namespaces, jobs: withOutput, metaAgents };
 }
@@ -512,7 +526,8 @@ const server = http.createServer((req, res) => {
           const ns = key.replace('cca:chat:log:', '');
           if (ns === 'default') return null; // money-brain is the default namespace
           const len = await redis.lLen(key);
-          return { namespace: ns, count: len };
+          const agentStatus = await fetchMetaStatus(ns);
+          return { namespace: ns, count: len, ...(agentStatus || {}) };
         }))).filter(Boolean);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(agents));
@@ -679,6 +694,26 @@ setInterval(async () => {
     }
   } catch (e) { console.error('[poll:meta-chat]', e.message); }
 }, 2500);
+
+// ── Polling: meta agent live status (typing, currentTool, etc.) ───────────
+setInterval(async () => {
+  try {
+    const keys = await redis.keys('cca:meta-agent:status:*');
+    for (const key of keys) {
+      const ns = key.replace('cca:meta-agent:status:', '');
+      if (ns === 'default') continue;
+      const raw = await redis.get(key);
+      if (!raw) continue;
+      const prev = metaStatusCache[ns];
+      if (prev === raw) continue; // unchanged
+      metaStatusCache[ns] = raw;
+      try {
+        const status = JSON.parse(raw);
+        broadcast({ type: 'meta_status', ns, status });
+      } catch {}
+    }
+  } catch (e) { console.error('[poll:meta-status]', e.message); }
+}, 2000);
 
 // ── Start ──────────────────────────────────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
