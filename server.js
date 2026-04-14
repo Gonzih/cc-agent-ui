@@ -31,6 +31,23 @@ redis.on('error', e => console.error('[redis]', e.message));
 await redis.connect();
 console.log('[redis] connected');
 
+// Clean ghost chat log keys (owner/repo format keys not in canonical registry)
+async function cleanGhostChatLogs() {
+  try {
+    const keys = await redis.keys('cca:chat:log:*');
+    const canonical = new Set(await redis.sMembers('cca:meta:agents:index'));
+    for (const key of keys) {
+      const ns = key.replace('cca:chat:log:', '');
+      if (ns === 'default') continue;
+      if (ns.includes('/') && !canonical.has(ns)) {
+        await redis.del(key);
+        console.log(`[cleanup] deleted ghost chat log key: ${key}`);
+      }
+    }
+  } catch (e) { console.error('[cleanup]', e.message); }
+}
+cleanGhostChatLogs();
+
 // ── State ──────────────────────────────────────────────────────────────────
 const clients        = new Set();
 const jobCache       = {};   // id → job object (latest known)
@@ -89,32 +106,6 @@ async function fetchMetaStatus(ns) {
     const raw = await redis.get(`cca:meta-agent:status:${ns}`);
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
-}
-
-/**
- * Build a map from "owner/repo" path → canonical meta-agent namespace.
- * e.g. "gonzih/cc-agent" → "cc-agent"
- * Reads from cca:meta:agents:index + per-namespace state keys.
- */
-async function buildRepoToMetaNsMap() {
-  const map = {};
-  try {
-    const namespaces = await redis.sMembers('cca:meta:agents:index');
-    for (const ns of namespaces) {
-      if (ns === 'default') continue;
-      const raw = await redis.get(`cca:meta:${ns}`);
-      if (!raw) continue;
-      try {
-        const state = JSON.parse(raw);
-        if (state.repoUrl) {
-          // https://github.com/gonzih/cc-agent → "gonzih/cc-agent"
-          const repoPath = state.repoUrl.replace(/^https?:\/\/[^/]+\//, '');
-          map[repoPath] = ns;
-        }
-      } catch {}
-    }
-  } catch {}
-  return map;
 }
 
 /** Get last N lines from Redis output list (or disk fallback) */
@@ -176,34 +167,22 @@ async function buildSnapshot() {
     batch.forEach((j, k) => withOutput.push({ ...j, lines: outputs[k] }));
   }
 
-  // Meta agents: discover from cca:chat:log:* keys
-  const metaKeys = await redis.keys('cca:chat:log:*');
+  // Meta agents: discover from canonical registry only
+  const metaNsMembers = await redis.sMembers('cca:meta:agents:index');
   const metaAgents = [];
-  for (const key of metaKeys) {
-    const ns = key.replace('cca:chat:log:', '');
-    if (ns === 'default') continue; // money-brain is the default namespace
-    const len = await redis.lLen(key);
-    metaChatLengths[ns] = len; // initialize length tracker
+  for (const ns of metaNsMembers) {
+    if (ns === 'default') continue;
+    const raw = await redis.get(`cca:meta:${ns}`);
+    if (!raw) continue;
+    const state = JSON.parse(raw);
+    const logLen = await redis.lLen(`cca:chat:log:${ns}`);
+    metaChatLengths[ns] = logLen; // initialize length tracker
     const agentStatus = await fetchMetaStatus(ns);
-    if (agentStatus) {
-      const raw = JSON.stringify(agentStatus);
-      metaStatusCache[ns] = raw;
-    }
-    metaAgents.push({ namespace: ns, count: len, ...(agentStatus || {}) });
+    if (agentStatus) metaStatusCache[ns] = JSON.stringify(agentStatus);
+    metaAgents.push({ ...state, count: logLen, ...(agentStatus || {}) });
   }
 
-  // Deduplicate: filter out ghost entries that are repo-path aliases for canonical namespaces
-  const repoToNs = await buildRepoToMetaNsMap();
-  const deduped = metaAgents.filter(a => !repoToNs[a.namespace]);
-  // Ensure canonical namespaces appear even if their chat:log key doesn't exist yet
-  for (const [, canonicalNs] of Object.entries(repoToNs)) {
-    if (!deduped.find(a => a.namespace === canonicalNs)) {
-      const agentStatus = await fetchMetaStatus(canonicalNs);
-      if (agentStatus) deduped.push({ namespace: canonicalNs, count: 0, ...agentStatus });
-    }
-  }
-
-  return { namespaces, jobs: withOutput, metaAgents: deduped };
+  return { namespaces, jobs: withOutput, metaAgents };
 }
 
 // ── File browser helpers ───────────────────────────────────────────────────
@@ -527,10 +506,9 @@ const server = http.createServer((req, res) => {
           if (closed) return;
           try {
             const namespaces = await getNamespaces();
-            // Also include meta-agent namespaces that may not have jobs
-            const metaKeys = await redis.keys('cca:chat:log:*');
-            const metaNs = metaKeys
-              .map(k => k.replace('cca:chat:log:', ''))
+            // Also include meta-agent namespaces from canonical registry
+            const metaNsMembers = await redis.sMembers('cca:meta:agents:index');
+            const metaNs = metaNsMembers
               .filter(ns => ns !== 'default' && !namespaces.includes(ns));
             const allNamespaces = [...namespaces, ...metaNs];
             for (const ns of allNamespaces) {
@@ -582,23 +560,16 @@ const server = http.createServer((req, res) => {
   } else if (url.pathname === '/api/meta-agents') {
     (async () => {
       try {
-        const keys = await redis.keys('cca:chat:log:*');
-        const raw = (await Promise.all(keys.map(async key => {
-          const ns = key.replace('cca:chat:log:', '');
-          if (ns === 'default') return null; // money-brain is the default namespace
-          const len = await redis.lLen(key);
+        const metaNsMembers = await redis.sMembers('cca:meta:agents:index');
+        const agents = [];
+        for (const ns of metaNsMembers) {
+          if (ns === 'default') continue;
+          const raw = await redis.get(`cca:meta:${ns}`);
+          if (!raw) continue;
+          const state = JSON.parse(raw);
+          const logLen = await redis.lLen(`cca:chat:log:${ns}`);
           const agentStatus = await fetchMetaStatus(ns);
-          return { namespace: ns, count: len, ...(agentStatus || {}) };
-        }))).filter(Boolean);
-        // Deduplicate: filter out ghost repo-path aliases
-        const repoToNs = await buildRepoToMetaNsMap();
-        const agents = raw.filter(a => !repoToNs[a.namespace]);
-        // Ensure canonical namespaces appear even if their chat:log key doesn't exist yet
-        for (const [, canonicalNs] of Object.entries(repoToNs)) {
-          if (!agents.find(a => a.namespace === canonicalNs)) {
-            const agentStatus = await fetchMetaStatus(canonicalNs);
-            if (agentStatus) agents.push({ namespace: canonicalNs, count: 0, ...agentStatus });
-          }
+          agents.push({ ...state, count: logLen, ...(agentStatus || {}) });
         }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(agents));
@@ -624,11 +595,35 @@ const server = http.createServer((req, res) => {
       try {
         const { ns, message } = JSON.parse(body);
         if (!ns || !message) { res.writeHead(400); res.end('missing ns/message'); return; }
-        // Resolve to canonical namespace (e.g. "gonzih/cc-agent" → "cc-agent")
-        const repoToNs = await buildRepoToMetaNsMap();
-        const canonicalNs = repoToNs[ns] || ns;
+
+        // Derive canonical short namespace (e.g. "gonzih/cc-agent" → "cc-agent")
+        let canonicalNs = ns.includes('/') ? ns.split('/').pop() : ns;
+
+        // Auto-provision if not yet registered
+        const members = await redis.sMembers('cca:meta:agents:index');
+        if (!members.includes(canonicalNs)) {
+          const repoUrl = ns.includes('/')
+            ? `https://github.com/${ns}`
+            : `https://github.com/gonzih/${canonicalNs}`;
+          const cwd = path.join(os.homedir(), 'cc-agent-workspace', canonicalNs);
+          const state = {
+            namespace: canonicalNs,
+            repoUrl,
+            cwd,
+            status: 'idle',
+            startedAt: new Date().toISOString(),
+          };
+          const TTL_30D = 30 * 24 * 60 * 60;
+          await redis.set(`cca:meta:${canonicalNs}`, JSON.stringify(state), { EX: TTL_30D });
+          await redis.sAdd('cca:meta:agents:index', canonicalNs);
+          console.log(`[meta] auto-provisioned namespace: ${canonicalNs} (repoUrl: ${repoUrl})`);
+        }
+
+        // Push to canonical input queue
         const inputEntry = { id: randomUUID(), content: message, timestamp: new Date().toISOString() };
         await redis.lPush(`cca:meta:${canonicalNs}:input`, JSON.stringify(inputEntry));
+
+        // Log user message under canonical ns
         const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, timestamp: Date.now() };
         const newLen = await redis.lPush(`cca:chat:log:${canonicalNs}`, JSON.stringify(msg));
         await redis.lTrim(`cca:chat:log:${canonicalNs}`, 0, 499);

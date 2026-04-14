@@ -2272,10 +2272,14 @@ function mpAppendIcon(msg) {
  * namespace (e.g. "cc-agent") using the repoUrl stored in _metaAgentsData.
  */
 function resolveMetaNs(ns) {
+  // 1. Try to find by repoUrl match against known meta-agents
   const found = (window._metaAgentsData || []).find(a =>
     a.repoUrl && a.repoUrl.replace(/^https?:\/\/[^/]+\//, '') === ns
   );
-  return found ? found.namespace : ns;
+  if (found) return found.namespace;
+  // 2. Fallback: owner/repo → repo (last segment). Works for all future repos.
+  if (ns.includes('/')) return ns.split('/').pop();
+  return ns;
 }
 
 async function mpOpen(ns) {
