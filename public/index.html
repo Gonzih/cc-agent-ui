@@ -2312,7 +2312,7 @@ function handleJobUpdate(data) {
     renderActions(status);
     const msgBar = $('jp-msg-bar');
     if (status === 'running') msgBar.classList.remove('hidden');
-    else msgBar.classList.add('hidden');
+    else { msgBar.classList.add('hidden'); jpCloseSSE(); }
   }
 
   updateColHeader(repoKey(job));
@@ -2334,8 +2334,8 @@ function handleOutput(data) {
   const entry = jobs[data.id];
   if (!entry) return;
   appendLines(entry.logEl, data.lines, true);
-  // Mirror to job panel if open
-  if (jpCurrentId === data.id) {
+  // Mirror to job panel only when SSE is not active (SSE handles it directly)
+  if (jpCurrentId === data.id && !jpSSE) {
     appendLines(jpLog, data.lines, true);
   }
 }
@@ -2371,8 +2371,14 @@ const jpMeta = $('jp-meta');
 const jpTask = $('jp-task');
 const jpActions = $('jp-actions');
 let jpCurrentId = null;
+let jpSSE = null;
+
+function jpCloseSSE() {
+  if (jpSSE) { jpSSE.close(); jpSSE = null; }
+}
 
 function jpClose() {
+  jpCloseSSE();
   jp.classList.remove('open');
   jpCurrentId = null;
 }
@@ -2752,14 +2758,31 @@ async function jpOpen(id) {
 
   // Load full log
   jpLog.innerHTML = '<div style="color:var(--dim);padding:4px">loading…</div>';
-  try {
-    const r = await fetch(`/api/job/output?id=${encodeURIComponent(id)}`);
-    const data = await r.json();
+  jpCloseSSE();
+  if (status === 'running') {
     jpLog.innerHTML = '';
-    appendLines(jpLog, data.lines || [], false);
-    jpLog.scrollTop = jpLog.scrollHeight;
-  } catch (e) {
-    jpLog.innerHTML = `<div style="color:var(--red)">${escHtml(e.message)}</div>`;
+    let sseReady = false;
+    jpSSE = new EventSource(`/api/jobs/${encodeURIComponent(id)}/stream`);
+    jpSSE.addEventListener('ready', () => { sseReady = true; });
+    jpSSE.onmessage = e => {
+      try {
+        const line = JSON.parse(e.data);
+        const atBottom = jpLog.scrollHeight - jpLog.scrollTop - jpLog.clientHeight < 50;
+        appendLines(jpLog, [line], sseReady);
+        if (atBottom) jpLog.scrollTop = jpLog.scrollHeight;
+      } catch {}
+    };
+    jpSSE.onerror = () => { jpCloseSSE(); };
+  } else {
+    try {
+      const r = await fetch(`/api/job/output?id=${encodeURIComponent(id)}`);
+      const data = await r.json();
+      jpLog.innerHTML = '';
+      appendLines(jpLog, data.lines || [], false);
+      jpLog.scrollTop = jpLog.scrollHeight;
+    } catch (e) {
+      jpLog.innerHTML = `<div style="color:var(--red)">${escHtml(e.message)}</div>`;
+    }
   }
 }
 
