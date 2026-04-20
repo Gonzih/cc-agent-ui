@@ -1,36 +1,31 @@
-# Plan: coordinator messages render distinctly (not as assistant bubbles)
+# Plan: Agent Driver Badge + Model Display
 
-## Task restatement
-When a coordinator (e.g. cc-tg) sends a message via `message_meta_agent`, it ends up in
-`cca:chat:log:{namespace}` with `source: "cc-tg"` (or similar) and `role: "assistant"`.
-Currently the UI renders it identically to the meta-agent's own AI responses — same purple
-`✦ ` prefix, same color. This is confusing when reviewing sessions.
-
-## What we observed in Redis
-`cca:chat:log:money-brain` contains messages with these (source, role) combos:
-- `("claude", "assistant")` — meta-agent AI responses (current "assistant" style)
-- `("cc-tg", "assistant")` — coordinator's Claude text sent into money-brain (BUG: renders as assistant)
-- `("cc-tg", "tool")` — coordinator's tool calls (already rendered as tool bubbles)
-- `("telegram", "user")` — Telegram user messages (already rendered as user with badge)
-- `("ui", "user")` — UI user messages
-
-The distinguishing signal: `role === "assistant" && source !== "claude"` → coordinator message.
+## Task Summary
+Add `agentDriver`/`agentModel` badge display on job cards when driver is not 'claude'.
+Add driver/model fields to the cron form and chat submit input.
 
 ## Approach
-Pure UI fix in `public/index.html`. Two render functions need updating:
-1. `mpMsgEl()` — meta-agent panel (full chat view)
-2. `chatMsgEl()` — primary /chat/ panel
+Minimal, backward-compatible changes to `public/index.html` only (+ version bump):
+1. Add CSS for `.driver-badge` — small muted monospace style fitting dark terminal aesthetic
+2. Update `makeCard()` to render badge in card-repo bar when `agentDriver` is set and != 'claude'
+3. Update `makeSidebarItem()` to show badge inline
+4. Add `agent_driver` select + `agent_model` text input to the cron add form
+5. Add driver selector to chat input bar so users can select driver when sending messages
+6. Include driver/model in cron POST and chat send payloads
 
-**Visual treatment for coordinator messages:**
-- CSS class `coordinator` on the wrapper div (currently uses `assistant`)
-- Amber/orange color (distinct from the indigo AI `✦ ` prefix)
-- Label `↗ <source>:` prefix so it reads like "↗ cc-tg: <text>"
-- Keep `role: "tool"` rendering unchanged (collapsible tool bubbles are fine)
+## Badge logic
+- If `agentDriver` is missing or 'claude': show nothing (backward compatible)
+- If `agentDriver` is 'qwen' and `agentModel` is 'qwen2.5-72b-instruct': show `[qwen2.5-72b]`
+- If `agentDriver` is 'aider': show `[aider]`
+- Prefer shortening model by removing driver prefix, then slice at 22 chars
+
+## Drivers list
+claude, aider, openai, qwen, kimi, deepseek, pi
 
 ## Files to touch
-- `public/index.html` — CSS, `mpMsgEl()`, `chatMsgEl()`, `appendMetaMsg()`
+- `public/index.html` — CSS + JS
 - `package.json` — version bump
 
 ## Risks
-- Some edge case where `source` is undefined on old log entries — default to "assistant" class
-- Coordinator label width might overflow narrow bubbles — use `overflow: hidden; text-overflow: ellipsis`
+- Badge must use escHtml to prevent XSS
+- Cron form fields are optional; default to 'claude' if blank
