@@ -537,6 +537,7 @@ body {
 .card-repo-icon { color: var(--dimmer); }
 .card-branch { color: var(--purple); margin-left: auto; flex-shrink:0; }
 .card-docker-badge { color: #38bdf8; font-size:9px; background: rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.3); border-radius:3px; padding:1px 5px; flex-shrink:0; }
+.driver-badge { font-size:9px; color:var(--dim); background:rgba(72,76,94,0.18); border:1px solid var(--border); border-radius:3px; padding:1px 5px; flex-shrink:0; font-family:var(--font); letter-spacing:0; }
 
 /* ── Terminal body ── */
 .card-term {
@@ -1556,6 +1557,24 @@ body {
         <input id="cf-repo" class="cron-input" type="text" placeholder="https://github.com/owner/repo">
       </div>
     </div>
+    <div class="cron-form-row">
+      <div class="cron-field">
+        <label>Agent Driver</label>
+        <select id="cf-driver" class="cron-input">
+          <option value="">claude (default)</option>
+          <option value="aider">aider</option>
+          <option value="openai">openai</option>
+          <option value="qwen">qwen</option>
+          <option value="kimi">kimi</option>
+          <option value="deepseek">deepseek</option>
+          <option value="pi">pi</option>
+        </select>
+      </div>
+      <div class="cron-field">
+        <label>Agent Model (optional)</label>
+        <input id="cf-model" class="cron-input" type="text" placeholder="e.g. qwen2.5-72b-instruct">
+      </div>
+    </div>
     <div class="cron-form-row single">
       <div class="cron-field">
         <label>Prompt</label>
@@ -1582,6 +1601,16 @@ body {
   <div id="chat-input-bar">
     <textarea id="chat-textarea" placeholder="Type a message… (Enter to send)" rows="1"></textarea>
     <span class="chat-hint">Enter</span>
+    <select id="chat-driver" title="Agent driver" style="font-family:var(--font);font-size:10px;background:var(--card-bg);border:1px solid var(--border);color:var(--dim);padding:4px 6px;border-radius:4px;height:38px;outline:none;cursor:pointer;">
+      <option value="">claude</option>
+      <option value="aider">aider</option>
+      <option value="openai">openai</option>
+      <option value="qwen">qwen</option>
+      <option value="kimi">kimi</option>
+      <option value="deepseek">deepseek</option>
+      <option value="pi">pi</option>
+    </select>
+    <input id="chat-model" type="text" placeholder="model" title="Agent model (optional)" style="font-family:var(--font);font-size:10px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;height:38px;outline:none;width:140px;" autocomplete="off">
     <button id="chat-send-btn" onclick="chatSend()">Send</button>
   </div>
 </div>
@@ -1830,6 +1859,18 @@ function shortTask(task) {
   return firstLine.slice(0, 80) || '(task)';
 }
 
+function driverBadge(job) {
+  const d = job.agentDriver;
+  if (!d || d === 'claude') return '';
+  const m = job.agentModel;
+  let label = d;
+  if (m) {
+    // Strip driver prefix (e.g. "qwen2.5-72b-instruct" from driver "qwen") then cap at 22 chars
+    label = m.replace(new RegExp('^' + d + '[.\\-]', 'i'), '').slice(0, 22) || m.slice(0, 22);
+  }
+  return `<span class="driver-badge" title="${escHtml(d + (m ? ':' + m : '')}}">[${escHtml(label)}]</span>`;
+}
+
 function makeCard(job, n) {
   const card = document.createElement('div');
   const status = job.status || 'unknown';
@@ -1857,6 +1898,7 @@ function makeCard(job, n) {
       <span>${escHtml(repoStr)}</span>
       ${job.branch ? `<span class="card-branch">${escHtml(job.branch)}</span>` : ''}
       ${job.dockerIsolation ? `<span class="card-docker-badge" title="Running in Docker container">🐳 isolated</span>` : ''}
+      ${driverBadge(job)}
     </div>
     <div class="card-term"></div>
     <div class="card-foot">
@@ -1888,6 +1930,7 @@ function makeSidebarItem(job) {
     <div class="ji-top">
       <div class="ji-status ${status}"></div>
       <span class="ji-repo">${escHtml(shortRepo(job.repoUrl))}</span>
+      ${driverBadge(job)}
       <span class="ji-time">${timeAgo(job.startedAt)}</span>
     </div>
     <div class="ji-task">${escHtml(shortTask(job.task))}</div>
@@ -2977,6 +3020,8 @@ function cronClearForm() {
   $('cf-name').value = '';
   $('cf-schedule').value = '';
   $('cf-repo').value = '';
+  $('cf-driver').value = '';
+  $('cf-model').value = '';
   $('cf-prompt').value = '';
   $('cf-enabled').checked = true;
 }
@@ -3063,15 +3108,19 @@ async function cronSubmit() {
   const repoUrl = $('cf-repo').value.trim();
   const prompt = $('cf-prompt').value.trim();
   const enabled = $('cf-enabled').checked;
+  const agentDriver = $('cf-driver').value.trim() || 'claude';
+  const agentModel = $('cf-model').value.trim();
   if (!name || !schedule || !repoUrl || !prompt) {
     alert('Please fill in all fields.');
     return;
   }
+  const payload = { name, schedule, repoUrl, prompt, enabled, agent_driver: agentDriver };
+  if (agentModel) payload.agent_model = agentModel;
   try {
     const r = await fetch('/crons', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, schedule, repoUrl, prompt, enabled }),
+      body: JSON.stringify(payload),
     });
     if (!r.ok) throw new Error(await r.text());
     cronClearForm();
@@ -3227,11 +3276,16 @@ async function chatSend() {
   if (!message) return;
   const btn = $('chat-send-btn');
   btn.disabled = true;
+  const driver = $('chat-driver')?.value?.trim();
+  const model = $('chat-model')?.value?.trim();
+  const payload = { message };
+  if (driver) payload.agent_driver = driver;
+  if (model) payload.agent_model = model;
   try {
     const r = await fetch('/chat/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify(payload),
     });
     if (!r.ok) throw new Error(await r.text());
     await r.json();
