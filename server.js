@@ -634,6 +634,80 @@ const server = http.createServer((req, res) => {
       } catch (e) { res.writeHead(500); res.end(e.message); }
     });
 
+  } else if (/^\/api\/jobs\/([^/]+)\/stream$/.test(url.pathname)) {
+    // SSE endpoint: stream job output in real-time
+    const id = url.pathname.match(/^\/api\/jobs\/([^/]+)\/stream$/)[1];
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    });
+    res.write('retry: 3000\n\n');
+
+    let closed = false;
+    let sub = null;
+    let pollTimer = null;
+
+    req.on('close', async () => {
+      closed = true;
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      if (sub) { try { await sub.disconnect(); } catch {} sub = null; }
+    });
+
+    (async () => {
+      try {
+        // Send all current output lines as initial backlog
+        let offset = 0;
+        try {
+          const lines = await redis.lRange(`cca:job:${id}:output`, 0, -1);
+          for (const line of lines) {
+            if (closed) return;
+            res.write(`data: ${JSON.stringify(line)}\n\n`);
+          }
+          offset = lines.length;
+        } catch {}
+        if (closed) return;
+
+        // Signal that initial backlog is done
+        res.write('event: ready\ndata: 1\n\n');
+
+        // Try pub/sub for live lines
+        let pubSubOk = false;
+        try {
+          sub = redis.duplicate();
+          await sub.connect();
+          await sub.subscribe(`cca:job:${id}:output:live`, (msg) => {
+            if (!closed) {
+              try { res.write(`data: ${JSON.stringify(msg)}\n\n`); } catch {}
+            }
+          });
+          pubSubOk = true;
+        } catch {
+          if (sub) { try { await sub.disconnect(); } catch {} sub = null; }
+        }
+
+        if (!pubSubOk) {
+          // Fallback: poll the Redis list every 2s for new lines
+          pollTimer = setInterval(async () => {
+            if (closed) { clearInterval(pollTimer); return; }
+            try {
+              const len = await redis.lLen(`cca:job:${id}:output`);
+              if (len > offset) {
+                const newLines = await redis.lRange(`cca:job:${id}:output`, offset, -1);
+                for (const line of newLines) {
+                  if (closed) return;
+                  res.write(`data: ${JSON.stringify(line)}\n\n`);
+                }
+                offset = len;
+              }
+            } catch {}
+          }, 2000);
+        }
+      } catch (e) {
+        if (!closed) { try { res.end(); } catch {} }
+      }
+    })();
+
   } else {
     res.writeHead(404); res.end();
   }
