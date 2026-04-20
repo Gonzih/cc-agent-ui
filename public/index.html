@@ -1452,6 +1452,36 @@ body {
 #chat-send-btn:hover { background: rgba(86,182,194,0.2); }
 #chat-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .chat-hint { font-size: 9px; color: var(--dimmer); white-space: nowrap; padding-bottom: 10px; }
+
+/* ── Cost display on job cards ─────────────────────────────────────────── */
+.card-cost { color: var(--dim); }
+
+/* ── Per-driver cost summary in topbar ────────────────────────────────── */
+#driver-costs { display: flex; gap: 10px; align-items: center; font-size: 9px; }
+.dc-item { color: var(--dim); white-space: nowrap; }
+.dc-item span { color: var(--text); }
+
+/* ── Driver filter bar ────────────────────────────────────────────────── */
+#driver-filter-row {
+  padding: 4px 14px;
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.08);
+}
+.dfbtn {
+  font-family: var(--font);
+  font-size: 9px;
+  padding: 2px 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--dim);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.dfbtn:hover, .dfbtn.active { border-color: var(--purple); color: var(--purple); }
 </style>
 </head>
 <body>
@@ -1481,6 +1511,8 @@ body {
     <div class="jcount done"><span class="jcount-n" id="c-done">0</span><span class="jcount-l">done</span></div>
     <div class="jcount failed"><span class="jcount-n" id="c-failed">0</span><span class="jcount-l">failed</span></div>
   </div>
+  <div class="topbar-sep"></div>
+  <div id="driver-costs"></div>
   <div class="topbar-hint">scroll · drag to pan · wheel to zoom · click job to focus</div>
   <div id="version-badge" title="Component versions"></div>
   <div id="ws-dot" title="WebSocket"></div>
@@ -1512,6 +1544,14 @@ body {
         <button class="fbtn" data-filter="done">done</button>
         <button class="fbtn" data-filter="failed">err</button>
       </div>
+    </div>
+    <div id="driver-filter-row">
+      <button class="dfbtn active" data-driver="all">all</button>
+      <button class="dfbtn" data-driver="claude">claude</button>
+      <button class="dfbtn" data-driver="qwen">qwen</button>
+      <button class="dfbtn" data-driver="aider">aider</button>
+      <button class="dfbtn" data-driver="openai">openai</button>
+      <button class="dfbtn" data-driver="other">other</button>
     </div>
     <div id="job-list"></div>
     <div id="meta-section">
@@ -1666,6 +1706,7 @@ body {
 const jobs = {};          // id → { job, card, logEl, n }
 const cols = {};          // repoKey → { el, cardsEl }
 let filterMode = 'all';
+let driverFilter = 'all';
 let jobCounter = 0;
 const metaState = {}; // ns → { msgs: [] }
 let scale = 1, ox = 40, oy = 40;
@@ -1859,16 +1900,30 @@ function shortTask(task) {
   return firstLine.slice(0, 80) || '(task)';
 }
 
-function driverBadge(job) {
-  const d = job.agentDriver;
-  if (!d || d === 'claude') return '';
-  const m = job.agentModel;
-  let label = d;
-  if (m) {
-    // Strip driver prefix (e.g. "qwen2.5-72b-instruct" from driver "qwen") then cap at 22 chars
-    label = m.replace(new RegExp('^' + d + '[.\\-]', 'i'), '').slice(0, 22) || m.slice(0, 22);
+function shortenModel(driver, model) {
+  if (!model) return '';
+  // qwen/deepseek/kimi: extract size token (e.g. "qwen2.5-72b-instruct" → "72b")
+  if (/^(qwen|deepseek|kimi)/i.test(driver || '')) {
+    const sm = model.match(/(\d+(?:\.\d+)?[bBkKmM])\b/i);
+    if (sm) return sm[1].toLowerCase();
   }
-  return `<span class="driver-badge" title="${escHtml(d + (m ? ':' + m : '')}}">[${escHtml(label)}]</span>`;
+  // openai: strip "gpt-" prefix ("gpt-4o-mini" → "4o-mini")
+  if ((driver === 'openai' || !driver) && model.startsWith('gpt-')) return model.slice(4);
+  // Strip driver prefix (e.g. "claude-sonnet-4-6" → "sonnet-4-6")
+  let s = model;
+  if (driver) s = s.replace(new RegExp('^' + driver.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '[.\\-]?', 'i'), '');
+  // If still long (>15 chars), take last dash-segment
+  if (s.length > 15) return s.split('-').pop();
+  return s || model;
+}
+
+function driverBadge(job) {
+  const d = job.agentDriver || 'claude';
+  const m = job.agentModel;
+  const ms = m ? shortenModel(d, m) : '';
+  const label = ms ? `${d}:${ms}` : d;
+  const title = (job.agentDriver || 'claude') + (m ? ':' + m : '');
+  return `<span class="driver-badge" title="${escHtml(title)}">[${escHtml(label)}]</span>`;
 }
 
 function makeCard(job, n) {
@@ -1906,7 +1961,7 @@ function makeCard(job, n) {
         <span class="prompt-arrow">▶▶</span>
         <span>${status === 'running' ? 'claude running' : status}</span>
       </span>
-      <span class="card-foot-meta">${timeAgo(job.startedAt)}</span>
+      <span class="card-foot-meta"><span class="card-cost">${job.costUsd > 0 ? '$' + job.costUsd.toFixed(3) + ' · ' : ''}</span><span class="card-time">${timeAgo(job.startedAt)}</span></span>
     </div>
   `;
 
@@ -1972,6 +2027,39 @@ function focusCard(id) {
   if (entry?.logEl) entry.logEl.scrollTop = entry.logEl.scrollHeight;
 }
 
+// ── Per-driver cost tracking ───────────────────────────────────────────────
+const costByDriver = {}; // driver → total USD
+const costByJob    = {}; // job id → { driver, cost }
+
+function trackJobCost(job) {
+  if (!job || !job.id) return;
+  const d = job.agentDriver || 'claude';
+  const cost = (job.costUsd && job.costUsd > 0) ? job.costUsd : 0;
+  const prev = costByJob[job.id];
+  if (prev) {
+    costByDriver[prev.driver] = Math.max(0, (costByDriver[prev.driver] || 0) - prev.cost);
+  }
+  if (cost > 0) {
+    costByJob[job.id] = { driver: d, cost };
+    costByDriver[d] = (costByDriver[d] || 0) + cost;
+  } else if (prev) {
+    delete costByJob[job.id];
+  }
+  renderDriverCosts();
+}
+
+function renderDriverCosts() {
+  const el = $('driver-costs');
+  if (!el) return;
+  const parts = Object.entries(costByDriver)
+    .filter(([, v]) => v > 0.0001)
+    .sort((a, b) => b[1] - a[1]);
+  if (!parts.length) { el.innerHTML = ''; return; }
+  el.innerHTML = parts.map(([d, v]) =>
+    `<span class="dc-item">${escHtml(d)}: <span>$${v.toFixed(3)}</span></span>`
+  ).join('');
+}
+
 // ── Update sidebar counts ──────────────────────────────────────────────────
 function updateCounts() {
   let running=0, pending=0, done=0, failed=0;
@@ -1990,10 +2078,18 @@ function updateCounts() {
 // ── Apply filter to sidebar + canvas ──────────────────────────────────────
 function applyFilter() {
   for (const { job, card } of Object.values(jobs)) {
-    const show = filterMode === 'all'
+    const statusOk = filterMode === 'all'
       || (filterMode === 'running' && ['running','cloning','pending_approval'].includes(job.status))
       || (filterMode === 'done' && job.status === 'done')
       || (filterMode === 'failed' && job.status === 'failed');
+    const d = job.agentDriver || 'claude';
+    const driverOk = driverFilter === 'all'
+      || (driverFilter === 'claude' && (!job.agentDriver || job.agentDriver === 'claude'))
+      || (driverFilter === 'qwen'   && job.agentDriver === 'qwen')
+      || (driverFilter === 'aider'  && job.agentDriver === 'aider')
+      || (driverFilter === 'openai' && job.agentDriver === 'openai')
+      || (driverFilter === 'other'  && job.agentDriver && !['claude','qwen','aider','openai'].includes(job.agentDriver));
+    const show = statusOk && driverOk;
     const item = $(`si-${job.id}`);
     if (item) item.style.display = show ? '' : 'none';
     if (card) card.style.display = show ? '' : 'none';
@@ -2010,6 +2106,15 @@ document.querySelectorAll('.fbtn').forEach(btn => {
     document.querySelectorAll('.fbtn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     filterMode = btn.dataset.filter;
+    applyFilter();
+  });
+});
+
+document.querySelectorAll('.dfbtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.dfbtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    driverFilter = btn.dataset.driver;
     applyFilter();
   });
 });
@@ -2141,6 +2246,7 @@ function addJob(job, lines) {
   if (after) jobList.insertBefore(sidebarItem, after);
   else jobList.appendChild(sidebarItem);
   jobs[job.id] = { job: { ...job }, card, logEl, n: jobCounter };
+  trackJobCost(job);
   if (lines.length) appendLines(logEl, lines, false);
   else if (job.status === 'running' || job.status === 'cloning') setWorkingIndicator(logEl, true);
   updateColHeader(key);
@@ -2189,6 +2295,11 @@ function handleJobUpdate(data) {
     entry.card.classList.add('flash-err');
     setTimeout(() => entry.card.classList.remove('flash-err'), 900);
   }
+
+  // Update cost display
+  const costEl = entry.card.querySelector('.card-cost');
+  if (costEl) costEl.textContent = entry.job.costUsd > 0 ? `$${entry.job.costUsd.toFixed(3)} · ` : '';
+  trackJobCost(entry.job);
 
   // Update sidebar dot
   const dot = $(`si-${job.id}`)?.querySelector('.ji-status');
@@ -2928,8 +3039,8 @@ function linkifyPaths(text) {
 // Update time-ago labels every 30s
 setInterval(() => {
   for (const { job, card } of Object.values(jobs)) {
-    const meta = card.querySelector('.card-foot-meta');
-    if (meta) meta.textContent = timeAgo(job.startedAt);
+    const timeEl = card.querySelector('.card-time');
+    if (timeEl) timeEl.textContent = timeAgo(job.startedAt);
     const si = $(`si-${job.id}`);
     if (si) {
       const t = si.querySelector('.ji-time');

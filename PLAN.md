@@ -1,31 +1,12 @@
-# Plan: Agent Driver Badge + Model Display
+# Plan: Cost display + driver filter + always-on driver badge
 
-## Task Summary
-Add `agentDriver`/`agentModel` badge display on job cards when driver is not 'claude'.
-Add driver/model fields to the cron form and chat submit input.
+## Task summary
+Four UI improvements to cc-agent-ui:
+1. **Cost per job card** — show `$0.023` on each card footer when `costUsd > 0`
+2. **Driver badge always visible** — fix `driverBadge()` to show `[claude]`, `[claude:sonnet-4-6]`, `[qwen:72b]` etc. on ALL jobs
+3. **Driver filter bar** — second row of filter buttons (all/claude/qwen/aider/openai/other) above the job list
+4. **Per-driver cost summary** — live cost breakdown in topbar (e.g. `claude: $2.34 qwen: $0.12`)
 
 ## Approach
-Minimal, backward-compatible changes to `public/index.html` only (+ version bump):
-1. Add CSS for `.driver-badge` — small muted monospace style fitting dark terminal aesthetic
-2. Update `makeCard()` to render badge in card-repo bar when `agentDriver` is set and != 'claude'
-3. Update `makeSidebarItem()` to show badge inline
-4. Add `agent_driver` select + `agent_model` text input to the cron add form
-5. Add driver selector to chat input bar so users can select driver when sending messages
-6. Include driver/model in cron POST and chat send payloads
-
-## Badge logic
-- If `agentDriver` is missing or 'claude': show nothing (backward compatible)
-- If `agentDriver` is 'qwen' and `agentModel` is 'qwen2.5-72b-instruct': show `[qwen2.5-72b]`
-- If `agentDriver` is 'aider': show `[aider]`
-- Prefer shortening model by removing driver prefix, then slice at 22 chars
-
-## Drivers list
-claude, aider, openai, qwen, kimi, deepseek, pi
-
-## Files to touch
-- `public/index.html` — CSS + JS
-- `package.json` — version bump
-
-## Risks
-- Badge must use escHtml to prevent XSS
-- Cron form fields are optional; default to 'claude' if blank
+Single-file edit of `public/index.html`. Targeted CSS/HTML/JS edits.
+Files: `public/index.html`, `package.json` (version bump)
