@@ -1,26 +1,24 @@
-# Plan: Resizable sidebar meta-agents section
+# Plan: fix/meta-chat-dedup-v2
 
-## Task restatement
-Add a draggable resize handle between `#job-list` and `#meta-section` in the left sidebar so users can adjust how much space each section gets. The height should persist in localStorage. Improve visual separation and the meta-agents header styling.
+## Task
+Fix two remaining message duplication gaps in the meta-agent chat panel.
 
-## Approaches
+## Gap 1
+`mpOpen` loads history and renders it, but never seeds `seenMsgIds`. If the poll loop fires
+after open, those messages have unknown IDs → shown again.
 
-### A. Pure CSS flex + JS pointer events (chosen)
-Add a `#sidebar-resizer` div between the two sections. JS listens to mousedown/mousemove/mouseup and directly sets `metaSection.style.height`. Simple, no library needed.
+**Fix:** In `mpOpen` history loop, add `if (m.id) seenMsgIds.add(m.id)` before rendering.
 
-### B. ResizeObserver / CSS resize property
-CSS `resize: vertical` only works on elements with `overflow: auto` and pointing the right direction — doesn't fit vertical split between two siblings easily.
+## Gap 2
+For cc-tg namespace: UI writes message (UUID-A) to log AND publishes to `cca:chat:incoming`.
+cc-tg writes a second entry with different UUID-B. Both IDs are distinct → seenMsgIds can't dedup.
 
-### C. Third-party library (split.js, allotment)
-Overkill for a single-file vanilla HTML project with no build step.
-
-## Decision
-**Approach A** — pure JS drag, CSS cursor/highlight, localStorage persistence.
+**Fix (frontend only):** Content-based dedup for `role: 'user'` msgs via `recentUserMsgs[]`.
+`isRecentDuplicate()` checks content match within 10s window. Seed from history in `mpOpen`.
 
 ## Files to touch
-- `public/index.html` — HTML, CSS, and JS changes only (single-file app)
-- `package.json` — version bump
+- `public/index.html` only
+- `package.json` (version bump)
 
 ## Risks
-- Sidebar may be hidden on small screens (mobile) — min-height guards prevent full collapse
-- localStorage may not be available in private/sandboxed contexts — wrapped in try/catch implicitly (parseInt of null returns NaN → falls back to DEFAULT_HEIGHT)
+- Content-based dedup could suppress a legitimate re-send of same message within 10s — acceptable.

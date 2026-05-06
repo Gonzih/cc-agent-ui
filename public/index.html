@@ -1747,6 +1747,16 @@ let driverFilter = 'all';
 let jobCounter = 0;
 const metaState = {}; // ns → { msgs: [] }
 const seenMsgIds = new Set(); // deduplicate meta_msg events by id
+const recentUserMsgs = []; // { content, ts } — content-based dedup for cc-tg echo (different UUID, same text)
+function isRecentDuplicate(msg) {
+  if (msg.role !== 'user') return false;
+  const now = Date.now();
+  while (recentUserMsgs.length && now - recentUserMsgs[0].ts > 10000) recentUserMsgs.shift();
+  const content = (msg.content || '').trim();
+  if (recentUserMsgs.some(m => m.content === content)) return true;
+  recentUserMsgs.push({ content, ts: now });
+  return false;
+}
 let scale = 1, ox = 40, oy = 40;
 let dragging = false, dragX = 0, dragY = 0;
 
@@ -2536,10 +2546,11 @@ async function mpOpen(ns) {
     metaState[ns].msgs = msgs;
 
     mpIcons.innerHTML = '';
-    for (const m of msgs) mpAppendIcon(m);
-
     mpChat.innerHTML = '';
     for (const m of msgs) {
+      if (m.id) seenMsgIds.add(m.id);
+      if (m.role === 'user') recentUserMsgs.push({ content: (m.content || '').trim(), ts: Date.now() });
+      mpAppendIcon(m);
       if (m.role !== 'tool') mpChat.appendChild(mpMsgEl(m));
     }
     mpChat.scrollTop = mpChat.scrollHeight;
@@ -2574,6 +2585,7 @@ function handleMetaMsg(data) {
     seenMsgIds.add(msg.id);
     if (seenMsgIds.size > 500) seenMsgIds.clear();
   }
+  if (isRecentDuplicate(msg)) return;
   if (!metaState[ns]) metaState[ns] = { msgs: [] };
   metaState[ns].msgs.push(msg);
   if (metaState[ns].msgs.length > 300) metaState[ns].msgs.shift();

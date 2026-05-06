@@ -1,6 +1,6 @@
 {
   "name": "@gonzih/cc-agent-ui",
-  "version": "0.5.15",
+  "version": "0.5.16",
   "description": "Live canvas UI for cc-agent jobs — infinite canvas, streaming output, file browser",
   "type": "module",
   "repository": {
