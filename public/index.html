@@ -1709,6 +1709,7 @@ let filterMode = 'all';
 let driverFilter = 'all';
 let jobCounter = 0;
 const metaState = {}; // ns → { msgs: [] }
+const seenMsgIds = new Set(); // deduplicate meta_msg events by id
 let scale = 1, ox = 40, oy = 40;
 let dragging = false, dragX = 0, dragY = 0;
 
@@ -2531,6 +2532,11 @@ async function mpSend() {
 
 function handleMetaMsg(data) {
   const { ns, msg } = data;
+  if (msg.id) {
+    if (seenMsgIds.has(msg.id)) return;
+    seenMsgIds.add(msg.id);
+    if (seenMsgIds.size > 500) seenMsgIds.clear();
+  }
   if (!metaState[ns]) metaState[ns] = { msgs: [] };
   metaState[ns].msgs.push(msg);
   if (metaState[ns].msgs.length > 300) metaState[ns].msgs.shift();

@@ -626,8 +626,8 @@ const server = http.createServer((req, res) => {
         // Log user message under canonical ns
         const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, timestamp: Date.now() };
         const newLen = await redis.lPush(`cca:chat:log:${canonicalNs}`, JSON.stringify(msg));
+        metaChatLengths[canonicalNs] = newLen; // advance tracker before lTrim yield to prevent poll-loop double-broadcast
         await redis.lTrim(`cca:chat:log:${canonicalNs}`, 0, 499);
-        metaChatLengths[canonicalNs] = newLen;
         broadcast({ type: 'meta_msg', ns: canonicalNs, msg });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));
