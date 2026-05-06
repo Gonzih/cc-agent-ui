@@ -306,6 +306,7 @@ body {
 #job-list {
   flex: 1;
   overflow-y: auto;
+  min-height: 80px;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
@@ -847,11 +848,36 @@ body {
 #jp-msg-send:hover { background: rgba(86,182,194,0.12); border-color: var(--cyan); }
 #jp-msg-send:disabled { opacity: 0.35; cursor: not-allowed; }
 
+/* ── Sidebar resizer handle ── */
+#sidebar-resizer {
+  height: 5px;
+  background: var(--border);
+  cursor: ns-resize;
+  flex-shrink: 0;
+  position: relative;
+  transition: background 0.15s;
+}
+#sidebar-resizer:hover,
+#sidebar-resizer.dragging {
+  background: var(--cyan);
+}
+#sidebar-resizer::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.4;
+}
+
 /* ── Meta Agents sidebar section ── */
 #meta-section {
-  border-top: 1px solid var(--border);
   flex-shrink: 0;
-  max-height: 180px;
+  min-height: 80px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
@@ -859,14 +885,24 @@ body {
 #meta-section::-webkit-scrollbar { width: 4px; }
 #meta-section::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 #meta-header {
-  padding: 7px 14px;
+  padding: 8px 14px;
   font-size: 9px;
-  color: var(--dim);
+  color: var(--cyan);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
+  font-weight: 700;
   border-bottom: 1px solid var(--border);
-  background: var(--sidebar-bg);
+  background: rgba(86, 182, 194, 0.06);
   position: sticky; top: 0; z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#meta-header::before {
+  content: '◈';
+  font-size: 10px;
+  color: var(--cyan);
+  opacity: 0.8;
 }
 .meta-item {
   padding: 8px 14px;
@@ -1554,6 +1590,7 @@ body {
       <button class="dfbtn" data-driver="other">other</button>
     </div>
     <div id="job-list"></div>
+    <div id="sidebar-resizer"></div>
     <div id="meta-section">
       <div id="meta-header">meta agents</div>
       <div id="meta-list"></div>
@@ -3542,6 +3579,58 @@ async function fetchVersions() {
 }
 fetchVersions();
 setInterval(fetchVersions, 60000);
+
+// ── Sidebar resizer ────────────────────────────────────────────────────────
+(function() {
+  const resizer = document.getElementById('sidebar-resizer');
+  const metaSection = document.getElementById('meta-section');
+  const sidebar = document.getElementById('sidebar');
+  if (!resizer || !metaSection || !sidebar) return;
+
+  const STORAGE_KEY = 'cc-agent-ui:meta-section-height';
+  const DEFAULT_HEIGHT = 220;
+  const MIN_HEIGHT = 80;
+
+  // Restore saved height
+  const saved = parseInt(localStorage.getItem(STORAGE_KEY), 10);
+  if (saved && saved >= MIN_HEIGHT) {
+    metaSection.style.height = saved + 'px';
+  } else {
+    metaSection.style.height = DEFAULT_HEIGHT + 'px';
+  }
+
+  let startY = 0;
+  let startHeight = 0;
+  let dragging = false;
+
+  resizer.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    dragging = true;
+    startY = e.clientY;
+    startHeight = metaSection.offsetHeight;
+    resizer.classList.add('dragging');
+    document.body.style.cursor = 'ns-resize';
+    document.body.style.userSelect = 'none';
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const delta = startY - e.clientY; // drag up = bigger meta section
+    const sidebarH = sidebar.offsetHeight;
+    const maxHeight = sidebarH - MIN_HEIGHT - 60; // leave room for job-list and header
+    const newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, startHeight + delta));
+    metaSection.style.height = newHeight + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    localStorage.setItem(STORAGE_KEY, metaSection.offsetHeight);
+  });
+})();
 </script>
 </body>
 </html>

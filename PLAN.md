@@ -1,44 +1,26 @@
-# Plan: Fix meta-chat message duplication
+# Plan: Resizable sidebar meta-agents section
 
 ## Task restatement
-Messages appear 2-3x in the meta-agent chat panel. Two code paths deliver the same message.
+Add a draggable resize handle between `#job-list` and `#meta-section` in the left sidebar so users can adjust how much space each section gets. The height should persist in localStorage. Improve visual separation and the meta-agents header styling.
 
-## Root cause (confirmed by reading code)
+## Approaches
 
-**Race condition in `/api/meta-chat/send` (server.js ~line 628-631):**
+### A. Pure CSS flex + JS pointer events (chosen)
+Add a `#sidebar-resizer` div between the two sections. JS listens to mousedown/mousemove/mouseup and directly sets `metaSection.style.height`. Simple, no library needed.
 
-```js
-const newLen = await redis.lPush(...);  // newLen known here
-await redis.lTrim(...);                 // event loop can yield HERE
-metaChatLengths[canonicalNs] = newLen; // update happens too late
-broadcast({ type: 'meta_msg', ... });  // first broadcast
-```
+### B. ResizeObserver / CSS resize property
+CSS `resize: vertical` only works on elements with `overflow: auto` and pointing the right direction — doesn't fit vertical split between two siblings easily.
 
-During the `lTrim` await, Node.js event loop can run the poll interval
-(setInterval every 2500ms). The poller sees `lLen = N+1` but `prev = N`
-(not yet updated), so it broadcasts. Then execution resumes, sets the
-length, and broadcasts again → double delivery.
-
-## Fix approaches
-
-### A. Move `metaChatLengths` update before `lTrim` (primary — chosen)
-Set `metaChatLengths[canonicalNs] = newLen` immediately after `lPush`,
-before the `lTrim` await. The poller sees the updated length during the
-yield and skips. One-line move, no new state.
-
-### B. recentlyBroadcast Set on server
-Add a module-level Set; in send handler add msg.id; in poll loop skip if
-in Set. More code, two places to touch.
-
-### C. Frontend-only dedup
-Add `seenMsgIds` Set in frontend. Masks but does not fix the bug.
+### C. Third-party library (split.js, allotment)
+Overkill for a single-file vanilla HTML project with no build step.
 
 ## Decision
-**Primary**: Approach A (move assignment before `lTrim`).
-**Safety net**: Also add frontend `seenMsgIds` dedup to guard against any
-other duplicate paths (agent responses, reconnects, etc.).
+**Approach A** — pure JS drag, CSS cursor/highlight, localStorage persistence.
 
 ## Files to touch
-- `server.js` — move `metaChatLengths[canonicalNs] = newLen` before lTrim
-- `public/index.html` — add `seenMsgIds` Set + guard in `handleMetaMsg`
-- `package.json` — version bump (patch)
+- `public/index.html` — HTML, CSS, and JS changes only (single-file app)
+- `package.json` — version bump
+
+## Risks
+- Sidebar may be hidden on small screens (mobile) — min-height guards prevent full collapse
+- localStorage may not be available in private/sandboxed contexts — wrapped in try/catch implicitly (parseInt of null returns NaN → falls back to DEFAULT_HEIGHT)
