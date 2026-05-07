@@ -709,7 +709,17 @@ const server = http.createServer((req, res) => {
     })();
 
   } else {
-    res.writeHead(404); res.end();
+    // Static files from public/
+    const safeName = path.basename(url.pathname);
+    const staticPath = path.join(__dirname, 'public', safeName);
+    if (safeName && !safeName.startsWith('.') && fs.existsSync(staticPath) && fs.statSync(staticPath).isFile()) {
+      const ext = path.extname(safeName).slice(1).toLowerCase();
+      const mime = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', svg: 'image/svg+xml', ico: 'image/x-icon', webp: 'image/webp' }[ext] || 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': mime });
+      fs.createReadStream(staticPath).pipe(res);
+    } else {
+      res.writeHead(404); res.end();
+    }
   }
 });
 
