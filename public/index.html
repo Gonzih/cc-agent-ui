@@ -3439,7 +3439,8 @@ async function chatInit() {
     }
   } catch (e) { console.error('chat history', e); }
 
-  // SSE
+  // SSE subscription to cca:chat:outgoing:{ns} (server-side).
+  // Protocol: messages are published by cc-tg after an 800ms debounce from the last Claude chunk.
   chatSSE = new EventSource('/chat/stream');
   chatSSE.onmessage = e => {
     try {
