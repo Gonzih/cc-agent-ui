@@ -82,7 +82,12 @@ async function getJobIds(namespace) {
   return redis.sMembers(`cca:jobs:${namespace}`);
 }
 
-/** Fetch a single job by ID */
+/**
+ * Fetch a single job by ID.
+ * Protocol boundary note: this implements the MCP `get_job_status` query.
+ * Per the Redis protocol, the browser NEVER reads cca:job:{id} directly —
+ * all job data is served through this server acting as the MCP proxy layer.
+ */
 async function fetchJob(id) {
   const raw = await redis.get(`cca:job:${id}`);
   const job = parseJob(raw);
@@ -90,7 +95,12 @@ async function fetchJob(id) {
   return job;
 }
 
-/** Fetch multiple jobs in one pipeline */
+/**
+ * Fetch multiple jobs in one pipeline.
+ * Protocol boundary note: this implements the MCP `list_jobs` / `get_job_status` queries.
+ * Per the Redis protocol, the browser NEVER reads cca:job:{id} directly —
+ * all job data is served through this server acting as the MCP proxy layer.
+ */
 async function fetchJobs(ids) {
   if (!ids.length) return [];
   const pipeline = redis.multi();
@@ -470,6 +480,9 @@ const server = http.createServer((req, res) => {
     (async () => {
       try {
         const namespace = url.searchParams.get('namespace') || NAMESPACE;
+        // Protocol: cca:chat:log:{ns} is stored LIFO (LPUSH — newest first).
+        // LRANGE 0 99 returns newest-first; .reverse() converts to chronological order
+        // (oldest at top, newest at bottom) for display.
         const raw = await redis.lRange(`cca:chat:log:${namespace}`, 0, 99);
         const messages = raw.map(v => JSON.parse(v)).reverse();
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -485,7 +498,9 @@ const server = http.createServer((req, res) => {
         const parsed = JSON.parse(body);
         const namespace = parsed.namespace || NAMESPACE;
         const message = parsed.message;
-        const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, namespace, timestamp: new Date().toISOString() };
+        // Protocol: ChatMessage shape — { id, source, role, content, timestamp, chatId }
+        // source: 'ui' for messages sent from this UI; role: 'user'; chatId: 0 (no Telegram chat)
+        const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, namespace, timestamp: new Date().toISOString(), chatId: 0 };
 
         // Check if a meta-agent is running for this namespace
         let metaStatus = null;
@@ -500,14 +515,14 @@ const server = http.createServer((req, res) => {
           await redis.lPush(`cca:meta:${namespace}:input`, JSON.stringify(inputEntry));
         } else {
           // No meta-agent running — route to coordinator/cc-tg as before
+          // Protocol: publish to cca:chat:incoming:{ns}; cc-tg will echo to cca:chat:log
           await redis.publish(`cca:chat:incoming:${namespace}`, JSON.stringify(msg));
         }
 
-        // Always write to chat log regardless of routing
-        await redis.lPush(`cca:chat:log:${namespace}`, JSON.stringify(msg));
-        await redis.lTrim(`cca:chat:log:${namespace}`, 0, 499);
+        // Protocol: do NOT write to cca:chat:log:{ns} directly — only cc-tg writes to the log.
+        // The message will appear in history after cc-tg echoes it back via cca:chat:outgoing.
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true }));
+        res.end(JSON.stringify({ ok: true, id: msg.id }));
       } catch (e) { res.writeHead(500); res.end(e.message); }
     });
 
@@ -537,6 +552,8 @@ const server = http.createServer((req, res) => {
             for (const ns of allNamespaces) {
               if (!subscribed.has(ns)) {
                 subscribed.add(ns);
+                // Protocol: cca:chat:outgoing:{ns} is published by cc-tg after an
+                // 800ms debounce from the last Claude streaming chunk.
                 await sub.subscribe(`cca:chat:outgoing:${ns}`, (rawMsg) => {
                   try {
                     const parsed = JSON.parse(rawMsg);
@@ -604,6 +621,8 @@ const server = http.createServer((req, res) => {
     if (!ns) { res.writeHead(400); res.end('missing ns'); return; }
     (async () => {
       try {
+        // Protocol: cca:chat:log:{ns} is stored LIFO (LPUSH — newest first).
+        // .reverse() converts LRANGE result to chronological order for display.
         const raw = await redis.lRange(`cca:chat:log:${ns}`, 0, 99);
         const msgs = raw.map(v => { try { return JSON.parse(v); } catch { return null; } }).filter(Boolean).reverse();
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -646,11 +665,10 @@ const server = http.createServer((req, res) => {
         const inputEntry = { id: randomUUID(), content: message, timestamp: new Date().toISOString() };
         await redis.lPush(`cca:meta:${canonicalNs}:input`, JSON.stringify(inputEntry));
 
-        // Log user message under canonical ns
-        const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, timestamp: Date.now() };
-        const newLen = await redis.lPush(`cca:chat:log:${canonicalNs}`, JSON.stringify(msg));
-        metaChatLengths[canonicalNs] = newLen; // advance tracker before lTrim yield to prevent poll-loop double-broadcast
-        await redis.lTrim(`cca:chat:log:${canonicalNs}`, 0, 499);
+        // Protocol: ChatMessage shape — { id, source, role, content, timestamp (ISO string), chatId }
+        // Do NOT write to cca:chat:log:{ns} directly — only cc-tg writes to the log.
+        // The meta-agent/cc-tg will echo this back via cca:chat:outgoing or the chat log poll.
+        const msg = { id: randomUUID(), source: 'ui', role: 'user', content: message, timestamp: new Date().toISOString(), chatId: 0 };
         broadcast({ type: 'meta_msg', ns: canonicalNs, msg });
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));
@@ -883,6 +901,8 @@ setInterval(async () => {
 }, 900);
 
 // ── Polling: meta agent chat logs ──────────────────────────────────────────
+// Protocol: cca:chat:log:{ns} is LIFO (LPUSH, newest first). New entries appear at index 0.
+// The coordinator poll gap is up to 2s delay from job completion to notification appearance.
 setInterval(async () => {
   try {
     const keys = await redis.keys('cca:chat:log:*');
@@ -895,7 +915,9 @@ setInterval(async () => {
       if (len <= prev) continue;
       const newCount = len - prev;
       metaChatLengths[ns] = len;
-      const raw = await redis.lRange(key, 0, newCount - 1); // newest first
+      // Protocol: cca:chat:log:{ns} is LIFO — LRANGE 0 N-1 gives newest items first.
+      // .reverse() restores chronological order before broadcasting.
+      const raw = await redis.lRange(key, 0, newCount - 1); // newest first (LIFO)
       const msgs = raw.map(v => { try { return JSON.parse(v); } catch { return null; } }).filter(Boolean).reverse();
       for (const msg of msgs) broadcast({ type: 'meta_msg', ns, msg });
     }
