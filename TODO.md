@@ -1,11 +1,16 @@
-# TODO: fix/meta-chat-dedup-v2
+# TODO: Swarm Visibility UI
 
-- [ ] Create branch fix/meta-chat-dedup-v2
-- [ ] Add `recentUserMsgs` array + `isRecentDuplicate()` near `seenMsgIds` declaration
-- [ ] Update `handleMetaMsg` to call `isRecentDuplicate()` after seenMsgIds check
-- [ ] Update `mpOpen` history loop to seed both `seenMsgIds` and `recentUserMsgs`
-- [ ] Smoke test: node --check server.js
-- [ ] Bump version: npm version patch --no-git-tag-version
-- [ ] Commit + push + gh pr create --head fix/meta-chat-dedup-v2
-- [ ] gh pr merge --squash --auto
-- [ ] npm publish --access public
+- [x] Write PLAN.md and TODO.md
+- [ ] server.js: add swarmCache + getSwarms() helper
+- [ ] server.js: include swarms in buildSnapshot()
+- [ ] server.js: GET /api/swarms route
+- [ ] server.js: POST /api/swarm/trigger route
+- [ ] server.js: 5s polling interval for swarm changes
+- [ ] index.html: add "Swarms" tab button
+- [ ] index.html: add swarm CSS
+- [ ] index.html: add #swarms-panel HTML
+- [ ] index.html: add swarm JS (state, functions, polling, WS handler)
+- [ ] index.html: job swarm badge in makeSidebarItem()
+- [ ] index.html: switchToTab() for 'swarms'
+- [ ] Smoke check (node --check server.js)
+- [ ] Commit + PR + merge + publish

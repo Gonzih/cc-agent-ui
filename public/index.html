@@ -1518,6 +1518,278 @@ body {
   transition: all 0.15s;
 }
 .dfbtn:hover, .dfbtn.active { border-color: var(--purple); color: var(--purple); }
+
+/* ── Swarm Panel ──────────────────────────────────────────────────────────── */
+#swarms-panel {
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  flex: 1;
+}
+#swarms-panel.active { display: flex; }
+
+.swarms-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--sidebar-bg);
+  gap: 12px;
+  flex-shrink: 0;
+}
+.swarms-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+#swarm-trigger-btn {
+  margin-left: auto;
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 5px 12px;
+  background: rgba(86,182,194,0.15);
+  border: 1px solid rgba(86,182,194,0.3);
+  border-radius: 4px;
+  color: var(--cyan);
+  cursor: pointer;
+}
+#swarm-trigger-btn:hover { background: rgba(86,182,194,0.25); }
+
+#swarm-trigger-form {
+  display: none;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  gap: 10px;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+#swarm-trigger-form.visible { display: flex; }
+.swarm-form-title {
+  font-size: 11px; font-weight: 700; color: var(--cyan);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.swarm-form-row {
+  display: flex;
+  gap: 10px;
+}
+.swarm-form-row.single { flex-direction: column; }
+.swarm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.swarm-field label {
+  font-size: 9px; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.swarm-input {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 6px 8px;
+  outline: none;
+  resize: vertical;
+}
+.swarm-input:focus { border-color: var(--cyan); }
+.swarm-form-actions {
+  display: flex; gap: 8px;
+}
+.swarm-form-submit {
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 6px 16px;
+  background: rgba(86,182,194,0.2);
+  border: 1px solid rgba(86,182,194,0.4);
+  border-radius: 4px;
+  color: var(--cyan);
+  cursor: pointer;
+}
+.swarm-form-submit:hover { background: rgba(86,182,194,0.35); }
+.swarm-form-cancel {
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--dim);
+  cursor: pointer;
+}
+.swarm-form-cancel:hover { border-color: var(--red); color: var(--red); }
+.swarm-agents-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.swarm-agents-row label {
+  font-size: 9px; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+#sf-max-agents {
+  flex: 1;
+  accent-color: var(--cyan);
+}
+#sf-max-agents-val {
+  font-size: 11px; color: var(--cyan); min-width: 20px;
+}
+
+#swarm-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+#swarm-list::-webkit-scrollbar { width: 4px; }
+#swarm-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+.swarm-empty {
+  font-size: 11px; color: var(--dimmer);
+  padding: 20px 0; text-align: center;
+}
+
+.swarm-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.swarm-card.running_subs { border-color: #1e3a8a; }
+.swarm-card.synthesizing { border-color: rgba(198,120,221,0.4); }
+.swarm-card.done         { border-color: #1e2d1e; }
+.swarm-card.failed       { border-color: #2d1e20; }
+
+.swarm-card-hdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.15);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.swarm-card-hdr:hover { background: rgba(255,255,255,0.03); }
+
+.swarm-status-badge {
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.badge-running_subs  { background: rgba(86,182,194,0.15); color: var(--cyan);   border: 1px solid rgba(86,182,194,0.3); }
+.badge-synthesizing  { background: rgba(198,120,221,0.15); color: var(--purple); border: 1px solid rgba(198,120,221,0.3); }
+.badge-swarm-done    { background: rgba(152,195,121,0.15); color: var(--green);  border: 1px solid rgba(152,195,121,0.3); }
+.badge-swarm-failed  { background: rgba(224,108,117,0.15); color: var(--red);    border: 1px solid rgba(224,108,117,0.3); }
+
+.swarm-card-id { font-size: 9px; color: var(--dimmer); flex-shrink: 0; }
+.swarm-card-goal {
+  font-size: 11px; color: var(--text);
+  flex: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.swarm-card-body {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.swarm-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.swarm-progress-bar {
+  flex: 1;
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.swarm-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--cyan);
+  transition: width 0.4s ease;
+}
+.swarm-progress-fill.complete { background: var(--green); }
+.swarm-progress-fill.has-failed { background: var(--red); }
+.swarm-progress-label {
+  font-size: 10px; color: var(--dim); white-space: nowrap; flex-shrink: 0;
+}
+
+.swarm-sub-toggle {
+  font-size: 10px; color: var(--dim); cursor: pointer; user-select: none;
+  display: flex; align-items: center; gap: 5px;
+}
+.swarm-sub-toggle:hover { color: var(--cyan); }
+.swarm-sub-toggle-arrow { transition: transform 0.15s; font-size: 9px; }
+.swarm-sub-toggle-arrow.open { transform: rotate(90deg); }
+
+.swarm-sub-list {
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.swarm-sub-list.open { display: flex; }
+.swarm-sub-item {
+  font-size: 10px;
+  color: var(--blue);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.swarm-sub-item:hover { background: rgba(97,175,239,0.08); }
+.swarm-sub-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--dim); flex-shrink: 0;
+}
+.swarm-sub-dot.running { background: var(--cyan); }
+.swarm-sub-dot.done    { background: var(--green); }
+.swarm-sub-dot.failed  { background: var(--red); }
+
+.swarm-synthesis-row {
+  font-size: 10px; color: var(--dim);
+  display: flex; align-items: center; gap: 5px;
+}
+.swarm-synthesis-link {
+  color: var(--purple); cursor: pointer; text-decoration: underline;
+}
+.swarm-synthesis-link:hover { color: var(--cyan); }
+
+.swarm-meta-row {
+  display: flex; gap: 12px; font-size: 9px; color: var(--dimmer);
+}
+
+/* Job swarm badge in sidebar */
+.ji-swarm-badge {
+  font-size: 8px;
+  color: var(--purple);
+  background: rgba(198,120,221,0.12);
+  border: 1px solid rgba(198,120,221,0.3);
+  border-radius: 3px;
+  padding: 1px 4px;
+  flex-shrink: 0;
+}
 </style>
 </head>
 <body>
@@ -1539,6 +1811,7 @@ body {
     <button class="tab-btn active" data-tab="jobs">Jobs</button>
     <button class="tab-btn" data-tab="crons">Crons</button>
     <button class="tab-btn" data-tab="chat">Chat</button>
+    <button class="tab-btn" data-tab="swarms">Swarms</button>
   </div>
   <div class="topbar-sep"></div>
   <div id="job-counts">
@@ -1692,6 +1965,41 @@ body {
   </div>
 </div>
 
+<!-- Swarms Panel -->
+<div id="swarms-panel">
+  <div class="swarms-header">
+    <span class="swarms-title">Swarms</span>
+    <button id="swarm-trigger-btn" onclick="swarmToggleForm()">+ New Swarm</button>
+  </div>
+  <div id="swarm-trigger-form">
+    <div class="swarm-form-title">New Swarm Task</div>
+    <div class="swarm-form-row single">
+      <div class="swarm-field">
+        <label>Goal</label>
+        <textarea id="sf-goal" class="swarm-input" rows="3" placeholder="Describe the task for all sub-agents to work on in parallel…"></textarea>
+      </div>
+    </div>
+    <div class="swarm-form-row">
+      <div class="swarm-field">
+        <label>Repo URL</label>
+        <input id="sf-repo" class="swarm-input" type="text" placeholder="https://github.com/owner/repo" autocomplete="off">
+      </div>
+    </div>
+    <div class="swarm-agents-row">
+      <label>Max agents</label>
+      <input id="sf-max-agents" type="range" min="1" max="50" value="5" oninput="$('sf-max-agents-val').textContent=this.value">
+      <span id="sf-max-agents-val">5</span>
+    </div>
+    <div class="swarm-form-actions">
+      <button class="swarm-form-submit" onclick="swarmCreate()">Launch Swarm</button>
+      <button class="swarm-form-cancel" onclick="swarmToggleForm()">Cancel</button>
+    </div>
+  </div>
+  <div id="swarm-list">
+    <div class="swarm-empty">Loading swarms…</div>
+  </div>
+</div>
+
 <!-- Job Detail Panel -->
 <div id="jobpanel">
   <div id="jp-topbar">
@@ -1746,6 +2054,8 @@ let filterMode = 'all';
 let driverFilter = 'all';
 let jobCounter = 0;
 const metaState = {}; // ns → { msgs: [] }
+const swarmsState = {};    // swarm_id → swarm record
+const jobToSwarm = {};     // job_id → swarm_id (reverse mapping)
 const seenMsgIds = new Set(); // deduplicate meta_msg events by id
 const recentUserMsgs = []; // { content, ts } — content-based dedup for cc-tg echo (different UUID, same text)
 function isRecentDuplicate(msg) {
@@ -2029,10 +2339,12 @@ function makeSidebarItem(job) {
   item.dataset.startedAt = job.startedAt || '';
   const status = job.status || 'unknown';
 
+  const swarmId = jobToSwarm[job.id];
   item.innerHTML = `
     <div class="ji-top">
       <div class="ji-status ${status}"></div>
       <span class="ji-repo">${escHtml(shortRepo(job.repoUrl))}</span>
+      ${swarmId ? `<span class="ji-swarm-badge" title="Swarm: ${escHtml(swarmId.slice(0,8))}">⚡swarm</span>` : ''}
       ${driverBadge(job)}
       <span class="ji-time">${timeAgo(job.startedAt)}</span>
     </div>
@@ -2277,6 +2589,12 @@ function handleSnapshot(data) {
   if (typeof hideLoader === 'function') hideLoader();
   window._metaAgentsData = data.metaAgents || [];
   initMetaAgents(data.metaAgents);
+  // Load swarms from snapshot
+  for (const s of (data.swarms || [])) {
+    swarmsState[s.swarm_id] = s;
+    for (const id of (s.sub_job_ids || [])) jobToSwarm[id] = s.swarm_id;
+  }
+  updateJobSwarmBadges();
 }
 
 function addJob(job, lines) {
@@ -2407,6 +2725,7 @@ function connect() {
       case 'job_output':  handleOutput(evt); break;
       case 'meta_msg':    handleMetaMsg(evt); break;
       case 'meta_status': handleMetaStatus(evt); break;
+      case 'swarm_update': handleSwarmUpdate(evt); break;
     }
   };
 }
@@ -3153,12 +3472,229 @@ setInterval(() => {
   };
 })();
 
+// ── Swarms ─────────────────────────────────────────────────────────────────
+let swarmPollTimer = null;
+let swarmFormVisible = false;
+
+function swarmToggleForm() {
+  swarmFormVisible = !swarmFormVisible;
+  const form = $('swarm-trigger-form');
+  if (swarmFormVisible) {
+    form.classList.add('visible');
+    setTimeout(() => $('sf-goal').focus(), 50);
+  } else {
+    form.classList.remove('visible');
+  }
+}
+
+function swarmStatusBadgeClass(status) {
+  if (status === 'running_subs')  return 'badge-running_subs';
+  if (status === 'synthesizing')  return 'badge-synthesizing';
+  if (status === 'done')          return 'badge-swarm-done';
+  if (status === 'failed')        return 'badge-swarm-failed';
+  return 'badge-cancelled';
+}
+
+function swarmStatusLabel(status) {
+  if (status === 'running_subs')  return 'running subs';
+  if (status === 'synthesizing')  return 'synthesizing';
+  return status || 'unknown';
+}
+
+function swarmProgressFillClass(s) {
+  if (s.status === 'done') return 'complete';
+  if (s.status === 'failed' || s.sub_jobs_failed > 0) return 'has-failed';
+  return '';
+}
+
+function swarmCostTotal(s) {
+  let total = 0;
+  for (const id of (s.sub_job_ids || [])) {
+    const entry = jobs[id];
+    if (entry && entry.job.costUsd > 0) total += entry.job.costUsd;
+  }
+  return total;
+}
+
+function renderSwarmCard(s) {
+  const total = (s.sub_job_ids || []).length;
+  const done = s.sub_jobs_done || 0;
+  const failed = s.sub_jobs_failed || 0;
+  const pct = total > 0 ? Math.round(((done + failed) / total) * 100) : 0;
+  const fillClass = swarmProgressFillClass(s);
+  const cost = swarmCostTotal(s);
+  const idShort = (s.swarm_id || '').slice(0, 8);
+  const goalTrunc = (s.goal || '').slice(0, 120);
+  const statusClass = swarmStatusBadgeClass(s.status);
+
+  const card = document.createElement('div');
+  card.className = `swarm-card ${s.status || ''}`;
+  card.id = `swarm-card-${escHtml(s.swarm_id)}`;
+
+  const subJobsHtml = (s.sub_job_ids || []).map(id => {
+    const entry = jobs[id];
+    const jStatus = entry ? entry.job.status : 'unknown';
+    const dotClass = ['running','cloning'].includes(jStatus) ? 'running' : jStatus === 'done' ? 'done' : jStatus === 'failed' ? 'failed' : '';
+    const taskSnippet = entry ? shortTask(entry.job.task).slice(0, 50) : id.slice(0, 8);
+    return `<div class="swarm-sub-item" onclick="focusCard('${escHtml(id)}'); switchToTab('jobs')">
+      <div class="swarm-sub-dot ${dotClass}"></div>
+      <span>${escHtml(taskSnippet)}</span>
+      <span style="color:var(--dimmer);font-size:9px;margin-left:auto">#${escHtml(id.slice(0,6))}</span>
+    </div>`;
+  }).join('');
+
+  const synthesisRow = s.synthesis_job_id
+    ? `<div class="swarm-synthesis-row">⚗ synthesis: <span class="swarm-synthesis-link" onclick="jpOpen('${escHtml(s.synthesis_job_id)}'); switchToTab('jobs')">#${escHtml(s.synthesis_job_id.slice(0,8))}</span></div>`
+    : '';
+
+  card.innerHTML = `
+    <div class="swarm-card-hdr" onclick="this.closest('.swarm-card').querySelector('.swarm-sub-list').classList.toggle('open'); this.querySelector('.swarm-sub-toggle-arrow').classList.toggle('open')">
+      <span class="swarm-status-badge ${statusClass}">${escHtml(swarmStatusLabel(s.status))}</span>
+      <span class="swarm-card-goal" title="${escHtml(s.goal || '')}">${escHtml(goalTrunc)}</span>
+      <span class="swarm-card-id">#${escHtml(idShort)}</span>
+      <span class="swarm-sub-toggle">
+        <span class="swarm-sub-toggle-arrow">▶</span>
+        ${escHtml(String(total))} sub-agents
+      </span>
+    </div>
+    <div class="swarm-card-body">
+      <div class="swarm-progress-wrap">
+        <div class="swarm-progress-bar">
+          <div class="swarm-progress-fill ${fillClass}" style="width:${pct}%"></div>
+        </div>
+        <span class="swarm-progress-label">${done}/${total} done${failed > 0 ? ` · ${failed} failed` : ''}</span>
+      </div>
+      ${synthesisRow}
+      <div class="swarm-meta-row">
+        <span>started ${timeAgo(s.created_at)}</span>
+        ${s.completed_at ? `<span>finished ${timeAgo(s.completed_at)}</span>` : ''}
+        ${cost > 0 ? `<span style="color:var(--green)">$${cost.toFixed(3)}</span>` : ''}
+      </div>
+      <div class="swarm-sub-list">
+        ${subJobsHtml || '<div style="font-size:10px;color:var(--dimmer);padding:4px">no sub-agents yet</div>'}
+      </div>
+    </div>
+  `;
+  return card;
+}
+
+function renderSwarmList() {
+  const list = $('swarm-list');
+  if (!list) return;
+  const swarmArr = Object.values(swarmsState).sort((a, b) =>
+    new Date(b.created_at || 0) - new Date(a.created_at || 0)
+  );
+  if (!swarmArr.length) {
+    list.innerHTML = '<div class="swarm-empty">No swarms yet. Click "+ New Swarm" to launch one.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  for (const s of swarmArr) list.appendChild(renderSwarmCard(s));
+}
+
+function updateJobSwarmBadges() {
+  // Update sidebar items for jobs that are part of a swarm
+  for (const [jobId, swarmId] of Object.entries(jobToSwarm)) {
+    const si = $(`si-${jobId}`);
+    if (!si) continue;
+    const top = si.querySelector('.ji-top');
+    if (!top) continue;
+    if (top.querySelector('.ji-swarm-badge')) continue; // already has badge
+    const badge = document.createElement('span');
+    badge.className = 'ji-swarm-badge';
+    badge.title = `Swarm: ${swarmId.slice(0, 8)}`;
+    badge.textContent = '⚡swarm';
+    // Insert after ji-status dot
+    const dot = top.querySelector('.ji-status');
+    if (dot && dot.nextSibling) top.insertBefore(badge, dot.nextSibling.nextSibling);
+    else top.appendChild(badge);
+  }
+}
+
+function handleSwarmUpdate(evt) {
+  const s = evt.swarm;
+  if (!s || !s.swarm_id) return;
+  swarmsState[s.swarm_id] = s;
+  for (const id of (s.sub_job_ids || [])) jobToSwarm[id] = s.swarm_id;
+  updateJobSwarmBadges();
+  // Re-render swarm list if panel is active
+  if (swarmsPanel.classList.contains('active')) renderSwarmList();
+}
+
+async function swarmLoad() {
+  const list = $('swarm-list');
+  if (list) list.innerHTML = '<div class="swarm-empty">Loading…</div>';
+  try {
+    const r = await fetch('/api/swarms');
+    if (!r.ok) throw new Error(await r.text());
+    const swarmArr = await r.json();
+    for (const s of swarmArr) {
+      swarmsState[s.swarm_id] = s;
+      for (const id of (s.sub_job_ids || [])) jobToSwarm[id] = s.swarm_id;
+    }
+    updateJobSwarmBadges();
+    renderSwarmList();
+  } catch (e) {
+    if (list) list.innerHTML = `<div class="swarm-empty" style="color:var(--red)">Error: ${escHtml(e.message)}</div>`;
+  }
+}
+
+async function swarmCreate() {
+  const goal = ($('sf-goal').value || '').trim();
+  const repoUrl = ($('sf-repo').value || '').trim();
+  const maxAgents = parseInt($('sf-max-agents').value) || 5;
+  if (!goal) { $('sf-goal').focus(); return; }
+  const btn = document.querySelector('.swarm-form-submit');
+  btn.disabled = true;
+  btn.textContent = 'Launching…';
+  try {
+    const r = await fetch('/api/swarm/trigger', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal, repoUrl, maxAgents }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    $('sf-goal').value = '';
+    $('sf-repo').value = '';
+    $('sf-max-agents').value = '5';
+    $('sf-max-agents-val').textContent = '5';
+    swarmToggleForm();
+    swarmLoad();
+  } catch (e) {
+    const list = $('swarm-list');
+    if (list) {
+      const err = document.createElement('div');
+      err.className = 'swarm-empty';
+      err.style.color = 'var(--red)';
+      err.textContent = `Error: ${e.message}`;
+      list.prepend(err);
+      setTimeout(() => err.remove(), 5000);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Launch Swarm';
+  }
+}
+
+function swarmStartPolling() {
+  if (swarmPollTimer) return;
+  swarmPollTimer = setInterval(() => {
+    if (!swarmsPanel.classList.contains('active')) {
+      clearInterval(swarmPollTimer);
+      swarmPollTimer = null;
+      return;
+    }
+    swarmLoad();
+  }, 5000);
+}
+
 connect();
 
 // ── Tab switching ──────────────────────────────────────────────────────────
-const mainEl     = $('main');
-const cronsPanel = $('crons-panel');
-const chatPanel  = $('chat-panel');
+const mainEl      = $('main');
+const cronsPanel  = $('crons-panel');
+const chatPanel   = $('chat-panel');
+const swarmsPanel = $('swarms-panel');
 
 function switchToTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => {
@@ -3168,16 +3704,26 @@ function switchToTab(tab) {
     mainEl.style.display = 'flex';
     cronsPanel.classList.remove('active');
     chatPanel.classList.remove('active');
+    swarmsPanel.classList.remove('active');
   } else if (tab === 'crons') {
     mainEl.style.display = 'none';
     cronsPanel.classList.add('active');
     chatPanel.classList.remove('active');
+    swarmsPanel.classList.remove('active');
     cronLoad();
   } else if (tab === 'chat') {
     mainEl.style.display = 'none';
     cronsPanel.classList.remove('active');
     chatPanel.classList.add('active');
+    swarmsPanel.classList.remove('active');
     chatInit();
+  } else if (tab === 'swarms') {
+    mainEl.style.display = 'none';
+    cronsPanel.classList.remove('active');
+    chatPanel.classList.remove('active');
+    swarmsPanel.classList.add('active');
+    swarmLoad();
+    swarmStartPolling();
   }
 }
 

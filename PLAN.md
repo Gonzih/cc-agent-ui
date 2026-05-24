@@ -1,24 +1,38 @@
-# Plan: fix/meta-chat-dedup-v2
+# Plan: Swarm Visibility UI
 
 ## Task
-Fix two remaining message duplication gaps in the meta-agent chat panel.
+Add swarm visibility to cc-agent-ui. A new swarm_task MCP tool in cc-agent creates Redis records at `cca:swarm:{swarm_id}` with progress info (goal, status, sub_job_ids, sub_jobs_done, sub_jobs_failed, synthesis_job_id).
 
-## Gap 1
-`mpOpen` loads history and renders it, but never seeds `seenMsgIds`. If the poll loop fires
-after open, those messages have unknown IDs → shown again.
+## Approach chosen: Thin Redis layer + WebSocket broadcast
 
-**Fix:** In `mpOpen` history loop, add `if (m.id) seenMsgIds.add(m.id)` before rendering.
+### server.js changes
+1. Add `swarmCache` state object
+2. Add `getSwarms()` helper: scan `cca:swarm:*` keys, parse + return sorted array
+3. Include swarms in `buildSnapshot()` response
+4. `GET /api/swarms` route
+5. `POST /api/swarm/trigger` route — writes to `cca:swarm:requests` Redis list
+6. 5s polling interval: detect swarm changes, broadcast `swarm_update` WebSocket event
 
-## Gap 2
-For cc-tg namespace: UI writes message (UUID-A) to log AND publishes to `cca:chat:incoming`.
-cc-tg writes a second entry with different UUID-B. Both IDs are distinct → seenMsgIds can't dedup.
+### public/index.html changes
+1. "Swarms" tab button in tab nav
+2. CSS: swarm panel, card, progress bar, status badges, form, job swarm badge
+3. `#swarms-panel` HTML with trigger form + swarm list
+4. JS:
+   - `swarms = {}` state (swarm_id → record), `jobToSwarm = {}` reverse map
+   - `handleSnapshot`: extract `data.swarms`, call `renderSwarmList()`
+   - `ws.onmessage`: handle `swarm_update` → upsert, update badges, re-render
+   - `renderSwarmList()`: rebuild swarm list DOM
+   - `renderSwarmCard(s)`: goal, progress bar, status badge, sub-job list, synthesis link, cost
+   - `swarmLoad()`: GET /api/swarms
+   - `swarmCreate()`: POST /api/swarm/trigger
+   - `updateJobSwarmBadges()`: update existing sidebar items after swarms load
+   - `switchToTab('swarms')` case + 5s poll timer
+5. `makeSidebarItem()`: add swarm badge if `jobToSwarm[job.id]` set
 
-**Fix (frontend only):** Content-based dedup for `role: 'user'` msgs via `recentUserMsgs[]`.
-`isRecentDuplicate()` checks content match within 10s window. Seed from history in `mpOpen`.
-
-## Files to touch
-- `public/index.html` only
-- `package.json` (version bump)
+## Files changed
+- `server.js`
+- `public/index.html`
 
 ## Risks
-- Content-based dedup could suppress a legitimate re-send of same message within 10s — acceptable.
+- `cca:swarm:*` keys could include `cca:swarm:requests` — filter by checking `s.swarm_id` field exists
+- Swarm trigger cc-agent compatibility: cc-agent must read from `cca:swarm:requests` list (TBD by cc-agent impl)

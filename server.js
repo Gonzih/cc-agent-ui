@@ -54,6 +54,7 @@ const jobCache       = {};   // id → job object (latest known)
 const outputLengths  = {};   // id → last known Redis list length
 const metaChatLengths = {}; // ns → last known list length (for polling)
 const metaStatusCache = {}; // ns → last known status JSON string (for change detection)
+const swarmCache      = {}; // swarm_id → last known JSON string (for change detection)
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 function broadcast(evt) {
@@ -138,6 +139,25 @@ async function pollNewOutput(id) {
   } catch { return []; }
 }
 
+/** Fetch all swarms from Redis cca:swarm:* keys */
+async function getSwarms() {
+  try {
+    const keys = await redis.keys('cca:swarm:*');
+    const swarms = [];
+    for (const key of keys) {
+      const raw = await redis.get(key);
+      if (!raw) continue;
+      try {
+        const s = JSON.parse(raw);
+        // Only include records that look like swarm records (have swarm_id field)
+        if (s && s.swarm_id) swarms.push(s);
+      } catch {}
+    }
+    swarms.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    return swarms;
+  } catch { return []; }
+}
+
 // ── Build initial snapshot ─────────────────────────────────────────────────
 async function buildSnapshot() {
   const namespaces = await getNamespaces();
@@ -182,7 +202,10 @@ async function buildSnapshot() {
     metaAgents.push({ ...state, count: logLen, ...(agentStatus || {}) });
   }
 
-  return { namespaces, jobs: withOutput, metaAgents };
+  const swarms = await getSwarms();
+  for (const s of swarms) swarmCache[s.swarm_id] = JSON.stringify(s);
+
+  return { namespaces, jobs: withOutput, metaAgents, swarms };
 }
 
 // ── File browser helpers ───────────────────────────────────────────────────
@@ -634,6 +657,36 @@ const server = http.createServer((req, res) => {
       } catch (e) { res.writeHead(500); res.end(e.message); }
     });
 
+  } else if (url.pathname === '/api/swarms' && req.method === 'GET') {
+    (async () => {
+      try {
+        const swarmsList = await getSwarms();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(swarmsList));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    })();
+
+  } else if (url.pathname === '/api/swarm/trigger' && req.method === 'POST') {
+    let body = '';
+    req.on('data', d => body += d);
+    req.on('end', async () => {
+      try {
+        const { goal, repoUrl, maxAgents } = JSON.parse(body);
+        if (!goal) { res.writeHead(400); res.end('missing goal'); return; }
+        const request = {
+          id: randomUUID(),
+          goal,
+          repoUrl: repoUrl || '',
+          maxAgents: Math.min(50, Math.max(1, parseInt(maxAgents) || 5)),
+          requestedAt: new Date().toISOString(),
+          namespace: NAMESPACE,
+        };
+        await redis.lPush('cca:swarm:requests', JSON.stringify(request));
+        res.writeHead(202, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, id: request.id }));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    });
+
   } else if (/^\/api\/jobs\/([^/]+)\/stream$/.test(url.pathname)) {
     // SSE endpoint: stream job output in real-time
     const id = url.pathname.match(/^\/api\/jobs\/([^/]+)\/stream$/)[1];
@@ -868,6 +921,26 @@ setInterval(async () => {
     }
   } catch (e) { console.error('[poll:meta-status]', e.message); }
 }, 2000);
+
+// ── Polling: swarm status ──────────────────────────────────────────────────
+setInterval(async () => {
+  try {
+    const keys = await redis.keys('cca:swarm:*');
+    for (const key of keys) {
+      const raw = await redis.get(key);
+      if (!raw) continue;
+      const swarmId = key.replace('cca:swarm:', '');
+      // Skip non-swarm keys (e.g. cca:swarm:requests)
+      let swarm;
+      try { swarm = JSON.parse(raw); } catch { continue; }
+      if (!swarm || !swarm.swarm_id) continue;
+      const prev = swarmCache[swarmId];
+      if (prev === raw) continue;
+      swarmCache[swarmId] = raw;
+      broadcast({ type: 'swarm_update', swarm });
+    }
+  } catch (e) { console.error('[poll:swarms]', e.message); }
+}, 5000);
 
 // ── Start ──────────────────────────────────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
