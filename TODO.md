@@ -1,11 +1,22 @@
-# TODO: fix/meta-chat-dedup-v2
+# TODO: fix/protocol-compliance
 
-- [ ] Create branch fix/meta-chat-dedup-v2
-- [ ] Add `recentUserMsgs` array + `isRecentDuplicate()` near `seenMsgIds` declaration
-- [ ] Update `handleMetaMsg` to call `isRecentDuplicate()` after seenMsgIds check
-- [ ] Update `mpOpen` history loop to seed both `seenMsgIds` and `recentUserMsgs`
-- [ ] Smoke test: node --check server.js
+- [x] Write PLAN.md
+- [ ] Create branch fix/protocol-compliance
+- [ ] server.js: Add timing comment at cca:chat:outgoing subscription (~line 517)
+- [ ] server.js: Add timing comment at meta-agent chat poll (~line 833)
+- [ ] server.js: Fix ChatMessage timestamp in /api/meta-chat/send (Date.now() → ISO string)
+- [ ] server.js: Add chatId field to ChatMessage in /chat/send
+- [ ] server.js: Add chatId field to ChatMessage in /api/meta-chat/send
+- [ ] server.js: Remove direct lPush to cca:chat:log in /chat/send (protocol: only cc-tg writes log)
+- [ ] server.js: Add MCP boundary comment at fetchJob/fetchJobs
+- [ ] public/index.html: Add timing comment at SSE subscription (chat/stream)
+- [ ] public/index.html: Verify chat history reversal comment present (already correct)
+- [ ] Create docs/redis-protocol.md
+- [ ] Syntax check: node --check server.js
 - [ ] Bump version: npm version patch --no-git-tag-version
-- [ ] Commit + push + gh pr create --head fix/meta-chat-dedup-v2
+- [ ] git add + commit
+- [ ] git push -u origin fix/protocol-compliance
+- [ ] gh pr create
 - [ ] gh pr merge --squash --auto
+- [ ] npm whoami check before publish
 - [ ] npm publish --access public
