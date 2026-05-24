@@ -17,6 +17,26 @@ import { WebSocketServer } from 'ws';
 import { createClient } from 'redis';
 import { exec, execFile } from 'child_process';
 import { randomUUID } from 'crypto';
+import {
+  META_AGENTS_INDEX,
+  CC_AGENT_VERSION_KEY,
+  CC_TG_VERSION_KEY,
+  SWARM_REQUESTS_KEY,
+  jobIndexKey,
+  jobKey,
+  jobOutputKey,
+  jobSignalKey,
+  jobInputKey,
+  jobOutputLiveChannel,
+  metaKey,
+  metaInputKey,
+  metaAgentStatusKey,
+  chatLogKey,
+  chatIncomingChannel,
+  chatOutgoingChannel,
+  cronsKey,
+  swarmKey,
+} from '@gonzih/cc-wire';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = parseInt(process.env.PORT || '7701', 10);
@@ -34,10 +54,10 @@ console.log('[redis] connected');
 // Clean ghost chat log keys (owner/repo format keys not in canonical registry)
 async function cleanGhostChatLogs() {
   try {
-    const keys = await redis.keys('cca:chat:log:*');
-    const canonical = new Set(await redis.sMembers('cca:meta:agents:index'));
+    const keys = await redis.keys(chatLogKey('*'));
+    const canonical = new Set(await redis.sMembers(META_AGENTS_INDEX));
     for (const key of keys) {
-      const ns = key.replace('cca:chat:log:', '');
+      const ns = key.replace(chatLogKey(''), '');
       if (ns === 'default') continue;
       if (ns.includes('/') && !canonical.has(ns)) {
         await redis.del(key);
@@ -71,15 +91,15 @@ function parseJob(raw) {
 
 /** Get all namespace keys: cca:jobs:* */
 async function getNamespaces() {
-  const keys = await redis.keys('cca:jobs:*');
+  const keys = await redis.keys(jobIndexKey('*'));
   return keys
     .filter(k => !k.includes(':index'))
-    .map(k => k.replace('cca:jobs:', ''));
+    .map(k => k.replace(jobIndexKey(''), ''));
 }
 
 /** Get all job IDs for a namespace */
 async function getJobIds(namespace) {
-  return redis.sMembers(`cca:jobs:${namespace}`);
+  return redis.sMembers(jobIndexKey(namespace));
 }
 
 /**
@@ -89,7 +109,7 @@ async function getJobIds(namespace) {
  * all job data is served through this server acting as the MCP proxy layer.
  */
 async function fetchJob(id) {
-  const raw = await redis.get(`cca:job:${id}`);
+  const raw = await redis.get(jobKey(id));
   const job = parseJob(raw);
   if (job) job._id = id;
   return job;
@@ -104,7 +124,7 @@ async function fetchJob(id) {
 async function fetchJobs(ids) {
   if (!ids.length) return [];
   const pipeline = redis.multi();
-  for (const id of ids) pipeline.get(`cca:job:${id}`);
+  for (const id of ids) pipeline.get(jobKey(id));
   const results = await pipeline.exec();
   return results
     .map((raw, i) => { const j = parseJob(raw); if (j) j.id = j.id || ids[i]; return j; })
@@ -114,7 +134,7 @@ async function fetchJobs(ids) {
 /** Fetch meta-agent status from Redis, returns object or null */
 async function fetchMetaStatus(ns) {
   try {
-    const raw = await redis.get(`cca:meta-agent:status:${ns}`);
+    const raw = await redis.get(metaAgentStatusKey(ns));
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
@@ -122,11 +142,11 @@ async function fetchMetaStatus(ns) {
 /** Get last N lines from Redis output list (or disk fallback) */
 async function getOutputTail(id, n = TAIL_LINES) {
   try {
-    const len = await redis.lLen(`cca:job:${id}:output`);
+    const len = await redis.lLen(jobOutputKey(id));
     if (len > 0) {
       outputLengths[id] = len;
       const start = Math.max(0, len - n);
-      return redis.lRange(`cca:job:${id}:output`, start, -1);
+      return redis.lRange(jobOutputKey(id), start, -1);
     }
   } catch {}
   // Disk fallback
@@ -141,18 +161,18 @@ async function getOutputTail(id, n = TAIL_LINES) {
 /** Poll for new output lines since last known length */
 async function pollNewOutput(id) {
   try {
-    const len = await redis.lLen(`cca:job:${id}:output`);
+    const len = await redis.lLen(jobOutputKey(id));
     const prev = outputLengths[id] || 0;
     if (len <= prev) return [];
     outputLengths[id] = len;
-    return redis.lRange(`cca:job:${id}:output`, prev, -1);
+    return redis.lRange(jobOutputKey(id), prev, -1);
   } catch { return []; }
 }
 
 /** Fetch all swarms from Redis cca:swarm:* keys */
 async function getSwarms() {
   try {
-    const keys = await redis.keys('cca:swarm:*');
+    const keys = await redis.keys(swarmKey('*'));
     const swarms = [];
     for (const key of keys) {
       const raw = await redis.get(key);
@@ -198,14 +218,14 @@ async function buildSnapshot() {
   }
 
   // Meta agents: discover from canonical registry only
-  const metaNsMembers = await redis.sMembers('cca:meta:agents:index');
+  const metaNsMembers = await redis.sMembers(META_AGENTS_INDEX);
   const metaAgents = [];
   for (const ns of metaNsMembers) {
     if (ns === 'default') continue;
-    const raw = await redis.get(`cca:meta:${ns}`);
+    const raw = await redis.get(metaKey(ns));
     if (!raw) continue;
     const state = JSON.parse(raw);
-    const logLen = await redis.lLen(`cca:chat:log:${ns}`);
+    const logLen = await redis.lLen(chatLogKey(ns));
     metaChatLengths[ns] = logLen; // initialize length tracker
     const agentStatus = await fetchMetaStatus(ns);
     if (agentStatus) metaStatusCache[ns] = JSON.stringify(agentStatus);
@@ -367,7 +387,7 @@ const server = http.createServer((req, res) => {
       try {
         const { id, action, message } = JSON.parse(body);
         if (!id || !action) { res.writeHead(400); res.end('missing id/action'); return; }
-        const jobRaw = await redis.get(`cca:job:${id}`);
+        const jobRaw = await redis.get(jobKey(id));
         const job = parseJob(jobRaw);
         if (!job) { res.writeHead(404); res.end('job not found'); return; }
 
@@ -375,22 +395,22 @@ const server = http.createServer((req, res) => {
           // Mark approved in Redis — cc-agent MCP must be called separately to actually start it
           // (cc-agent's approval is in-memory; this sets a flag for reference and for GitHub issue polling)
           const updated = { ...job, approvedAt: new Date().toISOString(), approved: true };
-          await redis.set(`cca:job:${id}`, JSON.stringify(updated));
-          await redis.rPush(`cca:job:${id}:output`, '[cc-agent-ui] Approved by UI — use MCP approve_job to start');
+          await redis.set(jobKey(id), JSON.stringify(updated));
+          await redis.rPush(jobOutputKey(id), '[cc-agent-ui] Approved by UI — use MCP approve_job to start');
           broadcast({ type: 'job_output', id, lines: ['[cc-agent-ui] Approved by UI — use MCP approve_job to start'] });
         } else if (action === 'cancel') {
-          await redis.set(`cca:job:${id}:signal`, 'cancel');
+          await redis.set(jobSignalKey(id), 'cancel');
           broadcast({ type: 'job_output', id, lines: ['[cc-agent-ui] cancel signal sent'] });
         } else if (action === 'wake') {
-          await redis.set(`cca:job:${id}:signal`, 'wake');
+          await redis.set(jobSignalKey(id), 'wake');
           broadcast({ type: 'job_output', id, lines: ['[cc-agent-ui] wake signal sent'] });
         } else if (action === 'message') {
           if (message) {
             // Queue for cc-agent to pick up (future: cc-agent polls cca:job:{id}:input)
-            await redis.rPush(`cca:job:${id}:input`, message);
+            await redis.rPush(jobInputKey(id), message);
             // Echo to output so it's visible in terminal immediately
             const line = `[you] ${message}`;
-            const newLen = await redis.rPush(`cca:job:${id}:output`, line);
+            const newLen = await redis.rPush(jobOutputKey(id), line);
             // Advance the output length tracker so the poller doesn't re-broadcast this line
             outputLengths[id] = newLen;
             broadcast({ type: 'job_output', id, lines: [line] });
@@ -417,7 +437,7 @@ const server = http.createServer((req, res) => {
     (async () => {
       try {
         // cc-agent stores crons as JSON array in a Redis string key
-        const raw = await redis.get(`cca:crons:${NAMESPACE}`);
+        const raw = await redis.get(cronsKey(NAMESPACE));
         const crons = raw ? JSON.parse(raw) : [];
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(crons));
@@ -430,12 +450,12 @@ const server = http.createServer((req, res) => {
     req.on('end', async () => {
       try {
         const { schedule, prompt, repoUrl, intervalMs } = JSON.parse(body);
-        const raw = await redis.get(`cca:crons:${NAMESPACE}`);
+        const raw = await redis.get(cronsKey(NAMESPACE));
         const crons = raw ? JSON.parse(raw) : [];
         const id = `${Date.now()}-ui${Math.random().toString(36).slice(2,6)}`;
         const cron = { id, chatId: 0, intervalMs: intervalMs || 3600000, prompt, schedule: schedule || 'manual', repoUrl: repoUrl || '', createdAt: new Date().toISOString() };
         crons.push(cron);
-        await redis.set(`cca:crons:${NAMESPACE}`, JSON.stringify(crons));
+        await redis.set(cronsKey(NAMESPACE), JSON.stringify(crons));
         res.writeHead(201, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(cron));
       } catch (e) { res.writeHead(500); res.end(e.message); }
@@ -445,10 +465,10 @@ const server = http.createServer((req, res) => {
     (async () => {
       try {
         const id = decodeURIComponent(url.pathname.slice('/crons/'.length));
-        const raw = await redis.get(`cca:crons:${NAMESPACE}`);
+        const raw = await redis.get(cronsKey(NAMESPACE));
         const crons = raw ? JSON.parse(raw) : [];
         const updated = crons.filter(c => c.id !== id);
-        await redis.set(`cca:crons:${NAMESPACE}`, JSON.stringify(updated));
+        await redis.set(cronsKey(NAMESPACE), JSON.stringify(updated));
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));
       } catch (e) { res.writeHead(500); res.end(e.message); }
@@ -461,12 +481,12 @@ const server = http.createServer((req, res) => {
       try {
         const id = decodeURIComponent(url.pathname.slice('/crons/'.length));
         const updates = JSON.parse(body);
-        const raw = await redis.get(`cca:crons:${NAMESPACE}`);
+        const raw = await redis.get(cronsKey(NAMESPACE));
         const crons = raw ? JSON.parse(raw) : [];
         const idx = crons.findIndex(c => c.id === id);
         if (idx === -1) { res.writeHead(404); res.end('cron not found'); return; }
         crons[idx] = { ...crons[idx], ...updates, id };
-        await redis.set(`cca:crons:${NAMESPACE}`, JSON.stringify(crons));
+        await redis.set(cronsKey(NAMESPACE), JSON.stringify(crons));
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(crons[idx]));
       } catch (e) { res.writeHead(500); res.end(e.message); }
@@ -483,7 +503,7 @@ const server = http.createServer((req, res) => {
         // Protocol: cca:chat:log:{ns} is stored LIFO (LPUSH — newest first).
         // LRANGE 0 99 returns newest-first; .reverse() converts to chronological order
         // (oldest at top, newest at bottom) for display.
-        const raw = await redis.lRange(`cca:chat:log:${namespace}`, 0, 99);
+        const raw = await redis.lRange(chatLogKey(namespace), 0, 99);
         const messages = raw.map(v => JSON.parse(v)).reverse();
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(messages));
@@ -505,18 +525,18 @@ const server = http.createServer((req, res) => {
         // Check if a meta-agent is running for this namespace
         let metaStatus = null;
         try {
-          const metaStatusRaw = await redis.get(`cca:meta-agent:status:${namespace}`);
+          const metaStatusRaw = await redis.get(metaAgentStatusKey(namespace));
           metaStatus = metaStatusRaw ? JSON.parse(metaStatusRaw) : null;
         } catch {}
 
         if (metaStatus && metaStatus.status === 'running') {
           // Route directly to meta-agent input queue
           const inputEntry = { id: msg.id, content: message, timestamp: msg.timestamp };
-          await redis.lPush(`cca:meta:${namespace}:input`, JSON.stringify(inputEntry));
+          await redis.lPush(metaInputKey(namespace), JSON.stringify(inputEntry));
         } else {
           // No meta-agent running — route to coordinator/cc-tg as before
           // Protocol: publish to cca:chat:incoming:{ns}; cc-tg will echo to cca:chat:log
-          await redis.publish(`cca:chat:incoming:${namespace}`, JSON.stringify(msg));
+          await redis.publish(chatIncomingChannel(namespace), JSON.stringify(msg));
         }
 
         // Protocol: do NOT write to cca:chat:log:{ns} directly — only cc-tg writes to the log.
@@ -545,7 +565,7 @@ const server = http.createServer((req, res) => {
           try {
             const namespaces = await getNamespaces();
             // Also include meta-agent namespaces from canonical registry
-            const metaNsMembers = await redis.sMembers('cca:meta:agents:index');
+            const metaNsMembers = await redis.sMembers(META_AGENTS_INDEX);
             const metaNs = metaNsMembers
               .filter(ns => ns !== 'default' && !namespaces.includes(ns));
             const allNamespaces = [...namespaces, ...metaNs];
@@ -554,7 +574,7 @@ const server = http.createServer((req, res) => {
                 subscribed.add(ns);
                 // Protocol: cca:chat:outgoing:{ns} is published by cc-tg after an
                 // 800ms debounce from the last Claude streaming chunk.
-                await sub.subscribe(`cca:chat:outgoing:${ns}`, (rawMsg) => {
+                await sub.subscribe(chatOutgoingChannel(ns), (rawMsg) => {
                   try {
                     const parsed = JSON.parse(rawMsg);
                     if (!parsed.namespace) parsed.namespace = ns;
@@ -585,8 +605,8 @@ const server = http.createServer((req, res) => {
         const pkgPath = path.join(__dirname, 'package.json');
         const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
         const [agentVer, tgVer] = await Promise.all([
-          redis.get('cca:meta:cc-agent:version').catch(() => null),
-          redis.get('cca:meta:cc-tg:version').catch(() => null),
+          redis.get(CC_AGENT_VERSION_KEY).catch(() => null),
+          redis.get(CC_TG_VERSION_KEY).catch(() => null),
         ]);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
@@ -600,14 +620,14 @@ const server = http.createServer((req, res) => {
   } else if (url.pathname === '/api/meta-agents') {
     (async () => {
       try {
-        const metaNsMembers = await redis.sMembers('cca:meta:agents:index');
+        const metaNsMembers = await redis.sMembers(META_AGENTS_INDEX);
         const agents = [];
         for (const ns of metaNsMembers) {
           if (ns === 'default') continue;
-          const raw = await redis.get(`cca:meta:${ns}`);
+          const raw = await redis.get(metaKey(ns));
           if (!raw) continue;
           const state = JSON.parse(raw);
-          const logLen = await redis.lLen(`cca:chat:log:${ns}`);
+          const logLen = await redis.lLen(chatLogKey(ns));
           const agentStatus = await fetchMetaStatus(ns);
           agents.push({ ...state, count: logLen, ...(agentStatus || {}) });
         }
@@ -623,7 +643,7 @@ const server = http.createServer((req, res) => {
       try {
         // Protocol: cca:chat:log:{ns} is stored LIFO (LPUSH — newest first).
         // .reverse() converts LRANGE result to chronological order for display.
-        const raw = await redis.lRange(`cca:chat:log:${ns}`, 0, 99);
+        const raw = await redis.lRange(chatLogKey(ns), 0, 99);
         const msgs = raw.map(v => { try { return JSON.parse(v); } catch { return null; } }).filter(Boolean).reverse();
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(msgs));
@@ -642,7 +662,7 @@ const server = http.createServer((req, res) => {
         let canonicalNs = ns.includes('/') ? ns.split('/').pop() : ns;
 
         // Auto-provision if not yet registered
-        const members = await redis.sMembers('cca:meta:agents:index');
+        const members = await redis.sMembers(META_AGENTS_INDEX);
         if (!members.includes(canonicalNs)) {
           const repoUrl = ns.includes('/')
             ? `https://github.com/${ns}`
@@ -656,14 +676,14 @@ const server = http.createServer((req, res) => {
             startedAt: new Date().toISOString(),
           };
           const TTL_30D = 30 * 24 * 60 * 60;
-          await redis.set(`cca:meta:${canonicalNs}`, JSON.stringify(state), { EX: TTL_30D });
-          await redis.sAdd('cca:meta:agents:index', canonicalNs);
+          await redis.set(metaKey(canonicalNs), JSON.stringify(state), { EX: TTL_30D });
+          await redis.sAdd(META_AGENTS_INDEX, canonicalNs);
           console.log(`[meta] auto-provisioned namespace: ${canonicalNs} (repoUrl: ${repoUrl})`);
         }
 
         // Push to canonical input queue
         const inputEntry = { id: randomUUID(), content: message, timestamp: new Date().toISOString() };
-        await redis.lPush(`cca:meta:${canonicalNs}:input`, JSON.stringify(inputEntry));
+        await redis.lPush(metaInputKey(canonicalNs), JSON.stringify(inputEntry));
 
         // Protocol: ChatMessage shape — { id, source, role, content, timestamp (ISO string), chatId }
         // Do NOT write to cca:chat:log:{ns} directly — only cc-tg writes to the log.
@@ -699,7 +719,7 @@ const server = http.createServer((req, res) => {
           requestedAt: new Date().toISOString(),
           namespace: NAMESPACE,
         };
-        await redis.lPush('cca:swarm:requests', JSON.stringify(request));
+        await redis.lPush(SWARM_REQUESTS_KEY, JSON.stringify(request));
         res.writeHead(202, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, id: request.id }));
       } catch (e) { res.writeHead(500); res.end(e.message); }
@@ -730,7 +750,7 @@ const server = http.createServer((req, res) => {
         // Send all current output lines as initial backlog
         let offset = 0;
         try {
-          const lines = await redis.lRange(`cca:job:${id}:output`, 0, -1);
+          const lines = await redis.lRange(jobOutputKey(id), 0, -1);
           for (const line of lines) {
             if (closed) return;
             res.write(`data: ${JSON.stringify(line)}\n\n`);
@@ -747,7 +767,7 @@ const server = http.createServer((req, res) => {
         try {
           sub = redis.duplicate();
           await sub.connect();
-          await sub.subscribe(`cca:job:${id}:output:live`, (msg) => {
+          await sub.subscribe(jobOutputLiveChannel(id), (msg) => {
             if (!closed) {
               try { res.write(`data: ${JSON.stringify(msg)}\n\n`); } catch {}
             }
@@ -762,9 +782,9 @@ const server = http.createServer((req, res) => {
           pollTimer = setInterval(async () => {
             if (closed) { clearInterval(pollTimer); return; }
             try {
-              const len = await redis.lLen(`cca:job:${id}:output`);
+              const len = await redis.lLen(jobOutputKey(id));
               if (len > offset) {
-                const newLines = await redis.lRange(`cca:job:${id}:output`, offset, -1);
+                const newLines = await redis.lRange(jobOutputKey(id), offset, -1);
                 for (const line of newLines) {
                   if (closed) return;
                   res.write(`data: ${JSON.stringify(line)}\n\n`);
@@ -861,7 +881,7 @@ setInterval(async () => {
             broadcast({ type: 'job_output', id: job.id, lines });
             // Also write to Redis output so it persists
             const pipeline = redis.multi();
-            for (const l of lines) pipeline.rPush(`cca:job:${job.id}:output`, l);
+            for (const l of lines) pipeline.rPush(jobOutputKey(job.id), l);
             pipeline.exec().catch(() => {});
           }
         }
@@ -905,9 +925,9 @@ setInterval(async () => {
 // The coordinator poll gap is up to 2s delay from job completion to notification appearance.
 setInterval(async () => {
   try {
-    const keys = await redis.keys('cca:chat:log:*');
+    const keys = await redis.keys(chatLogKey('*'));
     for (const key of keys) {
-      const ns = key.replace('cca:chat:log:', '');
+      const ns = key.replace(chatLogKey(''), '');
       if (ns === 'default') continue; // money-brain is the default namespace
       const len = await redis.lLen(key);
       const prev = metaChatLengths[ns];
@@ -927,9 +947,9 @@ setInterval(async () => {
 // ── Polling: meta agent live status (typing, currentTool, etc.) ───────────
 setInterval(async () => {
   try {
-    const keys = await redis.keys('cca:meta-agent:status:*');
+    const keys = await redis.keys(metaAgentStatusKey('*'));
     for (const key of keys) {
-      const ns = key.replace('cca:meta-agent:status:', '');
+      const ns = key.replace(metaAgentStatusKey(''), '');
       if (ns === 'default') continue;
       const raw = await redis.get(key);
       if (!raw) continue;
@@ -947,11 +967,11 @@ setInterval(async () => {
 // ── Polling: swarm status ──────────────────────────────────────────────────
 setInterval(async () => {
   try {
-    const keys = await redis.keys('cca:swarm:*');
+    const keys = await redis.keys(swarmKey('*'));
     for (const key of keys) {
       const raw = await redis.get(key);
       if (!raw) continue;
-      const swarmId = key.replace('cca:swarm:', '');
+      const swarmId = key.replace(swarmKey(''), '');
       // Skip non-swarm keys (e.g. cca:swarm:requests)
       let swarm;
       try { swarm = JSON.parse(raw); } catch { continue; }
