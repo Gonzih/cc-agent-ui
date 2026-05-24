@@ -1,22 +1,16 @@
-# TODO: fix/protocol-compliance
+# TODO: Swarm Visibility UI
 
-- [x] Write PLAN.md
-- [ ] Create branch fix/protocol-compliance
-- [ ] server.js: Add timing comment at cca:chat:outgoing subscription (~line 517)
-- [ ] server.js: Add timing comment at meta-agent chat poll (~line 833)
-- [ ] server.js: Fix ChatMessage timestamp in /api/meta-chat/send (Date.now() → ISO string)
-- [ ] server.js: Add chatId field to ChatMessage in /chat/send
-- [ ] server.js: Add chatId field to ChatMessage in /api/meta-chat/send
-- [ ] server.js: Remove direct lPush to cca:chat:log in /chat/send (protocol: only cc-tg writes log)
-- [ ] server.js: Add MCP boundary comment at fetchJob/fetchJobs
-- [ ] public/index.html: Add timing comment at SSE subscription (chat/stream)
-- [ ] public/index.html: Verify chat history reversal comment present (already correct)
-- [ ] Create docs/redis-protocol.md
-- [ ] Syntax check: node --check server.js
-- [ ] Bump version: npm version patch --no-git-tag-version
-- [ ] git add + commit
-- [ ] git push -u origin fix/protocol-compliance
-- [ ] gh pr create
-- [ ] gh pr merge --squash --auto
-- [ ] npm whoami check before publish
-- [ ] npm publish --access public
+- [x] Write PLAN.md and TODO.md
+- [ ] server.js: add swarmCache + getSwarms() helper
+- [ ] server.js: include swarms in buildSnapshot()
+- [ ] server.js: GET /api/swarms route
+- [ ] server.js: POST /api/swarm/trigger route
+- [ ] server.js: 5s polling interval for swarm changes
+- [ ] index.html: add "Swarms" tab button
+- [ ] index.html: add swarm CSS
+- [ ] index.html: add #swarms-panel HTML
+- [ ] index.html: add swarm JS (state, functions, polling, WS handler)
+- [ ] index.html: job swarm badge in makeSidebarItem()
+- [ ] index.html: switchToTab() for 'swarms'
+- [ ] Smoke check (node --check server.js)
+- [ ] Commit + PR + merge + publish
