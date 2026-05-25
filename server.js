@@ -17,6 +17,7 @@ import { WebSocketServer } from 'ws';
 import { createClient } from 'redis';
 import { exec, execFile } from 'child_process';
 import { randomUUID } from 'crypto';
+import { parseJob, mimeFor, isAllowed, resolvePath, ALLOWED_ROOTS } from './lib/utils.js';
 import {
   META_AGENTS_INDEX,
   CC_AGENT_VERSION_KEY,
@@ -82,11 +83,6 @@ function broadcast(evt) {
   for (const ws of clients) {
     if (ws.readyState === 1) ws.send(msg);
   }
-}
-
-/** Parse a job JSON string from Redis, return null on failure */
-function parseJob(raw) {
-  try { return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
 
 /** Get all namespace keys: cca:jobs:* */
@@ -236,37 +232,6 @@ async function buildSnapshot() {
   for (const s of swarms) swarmCache[s.swarm_id] = JSON.stringify(s);
 
   return { namespaces, jobs: withOutput, metaAgents, swarms };
-}
-
-// ── File browser helpers ───────────────────────────────────────────────────
-function mimeFor(ext) {
-  const map = {
-    js:'text/javascript', ts:'text/typescript', tsx:'text/typescript',
-    jsx:'text/javascript', py:'text/x-python', go:'text/x-go',
-    rs:'text/x-rust', md:'text/markdown', json:'application/json',
-    yaml:'text/yaml', yml:'text/yaml', sh:'text/x-sh', bash:'text/x-sh',
-    html:'text/html', css:'text/css', txt:'text/plain',
-    png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif',
-    svg:'image/svg+xml', webp:'image/webp',
-    mp4:'video/mp4', webm:'video/webm', mov:'video/quicktime',
-    mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg',
-    pdf:'application/pdf',
-    clj:'text/x-clojure', cljs:'text/x-clojure', sql:'text/x-sql',
-    log:'text/plain', env:'text/plain', toml:'text/x-toml',
-  };
-  return map[ext] || 'application/octet-stream';
-}
-
-// Security: only allow paths under approved roots
-const ALLOWED_ROOTS = [os.homedir(), '/tmp', '/workspace'];
-
-function isAllowed(p) {
-  const resolved = p.startsWith('~') ? path.join(os.homedir(), p.slice(1)) : path.resolve(p);
-  return ALLOWED_ROOTS.some(root => resolved === root || resolved.startsWith(root + '/'));
-}
-
-function resolvePath(p) {
-  return p.startsWith('~') ? path.join(os.homedir(), p.slice(1)) : path.resolve(p);
 }
 
 // ── HTTP server ────────────────────────────────────────────────────────────
