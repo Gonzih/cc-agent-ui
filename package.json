@@ -1,6 +1,6 @@
 {
   "name": "@gonzih/cc-agent-ui",
-  "version": "0.5.22",
+  "version": "0.5.23",
   "description": "Live canvas UI for cc-agent jobs — infinite canvas, streaming output, file browser",
   "type": "module",
   "repository": {
@@ -12,7 +12,8 @@
   },
   "files": [
     "server.js",
-    "public/"
+    "public/",
+    "lib/"
   ],
   "publishConfig": {
     "access": "public"
@@ -20,6 +21,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "vitest run",
+    "test:node": "node --test",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import os from 'os';
 import path from 'path';
-import { mimeFor, isAllowed, resolvePath, parseJob, diffTools, ALLOWED_ROOTS } from './utils.js';
+import { mimeFor, isAllowed, resolvePath, parseJob, diffTools, ALLOWED_ROOTS } from '../lib/utils.js';
 
 // ── mimeFor ────────────────────────────────────────────────────────────────
 

@@ -17,6 +17,7 @@ import { WebSocketServer } from 'ws';
 import { createClient } from 'redis';
 import { exec, execFile } from 'child_process';
 import { randomUUID } from 'crypto';
+import { parseJob, mimeFor, isAllowed, resolvePath, ALLOWED_ROOTS, diffTools } from './lib/utils.js';
 import {
   META_AGENTS_INDEX,
   CC_AGENT_VERSION_KEY,
@@ -37,7 +38,6 @@ import {
   cronsKey,
   swarmKey,
 } from '@gonzih/cc-wire';
-import { mimeFor, isAllowed, resolvePath, parseJob, diffTools } from './src/utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = parseInt(process.env.PORT || '7701', 10);
@@ -233,9 +233,6 @@ async function buildSnapshot() {
 
   return { namespaces, jobs: withOutput, metaAgents, swarms };
 }
-
-// ── File browser helpers ───────────────────────────────────────────────────
-// mimeFor, isAllowed, resolvePath imported from src/utils.js
 
 // ── HTTP server ────────────────────────────────────────────────────────────
 const server = http.createServer((req, res) => {

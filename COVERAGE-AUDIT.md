@@ -10,14 +10,14 @@
 
 | File | Statements | Branches | Functions | Lines | Uncovered |
 |------|-----------|---------|-----------|-------|-----------|
-| `src/utils.js` | 95.65% (22/23) | **100%** (18/18) | **100%** (6/6) | 93.75% (15/16) | line 77 |
+| `lib/utils.js` | 95.65% (22/23) | **100%** (18/18) | **100%** (6/6) | 93.75% (15/16) | line 61 |
 | `server.js` | **0%** | **0%** | **0%** | **0%** | (not unit-testable — see below) |
 
 ---
 
-## Covered: `src/utils.js`
+## Covered: `lib/utils.js`
 
-All 5 exported utility functions are tested with 35 test cases:
+All 5 exported utility functions are tested with 35 Vitest test cases + 93 `node:test` cases:
 
 | Function | Statements | Branches | Notes |
 |----------|-----------|---------|-------|
@@ -30,7 +30,7 @@ All 5 exported utility functions are tested with 35 test cases:
 
 ### Identified Dead Code
 
-**`src/utils.js` line 77** — `diffTools` fallback:
+**`lib/utils.js` line 61** — `diffTools` fallback:
 ```js
 return currArr.slice(-Math.min(3, currArr.length)); // fallback: last 3
 ```
@@ -42,7 +42,7 @@ This line is **unreachable**. The `for` loop above iterates `overlap` from `min(
 
 ## Not Covered: `server.js`
 
-`server.js` (955 lines after refactor) connects to Redis at module load via top-level `await redis.connect()`. This makes it **non-importable** in unit tests without a live Redis instance. All logic in this file has **0% coverage** at baseline.
+`server.js` connects to Redis at module load via top-level `await redis.connect()`. This makes it **non-importable** in unit tests without a live Redis instance. All logic in this file has **0% coverage** at baseline.
 
 ### Functions / Handlers (all uncovered)
 
