@@ -234,8 +234,6 @@ async function buildSnapshot() {
   return { namespaces, jobs: withOutput, metaAgents, swarms };
 }
 
-// ── File browser helpers ───────────────────────────────────────────────────
-
 // ── HTTP server ────────────────────────────────────────────────────────────
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://localhost`);

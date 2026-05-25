@@ -114,6 +114,45 @@ describe('mimeFor', () => {
   test('pdf → application/pdf', () => assert.equal(mimeFor('pdf'), 'application/pdf'));
 });
 
+// ── resolvePath ──────────────────────────────────────────────────────────────
+
+describe('resolvePath', () => {
+  const home = os.homedir();
+
+  test('~ alone expands to home directory', () => {
+    assert.equal(resolvePath('~'), home);
+  });
+
+  test('~/subdir expands to path under home', () => {
+    assert.equal(resolvePath('~/projects'), path.join(home, 'projects'));
+  });
+
+  test('~/a/b/c expands correctly', () => {
+    assert.equal(resolvePath('~/a/b/c'), path.join(home, 'a', 'b', 'c'));
+  });
+
+  test('absolute path is returned as-is (via path.resolve)', () => {
+    assert.equal(resolvePath('/tmp/foo'), path.resolve('/tmp/foo'));
+  });
+
+  test('/tmp is resolved correctly', () => {
+    assert.equal(resolvePath('/tmp'), '/tmp');
+  });
+
+  test('relative path is resolved relative to cwd', () => {
+    const rel = 'somefile.txt';
+    assert.ok(path.isAbsolute(resolvePath(rel)));
+    assert.ok(resolvePath(rel).endsWith('somefile.txt'));
+  });
+
+  test('does not expand ~username (only leading ~ alone)', () => {
+    // The implementation checks p.startsWith('~') so ~username also expands
+    // (documenting actual behavior)
+    const result = resolvePath('~username');
+    assert.equal(result, path.join(home, 'username'));
+  });
+});
+
 // ── isAllowed ────────────────────────────────────────────────────────────────
 
 describe('isAllowed', () => {
@@ -163,16 +202,19 @@ describe('isAllowed', () => {
     assert.equal(isAllowed('/var/log'), false);
   });
 
+  test('/proc is forbidden', () => {
+    assert.equal(isAllowed('/proc'), false);
+  });
+
   test('/root is forbidden (unless homedir is /root)', () => {
     if (home !== '/root') {
       assert.equal(isAllowed('/root'), false);
     }
   });
 
-  test('path that starts-with homedir but is not a subdirectory is forbidden', () => {
+  test('path that starts-with homedir string but is not a subdirectory is forbidden', () => {
     // e.g. if home is /home/user, then /home/username2 must NOT be allowed
     const fake = home + '2';
-    // only fails if fake doesn't itself happen to be under an allowed root
     const underAllowed = [home, '/tmp', '/workspace'].some(r => fake === r || fake.startsWith(r + '/'));
     assert.equal(isAllowed(fake), underAllowed);
   });
@@ -183,50 +225,22 @@ describe('isAllowed', () => {
   });
 
   test('path traversal via ~ is resolved safely', () => {
-    // ~/../../etc resolves correctly via path.join and path.resolve
+    // ~/../../etc resolves via path.join + path traversal
     const resolved = path.join(home, '../../etc');
     const underAllowed = [home, '/tmp', '/workspace'].some(r => resolved === r || resolved.startsWith(r + '/'));
     assert.equal(isAllowed('~/../../etc'), underAllowed);
   });
-});
 
-// ── resolvePath ──────────────────────────────────────────────────────────────
-
-describe('resolvePath', () => {
-  const home = os.homedir();
-
-  test('~ alone expands to home directory', () => {
-    assert.equal(resolvePath('~'), home);
+  test('custom allowedRoots parameter: allows path in custom root', () => {
+    assert.equal(isAllowed('/custom/root/file.txt', ['/custom/root']), true);
   });
 
-  test('~/subdir expands to path under home', () => {
-    assert.equal(resolvePath('~/projects'), path.join(home, 'projects'));
+  test('custom allowedRoots parameter: blocks path not in custom root', () => {
+    assert.equal(isAllowed('/tmp/file.txt', ['/custom/root']), false);
   });
 
-  test('~/a/b/c expands correctly', () => {
-    assert.equal(resolvePath('~/a/b/c'), path.join(home, 'a', 'b', 'c'));
-  });
-
-  test('absolute path is returned as-is (via path.resolve)', () => {
-    assert.equal(resolvePath('/tmp/foo'), path.resolve('/tmp/foo'));
-  });
-
-  test('/tmp is resolved correctly', () => {
-    assert.equal(resolvePath('/tmp'), '/tmp');
-  });
-
-  test('relative path is resolved relative to cwd', () => {
-    const rel = 'somefile.txt';
-    assert.equal(resolvePath(rel), path.resolve(rel));
-  });
-
-  test('does not expand ~username (only leading ~ alone)', () => {
-    // ~username should NOT expand to home — path.join(home, 'username...') would be wrong,
-    // but the implementation only checks p.startsWith('~') which would catch ~user too.
-    // This is documenting actual behavior, not desired behavior.
-    // If p = '~username', resolvePath produces path.join(home, 'username')
-    const result = resolvePath('~username');
-    assert.equal(result, path.join(home, 'username'));
+  test('custom allowedRoots: exact root match', () => {
+    assert.equal(isAllowed('/custom/root', ['/custom/root']), true);
   });
 });
 
@@ -278,24 +292,15 @@ describe('diffTools', () => {
   });
 
   test('rolling window: prev=[a,b,c], curr=[b,c,d] → [d]', () => {
-    // The algorithm finds overlap: prev suffix [b,c] == curr prefix [b,c], so new = [d]
     assert.deepEqual(diffTools(['a', 'b', 'c'], ['b', 'c', 'd']), ['d']);
   });
 
-  test('no overlap (completely different arrays): fallback returns last 3', () => {
-    // 'x','y','z' have zero overlap with 'a','b','c'
-    // overlap=0 branch: prevSuffix=[], currPrefix=[] → match → return currArr.slice(0) = full arr
-    // Actually when overlap=0, both slices are [], so they match → return currArr.slice(0) = all of curr
-    // Let's verify: for completely different arrays the overlap=0 branch fires
-    const result = diffTools(['a', 'b', 'c'], ['x', 'y', 'z']);
-    // overlap=3: prev.slice(0)=['a','b','c'], curr.slice(0,3)=['x','y','z'] → mismatch
-    // overlap=2: prev.slice(1)=['b','c'], curr.slice(0,2)=['x','y'] → mismatch
-    // overlap=1: prev.slice(2)=['c'], curr.slice(0,1)=['x'] → mismatch
-    // overlap=0: prev.slice(3)=[], curr.slice(0,0)=[] → match → return curr.slice(0)=['x','y','z']
-    assert.deepEqual(result, ['x', 'y', 'z']);
+  test('no overlap: overlap=0 fires, returns all of currArr', () => {
+    // overlap=0: prevSuffix=[] === currPrefix=[] → return curr.slice(0) = all of curr
+    assert.deepEqual(diffTools(['a', 'b', 'c'], ['x', 'y', 'z']), ['x', 'y', 'z']);
   });
 
-  test('single item array: prev=[a], curr=[b] → [b] (no overlap, returns all of curr)', () => {
+  test('single item array: prev=[a], curr=[b] → [b]', () => {
     assert.deepEqual(diffTools(['a'], ['b']), ['b']);
   });
 
@@ -312,9 +317,7 @@ describe('diffTools', () => {
   test('all items replaced → overlap=0 fires, returns full currArr', () => {
     const prev = ['old1', 'old2'];
     const curr = ['new1', 'new2', 'new3'];
-    const result = diffTools(prev, curr);
-    // overlap=0: [] === [] → return curr.slice(0) = all of curr
-    assert.deepEqual(result, ['new1', 'new2', 'new3']);
+    assert.deepEqual(diffTools(prev, curr), ['new1', 'new2', 'new3']);
   });
 
   test('works with object elements (stringified for comparison)', () => {
