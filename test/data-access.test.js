@@ -12,7 +12,7 @@
  * stay in sync with the server without duplicating string literals.
  */
 
-import { vi, describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 
 // ── Mock must be declared before any imports that transitively load redis ──
 vi.mock('redis', () => ({
@@ -69,12 +69,20 @@ async function api(method, path, body) {
 }
 
 // ── Server startup ─────────────────────────────────────────────────────────
+let _server;
 beforeAll(async () => {
-  // Dynamic import ensures all mocks above are applied first
-  await import('../server.js');
-  // Allow the event-loop to finish server.listen + any startup async work
-  await new Promise(r => setTimeout(r, 300));
+  // Dynamic import ensures all mocks above are applied first.
+  // server.js skips listen() when NODE_ENV=test (vitest sets this), so we
+  // call it manually to get deterministic startup with the right port.
+  const mod = await import('../server.js');
+  _server = mod.server;
+  await new Promise(r => _server.listen(TEST_PORT, '127.0.0.1', r));
 }, 25000);
+
+afterAll(async () => {
+  _server?.closeAllConnections?.();
+  await new Promise(r => (_server?.close(r) ?? r()));
+});
 
 // Reset Redis state between tests so each test is independent
 beforeEach(() => {
