@@ -18,7 +18,8 @@
     "access": "public"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test test/utils.test.js"
   },
   "dependencies": {
     "@gonzih/cc-wire": "^0.1.0",

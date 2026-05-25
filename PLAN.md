@@ -1,38 +1,39 @@
-# Plan: Swarm Visibility UI
+# Plan: Unit Tests for Utility Functions
 
 ## Task
-Add swarm visibility to cc-agent-ui. A new swarm_task MCP tool in cc-agent creates Redis records at `cca:swarm:{swarm_id}` with progress info (goal, status, sub_job_ids, sub_jobs_done, sub_jobs_failed, synthesis_job_id).
+Write comprehensive unit tests for all utility, helper, and standalone functions in `server.js` that currently lack test coverage. Include edge cases, error conditions, and boundary tests.
 
-## Approach chosen: Thin Redis layer + WebSocket broadcast
+## Identified Testable Functions
 
-### server.js changes
-1. Add `swarmCache` state object
-2. Add `getSwarms()` helper: scan `cca:swarm:*` keys, parse + return sorted array
-3. Include swarms in `buildSnapshot()` response
-4. `GET /api/swarms` route
-5. `POST /api/swarm/trigger` route — writes to `cca:swarm:requests` Redis list
-6. 5s polling interval: detect swarm changes, broadcast `swarm_update` WebSocket event
+Pure/standalone functions in `server.js` that can be tested without Redis:
+1. `parseJob(raw)` — JSON parse with null-safety
+2. `mimeFor(ext)` — Extension → MIME type lookup
+3. `isAllowed(p)` — Security path-access check
+4. `resolvePath(p)` — Path resolution with ~ expansion
+5. `diffTools(prevArr, currArr)` — RecentTools array diff for WS broadcast deduplication
 
-### public/index.html changes
-1. "Swarms" tab button in tab nav
-2. CSS: swarm panel, card, progress bar, status badges, form, job swarm badge
-3. `#swarms-panel` HTML with trigger form + swarm list
-4. JS:
-   - `swarms = {}` state (swarm_id → record), `jobToSwarm = {}` reverse map
-   - `handleSnapshot`: extract `data.swarms`, call `renderSwarmList()`
-   - `ws.onmessage`: handle `swarm_update` → upsert, update badges, re-render
-   - `renderSwarmList()`: rebuild swarm list DOM
-   - `renderSwarmCard(s)`: goal, progress bar, status badge, sub-job list, synthesis link, cost
-   - `swarmLoad()`: GET /api/swarms
-   - `swarmCreate()`: POST /api/swarm/trigger
-   - `updateJobSwarmBadges()`: update existing sidebar items after swarms load
-   - `switchToTab('swarms')` case + 5s poll timer
-5. `makeSidebarItem()`: add swarm badge if `jobToSwarm[job.id]` set
+## Approaches
 
-## Files changed
-- `server.js`
-- `public/index.html`
+### Option A: Test functions inline (copy-paste into test file)
+- Pros: No code changes to server.js
+- Cons: Duplicates logic; tests don't reflect actual code
+
+### Option B: Extract utilities to `lib/utils.js`, import in both server.js and tests ✓
+- Pros: Tests the real code, no duplication, good architecture
+- Cons: Requires refactoring server.js (minimal, well-scoped)
+
+### Option C: Use dynamic import with mocked redis
+- Pros: Tests the full server module
+- Cons: Complex mocking, fragile, heavy
+
+**Chosen approach: Option B** — extract pure utility functions to `lib/utils.js`, update server.js to import from there, write tests against `lib/utils.js`.
+
+## Files to Touch
+- `lib/utils.js` (new) — extracted pure utility functions
+- `server.js` — import from lib/utils.js instead of defining inline
+- `test/utils.test.js` (new) — comprehensive unit tests
+- `package.json` — add `"test": "node --test"` script
 
 ## Risks
-- `cca:swarm:*` keys could include `cca:swarm:requests` — filter by checking `s.swarm_id` field exists
-- Swarm trigger cc-agent compatibility: cc-agent must read from `cca:swarm:requests` list (TBD by cc-agent impl)
+- `isAllowed` uses `os.homedir()` and `path.resolve()` — tests must account for real system paths or stub appropriately
+- `server.js` has top-level `await redis.connect()` — can't import server.js in tests; extracting utils avoids this entirely
