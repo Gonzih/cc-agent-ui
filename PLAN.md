@@ -1,30 +1,25 @@
-# Plan: Tests for Data Access and ORM Layers
+# Plan: Comprehensive Test Coverage
 
 ## Task
-Write tests for all uncovered data access and ORM layers in cc-agent-ui.
-Two parallel jobs tackled this:
+Add comprehensive tests for error handling and edge cases across all modules in cc-agent-ui.
 
-### Job A (lib extraction + node:test, already merged to main)
-Extracted pure functions and Redis helpers into `lib/`:
+## Approach: Extract + Inject + Test (merged from two parallel jobs)
+
+Pure functions, Redis helpers, and HTTP handlers were extracted into `lib/` modules with dependency injection, enabling testing without a live Redis connection.
+
+## Files
 - `lib/utils.js` — parseJob, mimeFor, isAllowed, resolvePath, diffTools
-- `lib/redis-ops.js` — getNamespaces, getJobIds, fetchJob, fetchJobs, fetchMetaStatus, getOutputTail, pollNewOutput, getSwarms
-- `test/pure.test.js` — 116 unit tests using node:test
-- `test/redis-ops.test.js` — Redis DI tests using node:test
-- `test/utils.test.js` — utils unit tests using node:test
+- `lib/redis-ops.js` — Redis DI helpers (getNamespaces, getJobIds, fetchJob, fetchJobs, etc.)
+- `lib/redis-helpers.js` — Additional Redis helpers with extended signatures
+- `lib/fs-handlers.js` — File-system HTTP route handlers
+- `lib/pure.js` — Additional pure utility extractions
+- `test/utils.test.js` — Pure function unit tests
+- `test/pure.test.js` — Pure function tests (alternate)
+- `test/redis-ops.test.js` — Redis ops DI tests
+- `test/redis-helpers.test.js` — Extended Redis helper tests
+- `test/fs-handlers.test.js` — HTTP file-system handler tests + security matrix
+- `test/data-access.test.js` — Vitest HTTP API integration tests
 
-### Job B (API integration tests + vitest, this branch)
-Added HTTP API integration tests against a mocked Redis:
-- `test/helpers/redis-mock.js` — in-memory mock that intercepts createClient
-- `test/data-access.test.js` — 69 tests via vitest covering all HTTP endpoints
-  that touch Redis: job output, job actions, cron CRUD, swarms, chat, meta-agents,
-  versions, config, file browser security
-
-## Combined test script
-```
-npm test  →  node:test (lib unit tests) + vitest (API integration tests)
-```
-
-## Risks resolved
-- Port collision: test server uses 7798 (7701/7702 occupied by live instances)
-- Namespace collision: CC_AGENT_NAMESPACE must be overridden in test env
-- Module-level side effects: server.js lazily imported after mocks are wired
+## Test runner
+- `node --test 'test/**/*.test.js'` — unit/DI tests (no deps)
+- `vitest run test/data-access.test.js` — integration tests

@@ -46,6 +46,13 @@ import {
   pollNewOutput as $pollNewOutput,
   getSwarms     as $getSwarms,
 } from './lib/redis-ops.js';
+import {
+  handleBrowse,
+  handleFsStat,
+  handleFsLs,
+  handleFsCat,
+  handleFsRaw,
+} from './lib/fs-handlers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = parseInt(process.env.PORT || '7701', 10);
@@ -166,92 +173,19 @@ const server = http.createServer((req, res) => {
     } catch { if (!res.headersSent) res.writeHead(500); res.end('UI not found'); }
 
   } else if (url.pathname === '/api/browse') {
-    // List directory or read file
-    const p = url.searchParams.get('path');
-    if (!p) { res.writeHead(400); res.end('missing path'); return; }
-    if (!isAllowed(p)) { res.writeHead(403); res.end('forbidden'); return; }
-    const resolved = resolvePath(p);
-    try {
-      const stat = fs.statSync(resolved);
-      if (stat.isDirectory()) {
-        const entries = fs.readdirSync(resolved, { withFileTypes: true }).map(e => ({
-          name: e.name,
-          type: e.isDirectory() ? 'dir' : 'file',
-          path: path.join(resolved, e.name),
-          size: e.isFile() ? (() => { try { return fs.statSync(path.join(resolved, e.name)).size; } catch { return 0; } })() : null,
-        })).sort((a,b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1));
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ type: 'dir', path: resolved, entries }));
-      } else {
-        const ext = path.extname(resolved).slice(1).toLowerCase();
-        const mime = mimeFor(ext);
-        res.writeHead(200, { 'Content-Type': mime });
-        fs.createReadStream(resolved).pipe(res);
-      }
-    } catch (e) {
-      res.writeHead(404); res.end(e.message);
-    }
+    handleBrowse(req, res);
 
   } else if (url.pathname === '/api/fs/stat') {
-    const p = url.searchParams.get('path');
-    if (!p) { res.writeHead(400); res.end('missing path'); return; }
-    if (!isAllowed(p)) { res.writeHead(403); res.end('forbidden'); return; }
-    const resolved = resolvePath(p);
-    try {
-      const stat = fs.statSync(resolved);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ exists: true, type: stat.isDirectory() ? 'dir' : 'file', size: stat.size }));
-    } catch {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ exists: false }));
-    }
+    handleFsStat(req, res);
 
   } else if (url.pathname === '/api/fs/ls') {
-    const p = url.searchParams.get('path');
-    if (!p) { res.writeHead(400); res.end('missing path'); return; }
-    if (!isAllowed(p)) { res.writeHead(403); res.end('forbidden'); return; }
-    const resolved = resolvePath(p);
-    try {
-      const entries = fs.readdirSync(resolved, { withFileTypes: true }).map(e => ({
-        name: e.name,
-        type: e.isDirectory() ? 'dir' : 'file',
-        size: e.isFile() ? (() => { try { return fs.statSync(path.join(resolved, e.name)).size; } catch { return 0; } })() : null,
-        ext: path.extname(e.name).slice(1).toLowerCase(),
-      })).sort((a,b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1));
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ entries }));
-    } catch (e) {
-      res.writeHead(404); res.end(e.message);
-    }
+    handleFsLs(req, res);
 
   } else if (url.pathname === '/api/fs/cat') {
-    const p = url.searchParams.get('path');
-    if (!p) { res.writeHead(400); res.end('missing path'); return; }
-    if (!isAllowed(p)) { res.writeHead(403); res.end('forbidden'); return; }
-    const resolved = resolvePath(p);
-    try {
-      const stat = fs.statSync(resolved);
-      if (stat.size > 1048576) { res.writeHead(400); res.end('file too large (>1MB)'); return; }
-      const content = fs.readFileSync(resolved, 'utf8');
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ content }));
-    } catch (e) {
-      res.writeHead(404); res.end(e.message);
-    }
+    handleFsCat(req, res);
 
   } else if (url.pathname === '/api/fs/raw') {
-    const p = url.searchParams.get('path');
-    if (!p) { res.writeHead(400); res.end('missing path'); return; }
-    if (!isAllowed(p)) { res.writeHead(403); res.end('forbidden'); return; }
-    const resolved = resolvePath(p);
-    try {
-      const ext = path.extname(resolved).slice(1).toLowerCase();
-      const mime = mimeFor(ext);
-      res.writeHead(200, { 'Content-Type': mime });
-      fs.createReadStream(resolved).pipe(res);
-    } catch (e) {
-      res.writeHead(404); res.end(e.message);
-    }
+    handleFsRaw(req, res);
 
   } else if (url.pathname === '/api/job/output') {
     // Full output for a job
