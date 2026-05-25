@@ -1,29 +1,25 @@
-# Plan: Test Coverage for Error Handling and Edge Cases
+# Plan: Comprehensive Test Coverage
 
 ## Task
-Add comprehensive test coverage for uncovered error handling and edge cases across all modules in cc-agent-ui. This includes exception handlers, validation logic, unusual input scenarios, and error boundaries.
+Add comprehensive tests for error handling and edge cases across all modules in cc-agent-ui.
 
-## Approach: Extract + Inject + Test
+## Approach: Extract + Inject + Test (merged from two parallel jobs)
 
-To make the server testable without a live Redis connection, extract the three categories of logic into injectable modules:
+Pure functions, Redis helpers, and HTTP handlers were extracted into `lib/` modules with dependency injection, enabling testing without a live Redis connection.
 
-1. **lib/utils.js** — Pure functions (no I/O). Fully unit-testable with zero mocking.
-2. **lib/redis-helpers.js** — Redis-dependent functions, each taking `redis` as first argument so tests can inject a mock.
-3. **lib/fs-handlers.js** — HTTP file-system route handlers extracted as functions taking `(req, res)`. Testable with mock req/res objects (no Redis needed for these endpoints).
+## Files
+- `lib/utils.js` — parseJob, mimeFor, isAllowed, resolvePath, diffTools
+- `lib/redis-ops.js` — Redis DI helpers (getNamespaces, getJobIds, fetchJob, fetchJobs, etc.)
+- `lib/redis-helpers.js` — Additional Redis helpers with extended signatures
+- `lib/fs-handlers.js` — File-system HTTP route handlers
+- `lib/pure.js` — Additional pure utility extractions
+- `test/utils.test.js` — Pure function unit tests
+- `test/pure.test.js` — Pure function tests (alternate)
+- `test/redis-ops.test.js` — Redis ops DI tests
+- `test/redis-helpers.test.js` — Extended Redis helper tests
+- `test/fs-handlers.test.js` — HTTP file-system handler tests + security matrix
+- `test/data-access.test.js` — Vitest HTTP API integration tests
 
-server.js becomes a thin orchestrator that wires these modules together.
-
-## Files changed
-- `lib/utils.js` (new) — parseJob, mimeFor, isAllowed, resolvePath, diffTools
-- `lib/redis-helpers.js` (new) — getNamespaces, getJobIds, fetchJob, fetchJobs, fetchMetaStatus, getOutputTail, pollNewOutput, getSwarms
-- `lib/fs-handlers.js` (new) — handleBrowse, handleFsStat, handleFsLs, handleFsCat, handleFsRaw
-- `server.js` — import from lib modules (minimal change)
-- `test/utils.test.js` (new) — ~50 cases for pure functions
-- `test/redis-helpers.test.js` (new) — ~30 cases with mock Redis
-- `test/fs-handlers.test.js` (new) — ~25 cases with mock req/res
-- `package.json` — add test script
-
-## Risks
-- server.js has top-level await redis.connect(); cannot be imported in tests without live Redis. Solution: don't import server.js in tests — test lib modules directly.
-- isAllowed uses ALLOWED_ROOTS that includes os.homedir() — tests run as actual user so homedir is known.
-- fs-handlers tests write/read real temp files (using os.tmpdir()) — safe, deterministic.
+## Test runner
+- `node --test 'test/**/*.test.js'` — unit/DI tests (no deps)
+- `vitest run test/data-access.test.js` — integration tests

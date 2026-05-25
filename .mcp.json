@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "cc-agent": {
+      "command": "npx",
+      "args": [
+        "@gonzih/cc-agent"
+      ],
+      "env": {
+        "CC_AGENT_NAMESPACE": "gonzih/cc-agent-ui",
+        "CLAUDE_CODE_OAUTH_TOKEN": "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",
+        "PATH": "/Users/feral/.npm-cache-money-brain/_npx/abcf68fb536a46cf/node_modules/.bin:/Users/feral/money-brain/node_modules/.bin:/Users/feral/node_modules/.bin:/Users/node_modules/.bin:/node_modules/.bin:/opt/homebrew/Cellar/node@22/22.22.0/lib/node_modules/npm/node_modules/@npmcli/run-script/lib/node-gyp-bin:/Users/feral/.npm-cache-money-brain/_npx/99b2632407f6edf9/node_modules/.bin:/Users/feral/money-brain/node_modules/.bin:/Users/feral/node_modules/.bin:/Users/node_modules/.bin:/node_modules/.bin:/opt/homebrew/Cellar/node@22/22.22.0/lib/node_modules/npm/node_modules/@npmcli/run-script/lib/node-gyp-bin:/Users/feral/.npm-global/bin:/opt/homebrew/bin:/opt/homebrew/opt/node@22/bin:/usr/local/bin:/usr/bin:/bin"
+      }
+    }
+  }
+}

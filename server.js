@@ -17,12 +17,12 @@ import { WebSocketServer } from 'ws';
 import { createClient } from 'redis';
 import { exec, execFile } from 'child_process';
 import { randomUUID } from 'crypto';
+import { parseJob, mimeFor, isAllowed, resolvePath, diffTools } from './lib/utils.js';
 import {
   META_AGENTS_INDEX,
   CC_AGENT_VERSION_KEY,
   CC_TG_VERSION_KEY,
   SWARM_REQUESTS_KEY,
-  jobIndexKey,
   jobKey,
   jobOutputKey,
   jobSignalKey,
@@ -35,20 +35,17 @@ import {
   chatIncomingChannel,
   chatOutgoingChannel,
   cronsKey,
-  swarmKey,
 } from '@gonzih/cc-wire';
-import { parseJob, mimeFor, isAllowed, resolvePath, diffTools } from './lib/utils.js';
 import {
-  getNamespaces as _getNamespaces,
-  getJobIds as _getJobIds,
-  fetchJob as _fetchJob,
-  fetchJobs as _fetchJobs,
-  fetchMetaStatus as _fetchMetaStatus,
-  getOutputTail as _getOutputTail,
-  pollNewOutput as _pollNewOutput,
-  getSwarms as _getSwarms,
-  cleanGhostChatLogs as _cleanGhostChatLogs,
-} from './lib/redis-helpers.js';
+  getNamespaces as $getNamespaces,
+  getJobIds     as $getJobIds,
+  fetchJob      as $fetchJob,
+  fetchJobs     as $fetchJobs,
+  fetchMetaStatus as $fetchMetaStatus,
+  getOutputTail as $getOutputTail,
+  pollNewOutput as $pollNewOutput,
+  getSwarms     as $getSwarms,
+} from './lib/redis-ops.js';
 import {
   handleBrowse,
   handleFsStat,
@@ -59,8 +56,10 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = parseInt(process.env.PORT || '7701', 10);
+const JOBS_DIR  = path.join(os.homedir(), '.cc-agent', 'jobs');
 const NAMESPACE = process.env.CC_AGENT_NAMESPACE || process.env.NAMESPACE || 'default';
 const UI_FILE  = path.join(__dirname, 'public', 'index.html');
+const TAIL_LINES = 150;
 
 // ── Redis ──────────────────────────────────────────────────────────────────
 const redis = createClient({ url: process.env.REDIS_URL || 'redis://127.0.0.1:6379' });
@@ -69,7 +68,20 @@ await redis.connect();
 console.log('[redis] connected');
 
 // Clean ghost chat log keys (owner/repo format keys not in canonical registry)
-async function cleanGhostChatLogs() { return _cleanGhostChatLogs(redis); }
+async function cleanGhostChatLogs() {
+  try {
+    const keys = await redis.keys(chatLogKey('*'));
+    const canonical = new Set(await redis.sMembers(META_AGENTS_INDEX));
+    for (const key of keys) {
+      const ns = key.replace(chatLogKey(''), '');
+      if (ns === 'default') continue;
+      if (ns.includes('/') && !canonical.has(ns)) {
+        await redis.del(key);
+        console.log(`[cleanup] deleted ghost chat log key: ${key}`);
+      }
+    }
+  } catch (e) { console.error('[cleanup]', e.message); }
+}
 cleanGhostChatLogs();
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -88,15 +100,17 @@ function broadcast(evt) {
   }
 }
 
-// Bind Redis-dependent helpers to the live client and shared state objects.
-const getNamespaces   = ()       => _getNamespaces(redis);
-const getJobIds       = (ns)     => _getJobIds(redis, ns);
-const fetchJob        = (id)     => _fetchJob(redis, id);
-const fetchJobs       = (ids)    => _fetchJobs(redis, ids);
-const fetchMetaStatus = (ns)     => _fetchMetaStatus(redis, ns);
-const getOutputTail   = (id, n)  => _getOutputTail(redis, id, outputLengths, n);
-const pollNewOutput   = (id)     => _pollNewOutput(redis, id, outputLengths);
-const getSwarms       = ()       => _getSwarms(redis);
+// Pure helpers and Redis ops are imported from lib/ — see lib/utils.js and lib/redis-ops.js.
+// Wrapper shims bind the module-level redis client and outputLengths state so that
+// existing call-sites in this file don't need to change.
+const getNamespaces   = ()       => $getNamespaces(redis);
+const getJobIds       = (ns)     => $getJobIds(redis, ns);
+const fetchJob        = (id)     => $fetchJob(redis, id);
+const fetchJobs       = (ids)    => $fetchJobs(redis, ids);
+const fetchMetaStatus = (ns)     => $fetchMetaStatus(redis, ns);
+const getOutputTail   = (id, n)  => $getOutputTail(redis, outputLengths, id, n);
+const pollNewOutput   = (id)     => $pollNewOutput(redis, outputLengths, id);
+const getSwarms       = ()       => $getSwarms(redis);
 
 // ── Build initial snapshot ─────────────────────────────────────────────────
 async function buildSnapshot() {
@@ -635,6 +649,7 @@ wss.on('connection', async ws => {
 });
 
 // ── Tool call synthesis from recentTools diff ──────────────────────────────
+// diffTools imported from src/utils.js
 const toolTrack = {}; // id → last recentTools array
 
 // ── Polling: job status changes ────────────────────────────────────────────

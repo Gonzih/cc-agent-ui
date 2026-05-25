@@ -1,14 +1,16 @@
-# TODO: Test Coverage for Error Handling and Edge Cases
+# TODO: Comprehensive Test Coverage
 
 - [x] Write PLAN.md and TODO.md
-- [ ] Create lib/utils.js (parseJob, mimeFor, isAllowed, resolvePath, diffTools)
-- [ ] Create lib/redis-helpers.js (all Redis helpers, redis injected as first param)
-- [ ] Create lib/fs-handlers.js (file system HTTP handlers)
-- [ ] Update server.js to import from lib modules
-- [ ] Write test/utils.test.js (~50 edge-case tests)
-- [ ] Write test/redis-helpers.test.js (~30 tests with mock Redis)
-- [ ] Write test/fs-handlers.test.js (~25 tests with mock req/res)
-- [ ] Update package.json with test script
-- [ ] Smoke check: node --check on all new files
-- [ ] Run tests: node --test
-- [ ] Commit + PR + merge + publish
+- [x] lib/utils.js — extracted pure functions
+- [x] lib/redis-ops.js — Redis DI helpers
+- [x] lib/redis-helpers.js — extended Redis helpers
+- [x] lib/fs-handlers.js — file-system HTTP handlers
+- [x] test/utils.test.js — pure function unit tests
+- [x] test/pure.test.js — additional pure tests
+- [x] test/redis-ops.test.js — Redis DI tests
+- [x] test/redis-helpers.test.js — extended Redis helper tests
+- [x] test/fs-handlers.test.js — HTTP handler + security tests
+- [x] test/data-access.test.js — vitest integration tests
+- [x] Update package.json with combined test script
+- [x] Run all tests and verify pass
+- [x] Commit + PR + merge + publish
