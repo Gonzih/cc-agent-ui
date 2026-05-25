@@ -1,38 +1,29 @@
-# Plan: Swarm Visibility UI
+# Plan: Test Coverage for Error Handling and Edge Cases
 
 ## Task
-Add swarm visibility to cc-agent-ui. A new swarm_task MCP tool in cc-agent creates Redis records at `cca:swarm:{swarm_id}` with progress info (goal, status, sub_job_ids, sub_jobs_done, sub_jobs_failed, synthesis_job_id).
+Add comprehensive test coverage for uncovered error handling and edge cases across all modules in cc-agent-ui. This includes exception handlers, validation logic, unusual input scenarios, and error boundaries.
 
-## Approach chosen: Thin Redis layer + WebSocket broadcast
+## Approach: Extract + Inject + Test
 
-### server.js changes
-1. Add `swarmCache` state object
-2. Add `getSwarms()` helper: scan `cca:swarm:*` keys, parse + return sorted array
-3. Include swarms in `buildSnapshot()` response
-4. `GET /api/swarms` route
-5. `POST /api/swarm/trigger` route — writes to `cca:swarm:requests` Redis list
-6. 5s polling interval: detect swarm changes, broadcast `swarm_update` WebSocket event
+To make the server testable without a live Redis connection, extract the three categories of logic into injectable modules:
 
-### public/index.html changes
-1. "Swarms" tab button in tab nav
-2. CSS: swarm panel, card, progress bar, status badges, form, job swarm badge
-3. `#swarms-panel` HTML with trigger form + swarm list
-4. JS:
-   - `swarms = {}` state (swarm_id → record), `jobToSwarm = {}` reverse map
-   - `handleSnapshot`: extract `data.swarms`, call `renderSwarmList()`
-   - `ws.onmessage`: handle `swarm_update` → upsert, update badges, re-render
-   - `renderSwarmList()`: rebuild swarm list DOM
-   - `renderSwarmCard(s)`: goal, progress bar, status badge, sub-job list, synthesis link, cost
-   - `swarmLoad()`: GET /api/swarms
-   - `swarmCreate()`: POST /api/swarm/trigger
-   - `updateJobSwarmBadges()`: update existing sidebar items after swarms load
-   - `switchToTab('swarms')` case + 5s poll timer
-5. `makeSidebarItem()`: add swarm badge if `jobToSwarm[job.id]` set
+1. **lib/utils.js** — Pure functions (no I/O). Fully unit-testable with zero mocking.
+2. **lib/redis-helpers.js** — Redis-dependent functions, each taking `redis` as first argument so tests can inject a mock.
+3. **lib/fs-handlers.js** — HTTP file-system route handlers extracted as functions taking `(req, res)`. Testable with mock req/res objects (no Redis needed for these endpoints).
+
+server.js becomes a thin orchestrator that wires these modules together.
 
 ## Files changed
-- `server.js`
-- `public/index.html`
+- `lib/utils.js` (new) — parseJob, mimeFor, isAllowed, resolvePath, diffTools
+- `lib/redis-helpers.js` (new) — getNamespaces, getJobIds, fetchJob, fetchJobs, fetchMetaStatus, getOutputTail, pollNewOutput, getSwarms
+- `lib/fs-handlers.js` (new) — handleBrowse, handleFsStat, handleFsLs, handleFsCat, handleFsRaw
+- `server.js` — import from lib modules (minimal change)
+- `test/utils.test.js` (new) — ~50 cases for pure functions
+- `test/redis-helpers.test.js` (new) — ~30 cases with mock Redis
+- `test/fs-handlers.test.js` (new) — ~25 cases with mock req/res
+- `package.json` — add test script
 
 ## Risks
-- `cca:swarm:*` keys could include `cca:swarm:requests` — filter by checking `s.swarm_id` field exists
-- Swarm trigger cc-agent compatibility: cc-agent must read from `cca:swarm:requests` list (TBD by cc-agent impl)
+- server.js has top-level await redis.connect(); cannot be imported in tests without live Redis. Solution: don't import server.js in tests — test lib modules directly.
+- isAllowed uses ALLOWED_ROOTS that includes os.homedir() — tests run as actual user so homedir is known.
+- fs-handlers tests write/read real temp files (using os.tmpdir()) — safe, deterministic.

@@ -1,16 +1,14 @@
-# TODO: Swarm Visibility UI
+# TODO: Test Coverage for Error Handling and Edge Cases
 
 - [x] Write PLAN.md and TODO.md
-- [ ] server.js: add swarmCache + getSwarms() helper
-- [ ] server.js: include swarms in buildSnapshot()
-- [ ] server.js: GET /api/swarms route
-- [ ] server.js: POST /api/swarm/trigger route
-- [ ] server.js: 5s polling interval for swarm changes
-- [ ] index.html: add "Swarms" tab button
-- [ ] index.html: add swarm CSS
-- [ ] index.html: add #swarms-panel HTML
-- [ ] index.html: add swarm JS (state, functions, polling, WS handler)
-- [ ] index.html: job swarm badge in makeSidebarItem()
-- [ ] index.html: switchToTab() for 'swarms'
-- [ ] Smoke check (node --check server.js)
+- [ ] Create lib/utils.js (parseJob, mimeFor, isAllowed, resolvePath, diffTools)
+- [ ] Create lib/redis-helpers.js (all Redis helpers, redis injected as first param)
+- [ ] Create lib/fs-handlers.js (file system HTTP handlers)
+- [ ] Update server.js to import from lib modules
+- [ ] Write test/utils.test.js (~50 edge-case tests)
+- [ ] Write test/redis-helpers.test.js (~30 tests with mock Redis)
+- [ ] Write test/fs-handlers.test.js (~25 tests with mock req/res)
+- [ ] Update package.json with test script
+- [ ] Smoke check: node --check on all new files
+- [ ] Run tests: node --test
 - [ ] Commit + PR + merge + publish
