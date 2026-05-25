@@ -20,11 +20,17 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "test": "vitest run",
+    "test:node": "node --test",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@gonzih/cc-wire": "^0.1.0",
     "redis": "^5.11.0",
     "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.7",
+    "vitest": "^4.1.7"
   }
 }

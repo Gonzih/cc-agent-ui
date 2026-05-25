@@ -1,39 +1,27 @@
-# Plan: Unit Tests for Utility Functions
+# Plan: Initial Coverage Audit
 
 ## Task
-Write comprehensive unit tests for all utility, helper, and standalone functions in `server.js` that currently lack test coverage. Include edge cases, error conditions, and boundary tests.
+Set up a test framework with coverage reporting, identify all functions with <100% coverage, and document uncovered branches. This is a baseline audit — the output is a coverage report and gap analysis.
 
-## Identified Testable Functions
+## Situation
+- `server.js` contains all application logic: HTTP routes, WebSocket, Redis polling, utility helpers
+- `server.js` uses top-level `await redis.connect()` at module scope → cannot be imported in tests without a live Redis instance
+- Pure utility functions (`mimeFor`, `isAllowed`, `resolvePath`, `parseJob`, `diffTools`) extracted to `lib/utils.js`
 
-Pure/standalone functions in `server.js` that can be tested without Redis:
-1. `parseJob(raw)` — JSON parse with null-safety
-2. `mimeFor(ext)` — Extension → MIME type lookup
-3. `isAllowed(p)` — Security path-access check
-4. `resolvePath(p)` — Path resolution with ~ expansion
-5. `diffTools(prevArr, currArr)` — RecentTools array diff for WS broadcast deduplication
+## Approach chosen: Extract utils + dual test suites
+- `lib/utils.js` — extracted pure utilities (canonical module, imported by server.js)
+- `test/utils.test.js` — `node:test` based tests (no extra deps)
+- `src/utils.test.js` — Vitest based tests with V8 coverage reporting
+- `vitest.config.js` — coverage config targeting `lib/**/*.js`
 
-## Approaches
+## Files touched
+- `lib/utils.js` — pure utility functions (parseJob, mimeFor, resolvePath, isAllowed, diffTools)
+- `server.js` — imports from lib/utils.js
+- `test/utils.test.js` — node:test suite
+- `src/utils.test.js` — vitest suite with coverage
+- `package.json` — devDependencies + test/coverage scripts
+- `vitest.config.js` — coverage configuration
+- `COVERAGE-AUDIT.md` — full baseline gap analysis
 
-### Option A: Test functions inline (copy-paste into test file)
-- Pros: No code changes to server.js
-- Cons: Duplicates logic; tests don't reflect actual code
-
-### Option B: Extract utilities to `lib/utils.js`, import in both server.js and tests ✓
-- Pros: Tests the real code, no duplication, good architecture
-- Cons: Requires refactoring server.js (minimal, well-scoped)
-
-### Option C: Use dynamic import with mocked redis
-- Pros: Tests the full server module
-- Cons: Complex mocking, fragile, heavy
-
-**Chosen approach: Option B** — extract pure utility functions to `lib/utils.js`, update server.js to import from there, write tests against `lib/utils.js`.
-
-## Files to Touch
-- `lib/utils.js` (new) — extracted pure utility functions
-- `server.js` — import from lib/utils.js instead of defining inline
-- `test/utils.test.js` (new) — comprehensive unit tests
-- `package.json` — add `"test": "node --test"` script
-
-## Risks
-- `isAllowed` uses `os.homedir()` and `path.resolve()` — tests must account for real system paths or stub appropriately
-- `server.js` has top-level `await redis.connect()` — can't import server.js in tests; extracting utils avoids this entirely
+## Deliverable
+`COVERAGE-AUDIT.md` with: covered functions, uncovered server.js routes/handlers, branch analysis, roadmap

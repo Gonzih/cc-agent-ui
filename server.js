@@ -794,6 +794,7 @@ wss.on('connection', async ws => {
 });
 
 // ── Tool call synthesis from recentTools diff ──────────────────────────────
+// diffTools imported from src/utils.js
 const toolTrack = {}; // id → last recentTools array
 
 // ── Polling: job status changes ────────────────────────────────────────────

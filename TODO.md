@@ -1,15 +1,14 @@
-# TODO: Unit Tests for Utility Functions
+# TODO: Initial Coverage Audit
 
 - [x] Write PLAN.md and TODO.md
-- [ ] Create `lib/utils.js` with extracted pure functions: parseJob, mimeFor, isAllowed, resolvePath, diffTools
-- [ ] Update `server.js` to import from `lib/utils.js`
-- [ ] Add `"test": "node --test"` to package.json scripts
-- [ ] Create `test/utils.test.js` with comprehensive tests
-  - [ ] parseJob: null, undefined, empty string, valid JSON, invalid JSON
-  - [ ] mimeFor: all known extensions, unknown extension, empty string
-  - [ ] isAllowed: homedir paths, /tmp paths, /workspace paths, forbidden paths, ~ expansion, traversal attempts
-  - [ ] resolvePath: ~ prefix, absolute path, relative path
-  - [ ] diffTools: both empty, curr empty/null, prev empty (first snapshot), identical, new tail items, fallback case
-- [ ] Run tests (node --test)
-- [ ] Syntax check server.js (node --check server.js)
+- [x] Extract pure utils from server.js to lib/utils.js
+- [x] Update server.js imports to use lib/utils.js
+- [x] Install vitest + @vitest/coverage-v8 as devDependencies
+- [x] Add test/coverage scripts to package.json
+- [x] Create vitest.config.js
+- [x] Write src/utils.test.js with full branch coverage of each util (Vitest)
+- [x] Write test/utils.test.js with node:test tests
+- [x] Smoke check: node --check server.js (syntax only)
+- [x] Run tests: npx vitest run --coverage
+- [x] Write COVERAGE-AUDIT.md with full gap analysis
 - [ ] Commit + PR + merge + publish
