@@ -8,8 +8,9 @@ export default defineConfig({
     hookTimeout: 25000,
     pool: 'forks',
     singleFork: true,
-    // Only run the API integration test with vitest (pure/redis-ops use node:test)
-    include: ['test/data-access.test.js'],
+    // data-access uses mocked Redis (vitest); helpers uses DI pattern (vitest)
+    // pure/redis-ops/utils use node:test runner instead
+    include: ['test/data-access.test.js', 'test/helpers.test.js'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
