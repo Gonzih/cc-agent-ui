@@ -1,16 +1,13 @@
-# TODO: Swarm Visibility UI
+# TODO: Initial Coverage Audit
 
 - [x] Write PLAN.md and TODO.md
-- [ ] server.js: add swarmCache + getSwarms() helper
-- [ ] server.js: include swarms in buildSnapshot()
-- [ ] server.js: GET /api/swarms route
-- [ ] server.js: POST /api/swarm/trigger route
-- [ ] server.js: 5s polling interval for swarm changes
-- [ ] index.html: add "Swarms" tab button
-- [ ] index.html: add swarm CSS
-- [ ] index.html: add #swarms-panel HTML
-- [ ] index.html: add swarm JS (state, functions, polling, WS handler)
-- [ ] index.html: job swarm badge in makeSidebarItem()
-- [ ] index.html: switchToTab() for 'swarms'
-- [ ] Smoke check (node --check server.js)
+- [ ] Extract pure utils from server.js to src/utils.js
+- [ ] Update server.js imports to use src/utils.js
+- [ ] Install vitest + @vitest/coverage-v8 as devDependencies
+- [ ] Add test/coverage scripts to package.json
+- [ ] Create vitest.config.js
+- [ ] Write src/utils.test.js with full branch coverage of each util
+- [ ] Smoke check: node --check server.js (syntax only)
+- [ ] Run tests: npx vitest run --coverage
+- [ ] Write COVERAGE-AUDIT.md with full gap analysis
 - [ ] Commit + PR + merge + publish

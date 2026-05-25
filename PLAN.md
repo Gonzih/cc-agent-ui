@@ -1,38 +1,52 @@
-# Plan: Swarm Visibility UI
+# Plan: Initial Coverage Audit
 
 ## Task
-Add swarm visibility to cc-agent-ui. A new swarm_task MCP tool in cc-agent creates Redis records at `cca:swarm:{swarm_id}` with progress info (goal, status, sub_job_ids, sub_jobs_done, sub_jobs_failed, synthesis_job_id).
+Set up a test framework with coverage reporting, identify all functions with <100% coverage, and document uncovered branches. This is a baseline audit — the output is a coverage report and gap analysis.
 
-## Approach chosen: Thin Redis layer + WebSocket broadcast
+## Situation
+- `server.js` (992 lines) contains all application logic: HTTP routes, WebSocket, Redis polling, utility helpers
+- Zero tests exist
+- `server.js` uses top-level `await redis.connect()` at module scope → cannot be imported in tests without a live Redis instance
+- Pure utility functions (`mimeFor`, `isAllowed`, `resolvePath`, `parseJob`, `diffTools`) are embedded in `server.js` and CAN be tested once extracted
 
-### server.js changes
-1. Add `swarmCache` state object
-2. Add `getSwarms()` helper: scan `cca:swarm:*` keys, parse + return sorted array
-3. Include swarms in `buildSnapshot()` response
-4. `GET /api/swarms` route
-5. `POST /api/swarm/trigger` route — writes to `cca:swarm:requests` Redis list
-6. 5s polling interval: detect swarm changes, broadcast `swarm_update` WebSocket event
+## Approaches
 
-### public/index.html changes
-1. "Swarms" tab button in tab nav
-2. CSS: swarm panel, card, progress bar, status badges, form, job swarm badge
-3. `#swarms-panel` HTML with trigger form + swarm list
-4. JS:
-   - `swarms = {}` state (swarm_id → record), `jobToSwarm = {}` reverse map
-   - `handleSnapshot`: extract `data.swarms`, call `renderSwarmList()`
-   - `ws.onmessage`: handle `swarm_update` → upsert, update badges, re-render
-   - `renderSwarmList()`: rebuild swarm list DOM
-   - `renderSwarmCard(s)`: goal, progress bar, status badge, sub-job list, synthesis link, cost
-   - `swarmLoad()`: GET /api/swarms
-   - `swarmCreate()`: POST /api/swarm/trigger
-   - `updateJobSwarmBadges()`: update existing sidebar items after swarms load
-   - `switchToTab('swarms')` case + 5s poll timer
-5. `makeSidebarItem()`: add swarm badge if `jobToSwarm[job.id]` set
+### A. Extract utils + Vitest (chosen)
+- Extract the 5 pure utility functions to `src/utils.js`
+- Import them back in `server.js` (no behavior change)
+- Install `vitest` + `@vitest/coverage-v8` as devDependencies
+- Write `src/utils.test.js` with full branch coverage of each utility
+- Run `npx vitest run --coverage` → get V8 coverage report
+- Document uncovered code in `server.js` (all routes, WebSocket, polling intervals)
+- **Pro:** Works without Redis, tests pure logic, establishes infrastructure
+- **Con:** `server.js` routes remain uncovered at this stage
 
-## Files changed
-- `server.js`
-- `public/index.html`
+### B. Integration tests with real Redis
+- Start a Redis instance in tests, import server.js
+- **Pro:** Covers all routes
+- **Con:** Requires Redis running, complex setup, out of scope for baseline audit
+
+### C. HTTP supertest with mocked Redis
+- Heavily mock the `redis` client module
+- **Pro:** Route coverage
+- **Con:** ESM mock complexity with Vitest, top-level await makes this fragile
+
+## Approach chosen: A (extract utils + Vitest)
+
+## Files to touch
+- `src/utils.js` — new, extracted pure utilities
+- `src/utils.test.js` — new, test suite for utils
+- `server.js` — update imports to use `src/utils.js`
+- `package.json` — add devDependencies + test/coverage scripts
+- `vitest.config.js` — new, configure coverage
 
 ## Risks
-- `cca:swarm:*` keys could include `cca:swarm:requests` — filter by checking `s.swarm_id` field exists
-- Swarm trigger cc-agent compatibility: cc-agent must read from `cca:swarm:requests` list (TBD by cc-agent impl)
+- ESM module resolution: Vitest handles this natively, low risk
+- `os.homedir()` usage in `isAllowed`/`resolvePath`: calls real OS function, deterministic
+- `server.js` coverage will show ~0% after extraction — that's the expected baseline
+
+## Deliverable
+A committed `COVERAGE-AUDIT.md` file listing:
+1. Covered functions (tested in utils.test.js)
+2. Uncovered functions/routes in server.js with branch analysis
+3. Coverage % baseline per file
