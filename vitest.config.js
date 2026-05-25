@@ -10,7 +10,7 @@ export default defineConfig({
     singleFork: true,
     // data-access uses mocked Redis (vitest); helpers uses DI pattern (vitest)
     // pure/redis-ops/utils use node:test runner instead
-    include: ['test/data-access.test.js', 'test/helpers.test.js'],
+    include: ['test/data-access.test.js', 'test/helpers.test.js', 'test/server.test.js'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

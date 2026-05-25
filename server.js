@@ -790,8 +790,12 @@ setInterval(async () => {
 }, 5000);
 
 // ── Start ──────────────────────────────────────────────────────────────────
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n  cc-agent UI  →  http://0.0.0.0:${PORT}\n`);
-  const open = process.platform === 'darwin' ? 'open' : 'xdg-open';
-  setTimeout(() => exec(`${open} http://127.0.0.1:${PORT}`), 1000);
-});
+if (process.env.NODE_ENV !== 'test') {
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n  cc-agent UI  →  http://0.0.0.0:${PORT}\n`);
+    const open = process.platform === 'darwin' ? 'open' : 'xdg-open';
+    setTimeout(() => exec(`${open} http://127.0.0.1:${PORT}`), 1000);
+  });
+}
+
+export { server };
