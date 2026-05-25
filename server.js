@@ -17,6 +17,7 @@ import { WebSocketServer } from 'ws';
 import { createClient } from 'redis';
 import { exec, execFile } from 'child_process';
 import { randomUUID } from 'crypto';
+import { parseJob, mimeFor, isAllowed, resolvePath, diffTools } from './lib/utils.js';
 import {
   META_AGENTS_INDEX,
   CC_AGENT_VERSION_KEY,
@@ -35,7 +36,6 @@ import {
   chatOutgoingChannel,
   cronsKey,
 } from '@gonzih/cc-wire';
-import { parseJob, mimeFor, isAllowed, resolvePath, diffTools } from './lib/pure.js';
 import {
   getNamespaces as $getNamespaces,
   getJobIds     as $getJobIds,
@@ -93,7 +93,7 @@ function broadcast(evt) {
   }
 }
 
-// Pure helpers and Redis ops are imported from lib/ — see lib/pure.js and lib/redis-ops.js.
+// Pure helpers and Redis ops are imported from lib/ — see lib/utils.js and lib/redis-ops.js.
 // Wrapper shims bind the module-level redis client and outputLengths state so that
 // existing call-sites in this file don't need to change.
 const getNamespaces   = ()       => $getNamespaces(redis);
@@ -715,6 +715,7 @@ wss.on('connection', async ws => {
 });
 
 // ── Tool call synthesis from recentTools diff ──────────────────────────────
+// diffTools imported from src/utils.js
 const toolTrack = {}; // id → last recentTools array
 
 // ── Polling: job status changes ────────────────────────────────────────────

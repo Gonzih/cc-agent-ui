@@ -1,6 +1,6 @@
 {
   "name": "@gonzih/cc-agent-ui",
-  "version": "0.5.22",
+  "version": "0.5.25",
   "description": "Live canvas UI for cc-agent jobs — infinite canvas, streaming output, file browser",
   "type": "module",
   "repository": {
@@ -12,18 +12,25 @@
   },
   "files": [
     "server.js",
-    "public/"
+    "public/",
+    "lib/"
   ],
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node --test 'test/*.test.js'"
+    "test": "node --test 'test/*.test.js'",
+    "test:vitest": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@gonzih/cc-wire": "^0.1.0",
     "redis": "^5.11.0",
     "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.7",
+    "vitest": "^4.1.7"
   }
 }

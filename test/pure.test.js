@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
 
-import { parseJob, mimeFor, isAllowed, resolvePath, diffTools } from '../lib/pure.js';
+import { parseJob, mimeFor, isAllowed, resolvePath, diffTools } from '../lib/utils.js';
 
 // ── parseJob ──────────────────────────────────────────────────────────────────
 
