@@ -1,45 +1,30 @@
-# Plan: Write tests for business logic and core modules
+# Plan: Tests for Data Access and ORM Layers
 
 ## Task
-Write unit tests covering the uncovered business logic in cc-agent-ui. The server is a monolithic
-Express-like Node.js server (server.js) with inline pure functions and Redis-dependent helpers.
-None of these have any tests today.
+Write tests for all uncovered data access and ORM layers in cc-agent-ui.
+Two parallel jobs tackled this:
 
-## Approach: Extract + Dependency-inject + Test
+### Job A (lib extraction + node:test, already merged to main)
+Extracted pure functions and Redis helpers into `lib/`:
+- `lib/utils.js` — parseJob, mimeFor, isAllowed, resolvePath, diffTools
+- `lib/redis-ops.js` — getNamespaces, getJobIds, fetchJob, fetchJobs, fetchMetaStatus, getOutputTail, pollNewOutput, getSwarms
+- `test/pure.test.js` — 116 unit tests using node:test
+- `test/redis-ops.test.js` — Redis DI tests using node:test
+- `test/utils.test.js` — utils unit tests using node:test
 
-### Why this approach
-Directly importing server.js in tests would fail: it connects to Redis and starts HTTP/WS servers
-at the module level. The cleanest path is to extract the testable logic into lib/ modules so tests
-can import and exercise them in isolation.
+### Job B (API integration tests + vitest, this branch)
+Added HTTP API integration tests against a mocked Redis:
+- `test/helpers/redis-mock.js` — in-memory mock that intercepts createClient
+- `test/data-access.test.js` — 69 tests via vitest covering all HTTP endpoints
+  that touch Redis: job output, job actions, cron CRUD, swarms, chat, meta-agents,
+  versions, config, file browser security
 
-### Three approaches considered
+## Combined test script
+```
+npm test  →  node:test (lib unit tests) + vitest (API integration tests)
+```
 
-**A: Extract to lib/, use Node built-in test runner** ← chosen
-- Extract pure functions → `lib/utils.js`
-- Extract Redis functions with DI → `lib/redis-ops.js`
-- Test both with `node:test` + mock Redis objects
-- No new test framework deps (Node 22 has stable built-in runner)
-- Also added vitest with coverage reporting as devDependency
-
-**B: Integration tests against a real Redis**
-- Requires Redis running in CI and test environment — brittle
-- Out-of-scope for a unit-test task
-
-**C: Module mocking with import.meta / loader hooks**
-- Complex ESM mock setup; node:test --experimental-loader still unstable
-- More setup complexity for the same coverage
-
-## Files created
-- `lib/utils.js` — pure functions: parseJob, mimeFor, isAllowed, resolvePath, diffTools
-- `lib/redis-ops.js` — Redis functions (DI): getNamespaces, getJobIds, fetchJob, fetchJobs, fetchMetaStatus, getOutputTail, pollNewOutput, getSwarms
-- `test/pure.test.js` — unit tests for all pure functions (116 total)
-- `test/redis-ops.test.js` — unit tests for Redis functions using mock Redis
-
-## Files modified
-- `server.js` — imports from lib/ instead of defining functions inline
-- `package.json` — added test/test:coverage scripts
-
-## Key finding
-The `diffTools` fallback line `return currArr.slice(-Math.min(3, currArr.length))` is unreachable:
-the loop at `overlap=0` always matches (both slices are `[]`), so it returns `currArr.slice(0)`.
-Tests document this actual behaviour.
+## Risks resolved
+- Port collision: test server uses 7798 (7701/7702 occupied by live instances)
+- Namespace collision: CC_AGENT_NAMESPACE must be overridden in test env
+- Module-level side effects: server.js lazily imported after mocks are wired

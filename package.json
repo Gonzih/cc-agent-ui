@@ -20,8 +20,7 @@
   },
   "scripts": {
     "start": "node server.js",
-    "test": "node --test 'test/*.test.js'",
-    "test:vitest": "vitest run",
+    "test": "node --test test/pure.test.js test/redis-ops.test.js test/utils.test.js && vitest run test/data-access.test.js",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
