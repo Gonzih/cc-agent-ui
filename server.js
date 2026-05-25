@@ -22,7 +22,6 @@ import {
   CC_AGENT_VERSION_KEY,
   CC_TG_VERSION_KEY,
   SWARM_REQUESTS_KEY,
-  jobIndexKey,
   jobKey,
   jobOutputKey,
   jobSignalKey,
@@ -35,8 +34,18 @@ import {
   chatIncomingChannel,
   chatOutgoingChannel,
   cronsKey,
-  swarmKey,
 } from '@gonzih/cc-wire';
+import { parseJob, mimeFor, isAllowed, resolvePath, diffTools } from './lib/pure.js';
+import {
+  getNamespaces as $getNamespaces,
+  getJobIds     as $getJobIds,
+  fetchJob      as $fetchJob,
+  fetchJobs     as $fetchJobs,
+  fetchMetaStatus as $fetchMetaStatus,
+  getOutputTail as $getOutputTail,
+  pollNewOutput as $pollNewOutput,
+  getSwarms     as $getSwarms,
+} from './lib/redis-ops.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = parseInt(process.env.PORT || '7701', 10);
@@ -84,109 +93,17 @@ function broadcast(evt) {
   }
 }
 
-/** Parse a job JSON string from Redis, return null on failure */
-function parseJob(raw) {
-  try { return raw ? JSON.parse(raw) : null; } catch { return null; }
-}
-
-/** Get all namespace keys: cca:jobs:* */
-async function getNamespaces() {
-  const keys = await redis.keys(jobIndexKey('*'));
-  return keys
-    .filter(k => !k.includes(':index'))
-    .map(k => k.replace(jobIndexKey(''), ''));
-}
-
-/** Get all job IDs for a namespace */
-async function getJobIds(namespace) {
-  return redis.sMembers(jobIndexKey(namespace));
-}
-
-/**
- * Fetch a single job by ID.
- * Protocol boundary note: this implements the MCP `get_job_status` query.
- * Per the Redis protocol, the browser NEVER reads cca:job:{id} directly —
- * all job data is served through this server acting as the MCP proxy layer.
- */
-async function fetchJob(id) {
-  const raw = await redis.get(jobKey(id));
-  const job = parseJob(raw);
-  if (job) job._id = id;
-  return job;
-}
-
-/**
- * Fetch multiple jobs in one pipeline.
- * Protocol boundary note: this implements the MCP `list_jobs` / `get_job_status` queries.
- * Per the Redis protocol, the browser NEVER reads cca:job:{id} directly —
- * all job data is served through this server acting as the MCP proxy layer.
- */
-async function fetchJobs(ids) {
-  if (!ids.length) return [];
-  const pipeline = redis.multi();
-  for (const id of ids) pipeline.get(jobKey(id));
-  const results = await pipeline.exec();
-  return results
-    .map((raw, i) => { const j = parseJob(raw); if (j) j.id = j.id || ids[i]; return j; })
-    .filter(Boolean);
-}
-
-/** Fetch meta-agent status from Redis, returns object or null */
-async function fetchMetaStatus(ns) {
-  try {
-    const raw = await redis.get(metaAgentStatusKey(ns));
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-}
-
-/** Get last N lines from Redis output list (or disk fallback) */
-async function getOutputTail(id, n = TAIL_LINES) {
-  try {
-    const len = await redis.lLen(jobOutputKey(id));
-    if (len > 0) {
-      outputLengths[id] = len;
-      const start = Math.max(0, len - n);
-      return redis.lRange(jobOutputKey(id), start, -1);
-    }
-  } catch {}
-  // Disk fallback
-  try {
-    const content = fs.readFileSync(path.join(JOBS_DIR, `${id}.log`), 'utf8');
-    const lines = content.split('\n').filter(Boolean);
-    outputLengths[id] = lines.length;
-    return lines.slice(-n);
-  } catch { return []; }
-}
-
-/** Poll for new output lines since last known length */
-async function pollNewOutput(id) {
-  try {
-    const len = await redis.lLen(jobOutputKey(id));
-    const prev = outputLengths[id] || 0;
-    if (len <= prev) return [];
-    outputLengths[id] = len;
-    return redis.lRange(jobOutputKey(id), prev, -1);
-  } catch { return []; }
-}
-
-/** Fetch all swarms from Redis cca:swarm:* keys */
-async function getSwarms() {
-  try {
-    const keys = await redis.keys(swarmKey('*'));
-    const swarms = [];
-    for (const key of keys) {
-      const raw = await redis.get(key);
-      if (!raw) continue;
-      try {
-        const s = JSON.parse(raw);
-        // Only include records that look like swarm records (have swarm_id field)
-        if (s && s.swarm_id) swarms.push(s);
-      } catch {}
-    }
-    swarms.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-    return swarms;
-  } catch { return []; }
-}
+// Pure helpers and Redis ops are imported from lib/ — see lib/pure.js and lib/redis-ops.js.
+// Wrapper shims bind the module-level redis client and outputLengths state so that
+// existing call-sites in this file don't need to change.
+const getNamespaces   = ()       => $getNamespaces(redis);
+const getJobIds       = (ns)     => $getJobIds(redis, ns);
+const fetchJob        = (id)     => $fetchJob(redis, id);
+const fetchJobs       = (ids)    => $fetchJobs(redis, ids);
+const fetchMetaStatus = (ns)     => $fetchMetaStatus(redis, ns);
+const getOutputTail   = (id, n)  => $getOutputTail(redis, outputLengths, id, n);
+const pollNewOutput   = (id)     => $pollNewOutput(redis, outputLengths, id);
+const getSwarms       = ()       => $getSwarms(redis);
 
 // ── Build initial snapshot ─────────────────────────────────────────────────
 async function buildSnapshot() {
@@ -236,37 +153,6 @@ async function buildSnapshot() {
   for (const s of swarms) swarmCache[s.swarm_id] = JSON.stringify(s);
 
   return { namespaces, jobs: withOutput, metaAgents, swarms };
-}
-
-// ── File browser helpers ───────────────────────────────────────────────────
-function mimeFor(ext) {
-  const map = {
-    js:'text/javascript', ts:'text/typescript', tsx:'text/typescript',
-    jsx:'text/javascript', py:'text/x-python', go:'text/x-go',
-    rs:'text/x-rust', md:'text/markdown', json:'application/json',
-    yaml:'text/yaml', yml:'text/yaml', sh:'text/x-sh', bash:'text/x-sh',
-    html:'text/html', css:'text/css', txt:'text/plain',
-    png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif',
-    svg:'image/svg+xml', webp:'image/webp',
-    mp4:'video/mp4', webm:'video/webm', mov:'video/quicktime',
-    mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg',
-    pdf:'application/pdf',
-    clj:'text/x-clojure', cljs:'text/x-clojure', sql:'text/x-sql',
-    log:'text/plain', env:'text/plain', toml:'text/x-toml',
-  };
-  return map[ext] || 'application/octet-stream';
-}
-
-// Security: only allow paths under approved roots
-const ALLOWED_ROOTS = [os.homedir(), '/tmp', '/workspace'];
-
-function isAllowed(p) {
-  const resolved = p.startsWith('~') ? path.join(os.homedir(), p.slice(1)) : path.resolve(p);
-  return ALLOWED_ROOTS.some(root => resolved === root || resolved.startsWith(root + '/'));
-}
-
-function resolvePath(p) {
-  return p.startsWith('~') ? path.join(os.homedir(), p.slice(1)) : path.resolve(p);
 }
 
 // ── HTTP server ────────────────────────────────────────────────────────────
@@ -830,22 +716,6 @@ wss.on('connection', async ws => {
 
 // ── Tool call synthesis from recentTools diff ──────────────────────────────
 const toolTrack = {}; // id → last recentTools array
-
-function diffTools(prevArr, currArr) {
-  if (!currArr?.length) return [];
-  if (!prevArr?.length) return currArr.slice(-3); // first snapshot: emit up to 3
-  if (JSON.stringify(prevArr) === JSON.stringify(currArr)) return [];
-  // Find how many NEW items appeared at the tail of currArr relative to prevArr.
-  // Strategy: find the longest suffix of prevArr that matches a prefix of the new tail.
-  for (let overlap = Math.min(prevArr.length, currArr.length); overlap >= 0; overlap--) {
-    const prevSuffix = prevArr.slice(prevArr.length - overlap);
-    const currPrefix = currArr.slice(0, overlap);
-    if (JSON.stringify(prevSuffix) === JSON.stringify(currPrefix)) {
-      return currArr.slice(overlap); // these are genuinely new
-    }
-  }
-  return currArr.slice(-Math.min(3, currArr.length)); // fallback: last 3
-}
 
 // ── Polling: job status changes ────────────────────────────────────────────
 setInterval(async () => {

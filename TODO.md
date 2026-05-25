@@ -1,16 +1,13 @@
-# TODO: Swarm Visibility UI
+# TODO: Write tests for business logic
 
 - [x] Write PLAN.md and TODO.md
-- [ ] server.js: add swarmCache + getSwarms() helper
-- [ ] server.js: include swarms in buildSnapshot()
-- [ ] server.js: GET /api/swarms route
-- [ ] server.js: POST /api/swarm/trigger route
-- [ ] server.js: 5s polling interval for swarm changes
-- [ ] index.html: add "Swarms" tab button
-- [ ] index.html: add swarm CSS
-- [ ] index.html: add #swarms-panel HTML
-- [ ] index.html: add swarm JS (state, functions, polling, WS handler)
-- [ ] index.html: job swarm badge in makeSidebarItem()
-- [ ] index.html: switchToTab() for 'swarms'
-- [ ] Smoke check (node --check server.js)
-- [ ] Commit + PR + merge + publish
+- [ ] Install npm dependencies (`npm install --ignore-scripts`)
+- [ ] Create `lib/pure.js` (parseJob, mimeFor, isAllowed, resolvePath, diffTools)
+- [ ] Create `lib/redis-ops.js` (getNamespaces, getJobIds, fetchJob, fetchJobs, fetchMetaStatus, getOutputTail, pollNewOutput, getSwarms)
+- [ ] Refactor `server.js` to import from lib/ and pass redis/outputLengths to DI functions
+- [ ] Create `test/pure.test.js`
+- [ ] Create `test/redis-ops.test.js`
+- [ ] Add `"test"` script to `package.json`
+- [ ] Smoke check: `node --check server.js`
+- [ ] Run tests: `npm test`
+- [ ] git checkout -b, commit, push, PR, merge, publish
