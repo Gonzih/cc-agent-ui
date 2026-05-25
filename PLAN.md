@@ -1,38 +1,53 @@
-# Plan: Swarm Visibility UI
+# Plan: Data Access Tests
 
 ## Task
-Add swarm visibility to cc-agent-ui. A new swarm_task MCP tool in cc-agent creates Redis records at `cca:swarm:{swarm_id}` with progress info (goal, status, sub_job_ids, sub_jobs_done, sub_jobs_failed, synthesis_job_id).
+Write tests for all uncovered data access layers in cc-agent-ui. The server.js file
+is a ~993-line Node.js ESM module acting as a Redis proxy. It has zero existing tests.
 
-## Approach chosen: Thin Redis layer + WebSocket broadcast
+## Approaches considered
 
-### server.js changes
-1. Add `swarmCache` state object
-2. Add `getSwarms()` helper: scan `cca:swarm:*` keys, parse + return sorted array
-3. Include swarms in `buildSnapshot()` response
-4. `GET /api/swarms` route
-5. `POST /api/swarm/trigger` route — writes to `cca:swarm:requests` Redis list
-6. 5s polling interval: detect swarm changes, broadcast `swarm_update` WebSocket event
+### A) Integration tests against real Redis (docker)
+- Pro: Tests actual behavior end-to-end
+- Con: Requires running Redis; slow; flaky in CI; the repo already has redis in docker-compose but
+  starting it from tests is complex
 
-### public/index.html changes
-1. "Swarms" tab button in tab nav
-2. CSS: swarm panel, card, progress bar, status badges, form, job swarm badge
-3. `#swarms-panel` HTML with trigger form + swarm list
-4. JS:
-   - `swarms = {}` state (swarm_id → record), `jobToSwarm = {}` reverse map
-   - `handleSnapshot`: extract `data.swarms`, call `renderSwarmList()`
-   - `ws.onmessage`: handle `swarm_update` → upsert, update badges, re-render
-   - `renderSwarmList()`: rebuild swarm list DOM
-   - `renderSwarmCard(s)`: goal, progress bar, status badge, sub-job list, synthesis link, cost
-   - `swarmLoad()`: GET /api/swarms
-   - `swarmCreate()`: POST /api/swarm/trigger
-   - `updateJobSwarmBadges()`: update existing sidebar items after swarms load
-   - `switchToTab('swarms')` case + 5s poll timer
-5. `makeSidebarItem()`: add swarm badge if `jobToSwarm[job.id]` set
+### B) HTTP API tests with mocked Redis (CHOSEN)
+- Pro: Tests full request/response cycle; no real Redis needed; fast; reliable
+- Con: Only tests publicly-reachable behavior (but that covers all data access paths)
 
-## Files changed
-- `server.js`
-- `public/index.html`
+### C) Extract data access functions to lib/ and unit-test them in isolation
+- Pro: True unit tests; can test internal helpers
+- Con: Requires refactoring server.js (touching lines 100–240); risk of breaking behavior
+
+## Approach: B — Mock Redis + HTTP API tests
+
+Use **Vitest** (ESM-native, fast) with a custom in-memory Redis mock.
+- `vi.mock('redis')` intercepts the `createClient` call before server.js loads
+- A stateful in-memory mock (Map-based) handles all Redis operations
+- Tests make real HTTP requests to a test server running on port 7798
+- `beforeEach` resets Redis store so tests are independent
+
+## Files touched
+- `package.json` — add vitest devDependency + test script
+- `vitest.config.js` — test runner config (singleFork, ESM)
+- `test/helpers/redis-mock.js` — stateful in-memory Redis mock
+- `test/data-access.test.js` — comprehensive tests for all data access domains
+
+## Test coverage plan
+1. **Job output** (`getOutputTail`) — via `GET /api/job/output`
+2. **Job actions** (cancel/wake/message/approve) — via `POST /api/job/action`
+3. **Cron CRUD** — via `GET/POST /crons` and `DELETE/PATCH /crons/:id`
+4. **Swarm data access** — via `GET /api/swarms` and `POST /api/swarm/trigger`
+5. **Chat history** (LIFO reversal) — via `GET /chat/history`
+6. **Chat send routing** (publish vs lPush) — via `POST /chat/send`
+7. **Meta-agent listing** — via `GET /api/meta-agents`
+8. **Meta-chat log** (LIFO reversal) — via `GET /api/meta-chat/log`
+9. **Meta-chat send** (auto-provisioning) — via `POST /api/meta-chat/send`
+10. **Config** — via `GET /api/config`
+11. **Versions** — via `GET /versions`
+12. **Edge cases** — missing params (400), missing job (404), malformed JSON
 
 ## Risks
-- `cca:swarm:*` keys could include `cca:swarm:requests` — filter by checking `s.swarm_id` field exists
-- Swarm trigger cc-agent compatibility: cc-agent must read from `cca:swarm:requests` list (TBD by cc-agent impl)
+- server.js has no cleanup export — polling timers run in background (acceptable; they use empty cache)
+- `cleanGhostChatLogs()` runs on startup — mock returns [] so it's a no-op
+- Port 7798 must not be in use (7701/7702 are occupied per institutional knowledge)

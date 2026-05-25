@@ -18,7 +18,11 @@
     "access": "public"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.7"
   },
   "dependencies": {
     "@gonzih/cc-wire": "^0.1.0",
