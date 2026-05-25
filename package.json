@@ -12,7 +12,8 @@
   },
   "files": [
     "server.js",
-    "public/"
+    "public/",
+    "lib/"
   ],
   "publishConfig": {
     "access": "public"

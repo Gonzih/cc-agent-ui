@@ -17,7 +17,7 @@ import { WebSocketServer } from 'ws';
 import { createClient } from 'redis';
 import { exec, execFile } from 'child_process';
 import { randomUUID } from 'crypto';
-import { parseJob, mimeFor, isAllowed, resolvePath, ALLOWED_ROOTS } from './lib/utils.js';
+import { parseJob, mimeFor, isAllowed, resolvePath, ALLOWED_ROOTS, diffTools } from './lib/utils.js';
 import {
   META_AGENTS_INDEX,
   CC_AGENT_VERSION_KEY,
@@ -795,22 +795,6 @@ wss.on('connection', async ws => {
 
 // ── Tool call synthesis from recentTools diff ──────────────────────────────
 const toolTrack = {}; // id → last recentTools array
-
-function diffTools(prevArr, currArr) {
-  if (!currArr?.length) return [];
-  if (!prevArr?.length) return currArr.slice(-3); // first snapshot: emit up to 3
-  if (JSON.stringify(prevArr) === JSON.stringify(currArr)) return [];
-  // Find how many NEW items appeared at the tail of currArr relative to prevArr.
-  // Strategy: find the longest suffix of prevArr that matches a prefix of the new tail.
-  for (let overlap = Math.min(prevArr.length, currArr.length); overlap >= 0; overlap--) {
-    const prevSuffix = prevArr.slice(prevArr.length - overlap);
-    const currPrefix = currArr.slice(0, overlap);
-    if (JSON.stringify(prevSuffix) === JSON.stringify(currPrefix)) {
-      return currArr.slice(overlap); // these are genuinely new
-    }
-  }
-  return currArr.slice(-Math.min(3, currArr.length)); // fallback: last 3
-}
 
 // ── Polling: job status changes ────────────────────────────────────────────
 setInterval(async () => {
