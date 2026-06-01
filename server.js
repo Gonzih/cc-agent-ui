@@ -56,6 +56,12 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = parseInt(process.env.PORT || '7701', 10);
+
+// ── Wiki key helpers (cca:wiki:{slug} is a Redis HASH) ─────────────────────
+const wikiKey     = (slug)        => `cca:wiki:${slug}`;
+const wikiUpdKey  = (slug)        => `cca:wiki:${slug}:updated`;
+const WIKI_SLUG_RE = /^[a-zA-Z0-9_.-]+$/;
+function validSlug(s) { return typeof s === 'string' && s.length > 0 && s.length <= 200 && WIKI_SLUG_RE.test(s); }
 const JOBS_DIR  = path.join(os.homedir(), '.cc-agent', 'jobs');
 const NAMESPACE = process.env.CC_AGENT_NAMESPACE || process.env.NAMESPACE || 'default';
 const UI_FILE  = path.join(__dirname, 'public', 'index.html');
@@ -514,6 +520,101 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ ok: true }));
       } catch (e) { res.writeHead(500); res.end(e.message); }
     });
+
+  } else if (url.pathname === '/api/wiki' && req.method === 'GET') {
+    // List all repos that have wiki pages
+    (async () => {
+      try {
+        const allKeys = await redis.keys('cca:wiki:*');
+        // Filter to only base HASH keys (exclude :updated timestamps)
+        const repoKeys = allKeys.filter(k => !k.endsWith(':updated'));
+        const repos = [];
+        for (const k of repoKeys) {
+          const slug = k.slice('cca:wiki:'.length);
+          const [pageCount, updatedAt] = await Promise.all([
+            redis.hLen(k),
+            redis.get(wikiUpdKey(slug)),
+          ]);
+          repos.push({ slug, pageCount, updatedAt: updatedAt || null });
+        }
+        repos.sort((a, b) => a.slug.localeCompare(b.slug));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ repos }));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    })();
+
+  } else if (/^\/api\/wiki\/([^/]+)$/.test(url.pathname) && req.method === 'GET') {
+    // List pages for a repo
+    const slug = decodeURIComponent(url.pathname.match(/^\/api\/wiki\/([^/]+)$/)[1]);
+    if (!validSlug(slug)) { res.writeHead(400); res.end('invalid slug'); return; }
+    (async () => {
+      try {
+        const names = await redis.hKeys(wikiKey(slug));
+        const pages = names.sort().map(name => ({
+          name,
+          slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        }));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ pages }));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    })();
+
+  } else if (/^\/api\/wiki\/([^/]+)\/([^/]+)$/.test(url.pathname)) {
+    // Get / Put / Delete a specific wiki page
+    const m = url.pathname.match(/^\/api\/wiki\/([^/]+)\/([^/]+)$/);
+    const repoSlug = decodeURIComponent(m[1]);
+    const pageSlug = decodeURIComponent(m[2]);
+    if (!validSlug(repoSlug) || !validSlug(pageSlug)) {
+      res.writeHead(400); res.end('invalid slug'); return;
+    }
+
+    if (req.method === 'GET') {
+      (async () => {
+        try {
+          // page slug may be the exact field name or a derived slug — try exact first,
+          // then scan hKeys for a matching derived slug
+          const allNames = await redis.hKeys(wikiKey(repoSlug));
+          let fieldName = allNames.includes(pageSlug) ? pageSlug : null;
+          if (!fieldName) {
+            fieldName = allNames.find(
+              n => n.toLowerCase().replace(/[^a-z0-9]+/g, '-') === pageSlug
+            ) ?? null;
+          }
+          if (!fieldName) { res.writeHead(404); res.end('page not found'); return; }
+          const content = await redis.hGet(wikiKey(repoSlug), fieldName);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ name: fieldName, content: content || '' }));
+        } catch (e) { res.writeHead(500); res.end(e.message); }
+      })();
+
+    } else if (req.method === 'PUT') {
+      let body = '';
+      req.on('data', d => body += d);
+      req.on('end', async () => {
+        try {
+          const { content } = JSON.parse(body);
+          if (typeof content !== 'string') { res.writeHead(400); res.end('content must be string'); return; }
+          await redis.hSet(wikiKey(repoSlug), pageSlug, content);
+          await redis.set(wikiUpdKey(repoSlug), new Date().toISOString());
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (e) { res.writeHead(500); res.end(e.message); }
+      });
+
+    } else if (req.method === 'DELETE') {
+      (async () => {
+        try {
+          const deleted = await redis.hDel(wikiKey(repoSlug), pageSlug);
+          if (deleted === 0) { res.writeHead(404); res.end('page not found'); return; }
+          await redis.set(wikiUpdKey(repoSlug), new Date().toISOString());
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true }));
+        } catch (e) { res.writeHead(500); res.end(e.message); }
+      })();
+
+    } else {
+      res.writeHead(405); res.end('method not allowed');
+    }
 
   } else if (url.pathname === '/api/swarms' && req.method === 'GET') {
     (async () => {

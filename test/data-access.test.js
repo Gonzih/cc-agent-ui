@@ -842,3 +842,150 @@ describe('GET /api/browse path security', () => {
     expect(status).toBe(403);
   });
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Wiki API  (GET /api/wiki, GET/PUT/DELETE /api/wiki/:repo/:page)
+// ══════════════════════════════════════════════════════════════════════════════
+describe('Wiki API', () => {
+  const repo = 'gonzih-cc-agent';
+  const page = 'getting-started';
+
+  function wikiKey(slug)    { return `cca:wiki:${slug}`; }
+  function wikiUpdKey(slug) { return `cca:wiki:${slug}:updated`; }
+
+  // ── GET /api/wiki ──────────────────────────────────────────────────────────
+  describe('GET /api/wiki', () => {
+    it('returns empty repos array when no wiki keys exist', async () => {
+      const { status, body } = await api('GET', '/api/wiki');
+      expect(status).toBe(200);
+      expect(body.repos).toEqual([]);
+    });
+
+    it('lists repos with page count and updatedAt', async () => {
+      mockRedis._seedHash(wikiKey(repo), { 'getting-started': '# Hello', 'advanced': '# Adv' });
+      mockRedis._seed(wikiUpdKey(repo), '2025-01-01T00:00:00.000Z');
+
+      const { status, body } = await api('GET', '/api/wiki');
+      expect(status).toBe(200);
+      expect(body.repos).toHaveLength(1);
+      expect(body.repos[0].slug).toBe(repo);
+      expect(body.repos[0].pageCount).toBe(2);
+      expect(body.repos[0].updatedAt).toBe('2025-01-01T00:00:00.000Z');
+    });
+
+    it('excludes :updated keys from repos list', async () => {
+      mockRedis._seedHash(wikiKey(repo), { p1: 'content' });
+      mockRedis._seed(wikiUpdKey(repo), '2025-01-01T00:00:00.000Z');
+      // The :updated key is a STRING not a HASH — the listing should filter it out
+      const { body } = await api('GET', '/api/wiki');
+      expect(body.repos.every(r => !r.slug.endsWith(':updated'))).toBe(true);
+    });
+  });
+
+  // ── GET /api/wiki/:repo ───────────────────────────────────────────────────
+  describe('GET /api/wiki/:repo', () => {
+    it('returns empty pages array for unknown repo', async () => {
+      const { status, body } = await api('GET', `/api/wiki/${repo}`);
+      expect(status).toBe(200);
+      expect(body.pages).toEqual([]);
+    });
+
+    it('lists page names sorted alphabetically', async () => {
+      mockRedis._seedHash(wikiKey(repo), { 'z-page': 'z', 'a-page': 'a' });
+      const { status, body } = await api('GET', `/api/wiki/${repo}`);
+      expect(status).toBe(200);
+      expect(body.pages.map(p => p.name)).toEqual(['a-page', 'z-page']);
+    });
+
+    it('does not expose content for path traversal attempt (URL normalization resolves it)', async () => {
+      // new URL('/api/wiki/../../etc', base) normalizes to /etc — route doesn't match → 404
+      const { status } = await api('GET', '/api/wiki/../../etc');
+      expect(status).toBe(404);
+    });
+  });
+
+  // ── GET /api/wiki/:repo/:page ────────────────────────────────────────────
+  describe('GET /api/wiki/:repo/:page', () => {
+    it('returns page content by slug', async () => {
+      mockRedis._seedHash(wikiKey(repo), { [page]: '# Getting Started\nHello world.' });
+      const { status, body } = await api('GET', `/api/wiki/${repo}/${page}`);
+      expect(status).toBe(200);
+      expect(body.name).toBe(page);
+      expect(body.content).toContain('Getting Started');
+    });
+
+    it('returns 404 for non-existent page', async () => {
+      mockRedis._seedHash(wikiKey(repo), { 'other-page': 'content' });
+      const { status } = await api('GET', `/api/wiki/${repo}/nonexistent`);
+      expect(status).toBe(404);
+    });
+
+    it('URL normalization resolves traversal to a safe repo lookup', async () => {
+      // /api/wiki/bad/slug/../../etc normalizes to /api/wiki/etc — lists (empty) pages for "etc"
+      // No sensitive data is exposed; the wiki handler returns empty pages list
+      const { status, body } = await api('GET', '/api/wiki/bad/slug/../../etc');
+      expect(status).toBe(200);
+      expect(body.pages).toBeDefined();
+    });
+  });
+
+  // ── PUT /api/wiki/:repo/:page ────────────────────────────────────────────
+  describe('PUT /api/wiki/:repo/:page', () => {
+    it('creates a new page', async () => {
+      const { status, body } = await api('PUT', `/api/wiki/${repo}/${page}`, { content: '# New page\n' });
+      expect(status).toBe(200);
+      expect(body.ok).toBe(true);
+
+      const hSetCall = mockRedis._calls.find(c => c.op === 'hSet' && c.key === wikiKey(repo));
+      expect(hSetCall).toBeDefined();
+      expect(hSetCall.field).toBe(page);
+      expect(hSetCall.value).toBe('# New page\n');
+    });
+
+    it('updates the :updated timestamp', async () => {
+      await api('PUT', `/api/wiki/${repo}/${page}`, { content: 'Updated content' });
+
+      const setCall = mockRedis._calls.find(c => c.op === 'set' && c.key === wikiUpdKey(repo));
+      expect(setCall).toBeDefined();
+      expect(setCall.value).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    });
+
+    it('returns 400 when content is not a string', async () => {
+      const { status } = await api('PUT', `/api/wiki/${repo}/${page}`, { content: 42 });
+      expect(status).toBe(400);
+    });
+
+    it('returns 400 for slug with invalid chars (contains @)', async () => {
+      const { status } = await api('PUT', `/api/wiki/@bad/page`, { content: 'x' });
+      expect(status).toBe(400);
+    });
+  });
+
+  // ── DELETE /api/wiki/:repo/:page ─────────────────────────────────────────
+  describe('DELETE /api/wiki/:repo/:page', () => {
+    it('deletes an existing page and returns ok', async () => {
+      mockRedis._seedHash(wikiKey(repo), { [page]: 'content' });
+
+      const { status, body } = await api('DELETE', `/api/wiki/${repo}/${page}`);
+      expect(status).toBe(200);
+      expect(body.ok).toBe(true);
+
+      const hDelCall = mockRedis._calls.find(c => c.op === 'hDel' && c.key === wikiKey(repo));
+      expect(hDelCall).toBeDefined();
+      expect(hDelCall.fields).toContain(page);
+    });
+
+    it('returns 404 when page does not exist', async () => {
+      const { status } = await api('DELETE', `/api/wiki/${repo}/nonexistent`);
+      expect(status).toBe(404);
+    });
+
+    it('updates the :updated timestamp after deletion', async () => {
+      mockRedis._seedHash(wikiKey(repo), { [page]: 'content' });
+      await api('DELETE', `/api/wiki/${repo}/${page}`);
+
+      const setCall = mockRedis._calls.find(c => c.op === 'set' && c.key === wikiUpdKey(repo));
+      expect(setCall).toBeDefined();
+    });
+  });
+});
