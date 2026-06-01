@@ -13,6 +13,7 @@ export function createMockRedis() {
   const store = new Map();
   const lists = new Map();
   const sets  = new Map();
+  const hashes = new Map();
   const calls = [];
 
   function matchesGlob(key, pattern) {
@@ -23,7 +24,7 @@ export function createMockRedis() {
   }
 
   function allKeys() {
-    return [...new Set([...store.keys(), ...lists.keys(), ...sets.keys()])];
+    return [...new Set([...store.keys(), ...lists.keys(), ...sets.keys(), ...hashes.keys()])];
   }
 
   const client = {
@@ -40,10 +41,14 @@ export function createMockRedis() {
     _seedSet(key, items) { sets.set(key, new Set(items)); },
 
     /** Reset all backing stores and call history between tests */
+    /** Seed a HASH key */
+    _seedHash(key, obj) { hashes.set(key, new Map(Object.entries(obj))); },
+
     _reset() {
       store.clear();
       lists.clear();
       sets.clear();
+      hashes.clear();
       calls.length = 0;
       for (const val of Object.values(client)) {
         if (typeof val?.mockClear === 'function') val.mockClear();
@@ -144,6 +149,48 @@ export function createMockRedis() {
       for (const v of values) { if (!set.has(v)) { set.add(v); added++; } }
       sets.set(key, set);
       return added;
+    }),
+
+    // ── Hash commands ───────────────────────────────────────────────────────
+    hGet: vi.fn(async (key, field) => {
+      calls.push({ op: 'hGet', key, field });
+      return (hashes.get(key) ?? new Map()).get(field) ?? null;
+    }),
+
+    hGetAll: vi.fn(async (key) => {
+      calls.push({ op: 'hGetAll', key });
+      const h = hashes.get(key);
+      if (!h) return {};
+      return Object.fromEntries(h);
+    }),
+
+    hSet: vi.fn(async (key, field, value) => {
+      calls.push({ op: 'hSet', key, field, value });
+      const h = hashes.get(key) ?? new Map();
+      const isNew = !h.has(field);
+      h.set(field, value);
+      hashes.set(key, h);
+      return isNew ? 1 : 0;
+    }),
+
+    hDel: vi.fn(async (key, ...args) => {
+      const fields = args.flat();
+      calls.push({ op: 'hDel', key, fields });
+      const h = hashes.get(key);
+      if (!h) return 0;
+      let count = 0;
+      for (const f of fields) { if (h.delete(f)) count++; }
+      return count;
+    }),
+
+    hKeys: vi.fn(async (key) => {
+      calls.push({ op: 'hKeys', key });
+      return [...(hashes.get(key) ?? new Map()).keys()];
+    }),
+
+    hLen: vi.fn(async (key) => {
+      calls.push({ op: 'hLen', key });
+      return (hashes.get(key) ?? new Map()).size;
     }),
 
     // ── Pub/Sub ─────────────────────────────────────────────────────────────

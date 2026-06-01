@@ -1790,6 +1790,130 @@ body {
   padding: 1px 4px;
   flex-shrink: 0;
 }
+
+/* ── Wiki Panel ───────────────────────────────────────────────────────────── */
+#wiki-panel {
+  display: none;
+  flex-direction: row;
+  overflow: hidden;
+  flex: 1;
+}
+#wiki-panel.active { display: flex; }
+
+#wiki-repos {
+  width: 200px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  background: var(--sidebar-bg);
+}
+.wiki-repos-header {
+  padding: 10px 12px 6px;
+  font-size: 9px; font-weight: 700; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--border);
+}
+.wiki-repo-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.wiki-repo-item:hover { background: rgba(86,182,194,0.06); }
+.wiki-repo-item.active { background: var(--cyan-glow); border-left: 2px solid var(--cyan); }
+.wiki-repo-name { font-size: 11px; color: var(--text); word-break: break-all; }
+.wiki-repo-meta { font-size: 9px; color: var(--dim); margin-top: 2px; }
+
+#wiki-pages {
+  width: 220px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  background: var(--card-bg);
+}
+.wiki-pages-header {
+  padding: 10px 12px 6px;
+  font-size: 9px; font-weight: 700; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
+}
+.wiki-pages-repo { color: var(--cyan); font-size: 9px; }
+.wiki-page-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px; color: var(--text);
+  transition: background 0.1s;
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+}
+.wiki-page-item:hover { background: rgba(86,182,194,0.06); }
+.wiki-page-item.active { background: var(--cyan-glow); border-left: 2px solid var(--cyan); }
+.wiki-page-del {
+  font-size: 9px; color: var(--dim);
+  background: none; border: none; cursor: pointer; font-family: var(--font);
+  padding: 1px 4px; border-radius: 3px;
+  flex-shrink: 0;
+}
+.wiki-page-del:hover { color: var(--red); background: var(--red-glow); }
+.wiki-empty {
+  padding: 16px 12px; font-size: 11px; color: var(--dim); line-height: 1.5;
+}
+
+#wiki-content {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+#wiki-content-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--card-bg);
+}
+#wiki-page-title {
+  font-size: 12px; font-weight: 700; color: var(--text); flex: 1;
+}
+.wiki-edit-btn {
+  font-family: var(--font); font-size: 10px;
+  background: rgba(86,182,194,0.1); border: 1px solid rgba(86,182,194,0.3);
+  color: var(--cyan); border-radius: 4px; padding: 3px 8px; cursor: pointer;
+}
+.wiki-edit-btn:hover { background: rgba(86,182,194,0.25); }
+.wiki-save-btn {
+  font-family: var(--font); font-size: 10px;
+  background: rgba(152,195,121,0.1); border: 1px solid rgba(152,195,121,0.3);
+  color: var(--green); border-radius: 4px; padding: 3px 8px; cursor: pointer;
+}
+.wiki-save-btn:hover { background: rgba(152,195,121,0.25); }
+.wiki-cancel-btn {
+  font-family: var(--font); font-size: 10px;
+  background: none; border: 1px solid var(--border);
+  color: var(--dim); border-radius: 4px; padding: 3px 8px; cursor: pointer;
+}
+.wiki-cancel-btn:hover { border-color: var(--red); color: var(--red); }
+#wiki-view {
+  flex: 1; overflow-y: auto; padding: 16px 20px;
+}
+#wiki-view pre {
+  white-space: pre-wrap; word-break: break-word;
+  font-family: var(--font); font-size: 12px; line-height: 1.6;
+  color: var(--text);
+}
+#wiki-editor {
+  display: none; flex: 1; flex-direction: column; padding: 10px;
+}
+#wiki-editor.visible { display: flex; }
+#wiki-textarea {
+  flex: 1; resize: none; font-family: var(--font); font-size: 12px;
+  background: var(--card-body); border: 1px solid var(--border);
+  color: var(--text); padding: 10px 12px; border-radius: 4px;
+  outline: none; line-height: 1.6;
+}
+#wiki-textarea:focus { border-color: var(--cyan); }
+#wiki-no-selection {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  color: var(--dim); font-size: 11px;
+}
 </style>
 </head>
 <body>
@@ -1812,6 +1936,7 @@ body {
     <button class="tab-btn" data-tab="crons">Crons</button>
     <button class="tab-btn" data-tab="chat">Chat</button>
     <button class="tab-btn" data-tab="swarms">Swarms</button>
+    <button class="tab-btn" data-tab="wiki">Wiki</button>
   </div>
   <div class="topbar-sep"></div>
   <div id="job-counts">
@@ -1997,6 +2122,32 @@ body {
   </div>
   <div id="swarm-list">
     <div class="swarm-empty">Loading swarms…</div>
+  </div>
+</div>
+
+<!-- Wiki Panel -->
+<div id="wiki-panel">
+  <div id="wiki-repos">
+    <div class="wiki-repos-header">Repos</div>
+    <div id="wiki-repo-list"><div class="wiki-empty">Loading…</div></div>
+  </div>
+  <div id="wiki-pages">
+    <div class="wiki-pages-header">
+      <span>Pages</span>
+      <span class="wiki-pages-repo" id="wiki-pages-repo"></span>
+    </div>
+    <div id="wiki-page-list"><div class="wiki-empty">Select a repo to view pages.</div></div>
+  </div>
+  <div id="wiki-content">
+    <div id="wiki-content-header" style="display:none">
+      <span id="wiki-page-title">—</span>
+      <button class="wiki-edit-btn" id="wiki-edit-btn" onclick="wikiStartEdit()">Edit</button>
+      <button class="wiki-save-btn" id="wiki-save-btn" style="display:none" onclick="wikiSave()">Save</button>
+      <button class="wiki-cancel-btn" id="wiki-cancel-btn" style="display:none" onclick="wikiCancelEdit()">Cancel</button>
+    </div>
+    <div id="wiki-view"></div>
+    <div id="wiki-editor"><textarea id="wiki-textarea" spellcheck="false"></textarea></div>
+    <div id="wiki-no-selection">Select a page to view its content.</div>
   </div>
 </div>
 
@@ -3688,6 +3839,186 @@ function swarmStartPolling() {
   }, 5000);
 }
 
+// ── Wiki ───────────────────────────────────────────────────────────────────
+let wikiSelectedRepo = null;
+let wikiSelectedPage = null;  // { name, slug }
+let wikiEditMode     = false;
+let wikiPollTimer    = null;
+
+async function wikiLoad() {
+  const repoListEl = $('wiki-repo-list');
+  repoListEl.innerHTML = '<div class="wiki-empty">Loading…</div>';
+  try {
+    const r = await fetch('/api/wiki');
+    if (!r.ok) throw new Error(await r.text());
+    const { repos } = await r.json();
+    repoListEl.innerHTML = '';
+    if (!repos.length) {
+      repoListEl.innerHTML = '<div class="wiki-empty">No wiki repos yet. Pages are created automatically by agents.</div>';
+      return;
+    }
+    for (const repo of repos) {
+      const el = document.createElement('div');
+      el.className = 'wiki-repo-item' + (wikiSelectedRepo === repo.slug ? ' active' : '');
+      el.dataset.slug = repo.slug;
+      el.innerHTML = `<div class="wiki-repo-name">${escHtml(repo.slug)}</div>
+        <div class="wiki-repo-meta">${repo.pageCount} page${repo.pageCount === 1 ? '' : 's'}</div>`;
+      el.addEventListener('click', () => wikiSelectRepo(repo.slug));
+      repoListEl.appendChild(el);
+    }
+  } catch (e) {
+    repoListEl.innerHTML = `<div class="wiki-empty" style="color:var(--red)">Error: ${escHtml(e.message)}</div>`;
+  }
+}
+
+async function wikiSelectRepo(slug) {
+  wikiSelectedRepo = slug;
+  wikiSelectedPage = null;
+  wikiEditMode = false;
+  // Update repo list active state
+  document.querySelectorAll('.wiki-repo-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.slug === slug);
+  });
+  $('wiki-pages-repo').textContent = slug;
+  $('wiki-content-header').style.display = 'none';
+  $('wiki-view').innerHTML = '';
+  $('wiki-editor').classList.remove('visible');
+  $('wiki-no-selection').style.display = 'flex';
+
+  const pageListEl = $('wiki-page-list');
+  pageListEl.innerHTML = '<div class="wiki-empty">Loading…</div>';
+  try {
+    const r = await fetch(`/api/wiki/${encodeURIComponent(slug)}`);
+    if (!r.ok) throw new Error(await r.text());
+    const { pages } = await r.json();
+    pageListEl.innerHTML = '';
+    if (!pages.length) {
+      pageListEl.innerHTML = '<div class="wiki-empty">No wiki pages for this repo yet. Pages are created automatically by agents.</div>';
+      return;
+    }
+    for (const page of pages) {
+      const el = document.createElement('div');
+      el.className = 'wiki-page-item';
+      el.dataset.slug = page.slug;
+      el.dataset.name = page.name;
+      el.innerHTML = `<span>${escHtml(page.name)}</span>
+        <button class="wiki-page-del" title="Delete page" onclick="wikiDeletePage(event,'${escHtml(page.name)}')">✕</button>`;
+      el.addEventListener('click', e => {
+        if (e.target.classList.contains('wiki-page-del')) return;
+        wikiSelectPage(page);
+      });
+      pageListEl.appendChild(el);
+    }
+  } catch (e) {
+    pageListEl.innerHTML = `<div class="wiki-empty" style="color:var(--red)">Error: ${escHtml(e.message)}</div>`;
+  }
+}
+
+async function wikiSelectPage(page) {
+  wikiSelectedPage = page;
+  wikiEditMode = false;
+  document.querySelectorAll('.wiki-page-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.slug === page.slug);
+  });
+  $('wiki-content-header').style.display = 'flex';
+  $('wiki-page-title').textContent = page.name;
+  $('wiki-edit-btn').style.display = '';
+  $('wiki-save-btn').style.display = 'none';
+  $('wiki-cancel-btn').style.display = 'none';
+  $('wiki-no-selection').style.display = 'none';
+  $('wiki-editor').classList.remove('visible');
+  $('wiki-view').style.display = '';
+  $('wiki-view').innerHTML = '<div class="wiki-empty">Loading…</div>';
+
+  try {
+    const r = await fetch(`/api/wiki/${encodeURIComponent(wikiSelectedRepo)}/${encodeURIComponent(page.slug)}`);
+    if (!r.ok) throw new Error(await r.text());
+    const { content } = await r.json();
+    $('wiki-view').innerHTML = `<pre>${escHtml(content)}</pre>`;
+    $('wiki-textarea').value = content;
+  } catch (e) {
+    $('wiki-view').innerHTML = `<div class="wiki-empty" style="color:var(--red)">Error: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function wikiStartEdit() {
+  if (!wikiSelectedPage) return;
+  wikiEditMode = true;
+  $('wiki-edit-btn').style.display = 'none';
+  $('wiki-save-btn').style.display = '';
+  $('wiki-cancel-btn').style.display = '';
+  $('wiki-view').style.display = 'none';
+  $('wiki-editor').classList.add('visible');
+  $('wiki-textarea').focus();
+}
+
+function wikiCancelEdit() {
+  wikiEditMode = false;
+  $('wiki-edit-btn').style.display = '';
+  $('wiki-save-btn').style.display = 'none';
+  $('wiki-cancel-btn').style.display = 'none';
+  $('wiki-view').style.display = '';
+  $('wiki-editor').classList.remove('visible');
+}
+
+async function wikiSave() {
+  if (!wikiSelectedRepo || !wikiSelectedPage) return;
+  const content = $('wiki-textarea').value;
+  const saveBtn = $('wiki-save-btn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+  try {
+    const r = await fetch(
+      `/api/wiki/${encodeURIComponent(wikiSelectedRepo)}/${encodeURIComponent(wikiSelectedPage.slug)}`,
+      { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) }
+    );
+    if (!r.ok) throw new Error(await r.text());
+    $('wiki-view').innerHTML = `<pre>${escHtml(content)}</pre>`;
+    wikiCancelEdit();
+  } catch (e) {
+    alert(`Save failed: ${e.message}`);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save';
+  }
+}
+
+async function wikiDeletePage(e, pageName) {
+  e.stopPropagation();
+  if (!confirm(`Delete wiki page "${pageName}"?`)) return;
+  const slug = pageName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  try {
+    const r = await fetch(
+      `/api/wiki/${encodeURIComponent(wikiSelectedRepo)}/${encodeURIComponent(slug)}`,
+      { method: 'DELETE' }
+    );
+    if (!r.ok) throw new Error(await r.text());
+    if (wikiSelectedPage && wikiSelectedPage.name === pageName) {
+      wikiSelectedPage = null;
+      $('wiki-content-header').style.display = 'none';
+      $('wiki-view').innerHTML = '';
+      $('wiki-editor').classList.remove('visible');
+      $('wiki-no-selection').style.display = 'flex';
+    }
+    wikiSelectRepo(wikiSelectedRepo);
+  } catch (e2) {
+    alert(`Delete failed: ${e2.message}`);
+  }
+}
+
+function wikiStartPolling() {
+  if (wikiPollTimer) return;
+  wikiPollTimer = setInterval(() => {
+    const wikiPanel = $('wiki-panel');
+    if (!wikiPanel || !wikiPanel.classList.contains('active')) {
+      clearInterval(wikiPollTimer);
+      wikiPollTimer = null;
+      return;
+    }
+    wikiLoad();
+  }, 30000);
+}
+
 connect();
 
 // ── Tab switching ──────────────────────────────────────────────────────────
@@ -3695,6 +4026,7 @@ const mainEl      = $('main');
 const cronsPanel  = $('crons-panel');
 const chatPanel   = $('chat-panel');
 const swarmsPanel = $('swarms-panel');
+const wikiPanel   = $('wiki-panel');
 
 function switchToTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => {
@@ -3705,25 +4037,37 @@ function switchToTab(tab) {
     cronsPanel.classList.remove('active');
     chatPanel.classList.remove('active');
     swarmsPanel.classList.remove('active');
+    wikiPanel.classList.remove('active');
   } else if (tab === 'crons') {
     mainEl.style.display = 'none';
     cronsPanel.classList.add('active');
     chatPanel.classList.remove('active');
     swarmsPanel.classList.remove('active');
+    wikiPanel.classList.remove('active');
     cronLoad();
   } else if (tab === 'chat') {
     mainEl.style.display = 'none';
     cronsPanel.classList.remove('active');
     chatPanel.classList.add('active');
     swarmsPanel.classList.remove('active');
+    wikiPanel.classList.remove('active');
     chatInit();
   } else if (tab === 'swarms') {
     mainEl.style.display = 'none';
     cronsPanel.classList.remove('active');
     chatPanel.classList.remove('active');
     swarmsPanel.classList.add('active');
+    wikiPanel.classList.remove('active');
     swarmLoad();
     swarmStartPolling();
+  } else if (tab === 'wiki') {
+    mainEl.style.display = 'none';
+    cronsPanel.classList.remove('active');
+    chatPanel.classList.remove('active');
+    swarmsPanel.classList.remove('active');
+    wikiPanel.classList.add('active');
+    wikiLoad();
+    wikiStartPolling();
   }
 }
 
