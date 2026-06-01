@@ -35,6 +35,8 @@ import {
   chatIncomingChannel,
   chatOutgoingChannel,
   cronsKey,
+  wikiKey,
+  wikiUpdatedKey,
 } from '@gonzih/cc-wire';
 import {
   getNamespaces as $getNamespaces,
@@ -57,9 +59,7 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT      = parseInt(process.env.PORT || '7701', 10);
 
-// ── Wiki key helpers (cca:wiki:{slug} is a Redis HASH) ─────────────────────
-const wikiKey     = (slug)        => `cca:wiki:${slug}`;
-const wikiUpdKey  = (slug)        => `cca:wiki:${slug}:updated`;
+// ── Wiki slug validation ───────────────────────────────────────────────────
 const WIKI_SLUG_RE = /^[a-zA-Z0-9_.-]+$/;
 function validSlug(s) { return typeof s === 'string' && s.length > 0 && s.length <= 200 && WIKI_SLUG_RE.test(s); }
 const JOBS_DIR  = path.join(os.homedir(), '.cc-agent', 'jobs');
@@ -533,7 +533,7 @@ const server = http.createServer((req, res) => {
           const slug = k.slice('cca:wiki:'.length);
           const [pageCount, updatedAt] = await Promise.all([
             redis.hLen(k),
-            redis.get(wikiUpdKey(slug)),
+            redis.get(wikiUpdatedKey(slug)),
           ]);
           repos.push({ slug, pageCount, updatedAt: updatedAt || null });
         }
@@ -595,7 +595,7 @@ const server = http.createServer((req, res) => {
           const { content } = JSON.parse(body);
           if (typeof content !== 'string') { res.writeHead(400); res.end('content must be string'); return; }
           await redis.hSet(wikiKey(repoSlug), pageSlug, content);
-          await redis.set(wikiUpdKey(repoSlug), new Date().toISOString());
+          await redis.set(wikiUpdatedKey(repoSlug), new Date().toISOString());
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: true }));
         } catch (e) { res.writeHead(500); res.end(e.message); }
@@ -606,7 +606,7 @@ const server = http.createServer((req, res) => {
         try {
           const deleted = await redis.hDel(wikiKey(repoSlug), pageSlug);
           if (deleted === 0) { res.writeHead(404); res.end('page not found'); return; }
-          await redis.set(wikiUpdKey(repoSlug), new Date().toISOString());
+          await redis.set(wikiUpdatedKey(repoSlug), new Date().toISOString());
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: true }));
         } catch (e) { res.writeHead(500); res.end(e.message); }
