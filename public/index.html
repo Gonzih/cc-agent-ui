@@ -539,6 +539,13 @@ body {
 .card-branch { color: var(--purple); margin-left: auto; flex-shrink:0; }
 .card-docker-badge { color: #38bdf8; font-size:9px; background: rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.3); border-radius:3px; padding:1px 5px; flex-shrink:0; }
 .driver-badge { font-size:9px; color:var(--dim); background:rgba(72,76,94,0.18); border:1px solid var(--border); border-radius:3px; padding:1px 5px; flex-shrink:0; font-family:var(--font); letter-spacing:0; }
+.card-effort-badge { font-size:9px; border-radius:3px; padding:1px 5px; flex-shrink:0; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; }
+.effort-low    { background:rgba(152,195,121,0.15); color:var(--green);  border:1px solid rgba(152,195,121,0.3); }
+.effort-medium { background:rgba(97,175,239,0.15);  color:var(--blue);   border:1px solid rgba(97,175,239,0.3); }
+.effort-high   { background:rgba(72,76,94,0.2);     color:var(--dim);    border:1px solid var(--border); }
+.effort-xhigh  { background:rgba(229,192,123,0.15); color:var(--yellow); border:1px solid rgba(229,192,123,0.3); }
+.effort-max    { background:rgba(224,108,117,0.15); color:var(--red);    border:1px solid rgba(224,108,117,0.3); }
+.card-fast-badge { font-size:9px; color:#f4c430; background:rgba(244,196,48,0.12); border:1px solid rgba(244,196,48,0.35); border-radius:3px; padding:1px 5px; flex-shrink:0; }
 
 /* ── Terminal body ── */
 .card-term {
@@ -2435,6 +2442,17 @@ function driverBadge(job) {
   return `<span class="driver-badge" title="${escHtml(title)}">[${escHtml(label)}]</span>`;
 }
 
+function effortBadge(job) {
+  const el = job.effort_level;
+  if (!el || el === 'high') return '';
+  const cls = `effort-${escHtml(el)}`;
+  return `<span class="card-effort-badge ${cls}" title="Effort: ${escHtml(el)}">${escHtml(el)}</span>`;
+}
+
+function fastBadge(job) {
+  return job.fast_mode ? `<span class="card-fast-badge" title="Fast mode enabled">⚡fast</span>` : '';
+}
+
 function makeCard(job, n) {
   const card = document.createElement('div');
   const status = job.status || 'unknown';
@@ -2450,6 +2468,7 @@ function makeCard(job, n) {
       <span class="card-num">${n} ·</span>
       <span class="card-title" title="${escHtml(taskStr)}">${escHtml(taskStr)}</span>
       <span class="card-status-badge badge-${status}">${status.replace('_',' ')}</span>
+      ${effortBadge(job)}${fastBadge(job)}
       <span class="card-id">#${idShort}</span>
       <div class="card-dots">
         <div class="card-dot dot-r"></div>
