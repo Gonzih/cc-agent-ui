@@ -5,7 +5,7 @@
  *   - Mock the `redis` npm module so no real Redis is required.
  *   - Dynamically import server.js (side-effecting) in beforeAll so it starts
  *     on TEST_PORT with the mocked client.
- *   - Each domain (jobs, crons, swarms, chat, meta-agents…) gets its own
+ *   - Each domain (jobs, crons, swarms) gets its own
  *     describe block.  beforeEach resets the Redis store and call history.
  *
  * Redis key constants are imported directly from @gonzih/cc-wire so the tests
@@ -22,20 +22,13 @@ vi.mock('redis', () => ({
 import { createClient }       from 'redis';
 import { createMockRedis }    from './helpers/redis-mock.js';
 import {
-  META_AGENTS_INDEX,
   CC_AGENT_VERSION_KEY,
-  CC_TG_VERSION_KEY,
   SWARM_REQUESTS_KEY,
   jobKey,
   jobOutputKey,
   jobSignalKey,
   jobInputKey,
   cronsKey,
-  chatLogKey,
-  chatIncomingChannel,
-  metaKey,
-  metaInputKey,
-  metaAgentStatusKey,
   swarmKey,
 } from '@gonzih/cc-wire';
 
@@ -522,269 +515,6 @@ describe('POST /api/swarm/trigger', () => {
   });
 });
 
-// ══════════════════════════════════════════════════════════════════════════════
-// Chat history  (GET /chat/history)
-// ══════════════════════════════════════════════════════════════════════════════
-describe('GET /chat/history', () => {
-  it('returns empty array when no messages exist', async () => {
-    const { status, body } = await api('GET', `/chat/history?namespace=${TEST_NS}`);
-    expect(status).toBe(200);
-    expect(body).toEqual([]);
-  });
-
-  it('reads from chatLogKey for the given namespace', async () => {
-    await api('GET', `/chat/history?namespace=${TEST_NS}`);
-    const lRangeCall = mockRedis._calls.find(c => c.op === 'lRange' && c.key === chatLogKey(TEST_NS));
-    expect(lRangeCall).toBeDefined();
-    // Should read the first 100 entries (LIFO list)
-    expect(lRangeCall.start).toBe(0);
-    expect(lRangeCall.stop).toBe(99);
-  });
-
-  it('reverses LIFO storage so result is chronological (oldest first)', async () => {
-    // Redis stores LIFO: index 0 = newest
-    const storedLIFO = [
-      JSON.stringify({ id: 'm3', role: 'assistant', content: 'newest', timestamp: '2024-01-03T00:00:00Z' }),
-      JSON.stringify({ id: 'm2', role: 'user',      content: 'middle', timestamp: '2024-01-02T00:00:00Z' }),
-      JSON.stringify({ id: 'm1', role: 'user',      content: 'oldest', timestamp: '2024-01-01T00:00:00Z' }),
-    ];
-    mockRedis._seedList(chatLogKey(TEST_NS), storedLIFO);
-
-    const { body } = await api('GET', `/chat/history?namespace=${TEST_NS}`);
-    expect(body).toHaveLength(3);
-    // After .reverse(), oldest should be first
-    expect(body[0].id).toBe('m1');
-    expect(body[2].id).toBe('m3');
-  });
-
-  it('falls back to NAMESPACE when namespace param is omitted', async () => {
-    mockRedis._seedList(
-      chatLogKey(TEST_NS),
-      [JSON.stringify({ id: 'x', role: 'user', content: 'hi', timestamp: '2024-01-01T00:00:00Z' })]
-    );
-    const { body } = await api('GET', '/chat/history');
-    // Should still use TEST_NS (the server-level default)
-    expect(body).toHaveLength(1);
-  });
-});
-
-// ══════════════════════════════════════════════════════════════════════════════
-// Chat send  (POST /chat/send)
-// ══════════════════════════════════════════════════════════════════════════════
-describe('POST /chat/send', () => {
-  it('publishes to chatIncomingChannel when no meta-agent is running', async () => {
-    // metaAgentStatusKey returns null → no running meta-agent
-    const { status, body } = await api('POST', '/chat/send', {
-      namespace: TEST_NS,
-      message:   'Hello world',
-    });
-    expect(status).toBe(200);
-    expect(body.ok).toBe(true);
-    expect(body.id).toBeDefined();
-
-    const pubCall = mockRedis._calls.find(
-      c => c.op === 'publish' && c.channel === chatIncomingChannel(TEST_NS)
-    );
-    expect(pubCall).toBeDefined();
-    const payload = JSON.parse(pubCall.message);
-    expect(payload.content).toBe('Hello world');
-    expect(payload.source).toBe('ui');
-    expect(payload.role).toBe('user');
-  });
-
-  it('routes to meta-agent input queue when meta-agent is running', async () => {
-    mockRedis._seed(
-      metaAgentStatusKey(TEST_NS),
-      JSON.stringify({ status: 'running', currentTool: null })
-    );
-
-    await api('POST', '/chat/send', { namespace: TEST_NS, message: 'agent msg' });
-
-    const lPushCall = mockRedis._calls.find(
-      c => c.op === 'lPush' && c.key === metaInputKey(TEST_NS)
-    );
-    expect(lPushCall).toBeDefined();
-    const entry = JSON.parse(lPushCall.values[0]);
-    expect(entry.content).toBe('agent msg');
-    expect(entry.id).toBeDefined();
-  });
-
-  it('checks metaAgentStatusKey to decide routing', async () => {
-    await api('POST', '/chat/send', { namespace: TEST_NS, message: 'x' });
-
-    const getCall = mockRedis._calls.find(
-      c => c.op === 'get' && c.key === metaAgentStatusKey(TEST_NS)
-    );
-    expect(getCall).toBeDefined();
-  });
-});
-
-// ══════════════════════════════════════════════════════════════════════════════
-// Meta-agents — GET /api/meta-agents
-// ══════════════════════════════════════════════════════════════════════════════
-describe('GET /api/meta-agents', () => {
-  it('returns empty array when registry is empty', async () => {
-    const { status, body } = await api('GET', '/api/meta-agents');
-    expect(status).toBe(200);
-    expect(body).toEqual([]);
-  });
-
-  it('reads from META_AGENTS_INDEX set', async () => {
-    await api('GET', '/api/meta-agents');
-    const sMembersCall = mockRedis._calls.find(
-      c => c.op === 'sMembers' && c.key === META_AGENTS_INDEX
-    );
-    expect(sMembersCall).toBeDefined();
-  });
-
-  it('returns agents with state and chat log count', async () => {
-    const ns    = 'my-agent';
-    const state = { namespace: ns, status: 'idle', repoUrl: 'https://github.com/x/y', cwd: '/tmp/x' };
-    mockRedis._seedSet(META_AGENTS_INDEX, [ns]);
-    mockRedis._seed(metaKey(ns), JSON.stringify(state));
-    mockRedis._seedList(chatLogKey(ns), [
-      JSON.stringify({ id: 'm1', role: 'user', content: 'hi', timestamp: '2024-01-01T00:00:00Z' }),
-    ]);
-
-    const { status, body } = await api('GET', '/api/meta-agents');
-    expect(status).toBe(200);
-    expect(body).toHaveLength(1);
-    expect(body[0].namespace).toBe(ns);
-    expect(body[0].count).toBe(1); // chat log length
-  });
-
-  it('skips "default" namespace from the registry', async () => {
-    mockRedis._seedSet(META_AGENTS_INDEX, ['default', 'real-agent']);
-    const state = { namespace: 'real-agent', status: 'idle', repoUrl: '', cwd: '' };
-    mockRedis._seed(metaKey('real-agent'), JSON.stringify(state));
-
-    const { body } = await api('GET', '/api/meta-agents');
-    // Only real-agent should appear
-    expect(body.every(a => a.namespace !== 'default')).toBe(true);
-  });
-
-  it('skips namespaces without stored state', async () => {
-    mockRedis._seedSet(META_AGENTS_INDEX, ['ghost-ns']); // no metaKey seeded
-
-    const { body } = await api('GET', '/api/meta-agents');
-    expect(body).toHaveLength(0);
-  });
-
-  it('merges live status into agent response', async () => {
-    const ns     = 'status-agent';
-    const state  = { namespace: ns, status: 'idle', repoUrl: '', cwd: '' };
-    const active = { status: 'running', currentTool: 'Bash', typing: false };
-    mockRedis._seedSet(META_AGENTS_INDEX, [ns]);
-    mockRedis._seed(metaKey(ns), JSON.stringify(state));
-    mockRedis._seed(metaAgentStatusKey(ns), JSON.stringify(active));
-
-    const { body } = await api('GET', '/api/meta-agents');
-    expect(body[0].currentTool).toBe('Bash');
-  });
-});
-
-// ══════════════════════════════════════════════════════════════════════════════
-// Meta-chat log — GET /api/meta-chat/log
-// ══════════════════════════════════════════════════════════════════════════════
-describe('GET /api/meta-chat/log', () => {
-  it('returns 400 when ns param is missing', async () => {
-    const { status } = await api('GET', '/api/meta-chat/log');
-    expect(status).toBe(400);
-  });
-
-  it('returns empty array when no messages exist', async () => {
-    const { status, body } = await api('GET', `/api/meta-chat/log?ns=${TEST_NS}`);
-    expect(status).toBe(200);
-    expect(body).toEqual([]);
-  });
-
-  it('reverses LIFO storage to chronological order', async () => {
-    const stored = [
-      JSON.stringify({ id: '3', role: 'assistant', content: 'newest' }),
-      JSON.stringify({ id: '2', role: 'user',      content: 'middle' }),
-      JSON.stringify({ id: '1', role: 'user',      content: 'oldest' }),
-    ];
-    mockRedis._seedList(chatLogKey(TEST_NS), stored);
-
-    const { body } = await api('GET', `/api/meta-chat/log?ns=${TEST_NS}`);
-    expect(body).toHaveLength(3);
-    expect(body[0].id).toBe('1'); // oldest first
-    expect(body[2].id).toBe('3'); // newest last
-  });
-
-  it('filters out malformed (non-JSON) entries', async () => {
-    mockRedis._seedList(chatLogKey(TEST_NS), [
-      JSON.stringify({ id: 'ok', role: 'user', content: 'valid' }),
-      'not-json-at-all',
-    ]);
-
-    const { body } = await api('GET', `/api/meta-chat/log?ns=${TEST_NS}`);
-    // Only the valid entry should survive
-    expect(body.every(m => m && m.id)).toBe(true);
-  });
-});
-
-// ══════════════════════════════════════════════════════════════════════════════
-// Meta-chat send — POST /api/meta-chat/send
-// ══════════════════════════════════════════════════════════════════════════════
-describe('POST /api/meta-chat/send', () => {
-  it('returns 400 when ns is missing', async () => {
-    const { status } = await api('POST', '/api/meta-chat/send', { message: 'hi' });
-    expect(status).toBe(400);
-  });
-
-  it('returns 400 when message is missing', async () => {
-    const { status } = await api('POST', '/api/meta-chat/send', { ns: TEST_NS });
-    expect(status).toBe(400);
-  });
-
-  it('auto-provisions a new namespace (set + sAdd)', async () => {
-    const newNs = 'brand-new-agent';
-    await api('POST', '/api/meta-chat/send', { ns: newNs, message: 'first message' });
-
-    const setCall = mockRedis._calls.find(c => c.op === 'set' && c.key === metaKey(newNs));
-    expect(setCall).toBeDefined();
-    const stored = JSON.parse(setCall.value);
-    expect(stored.namespace).toBe(newNs);
-    expect(stored.status).toBe('idle');
-    // Should have been given a 30-day TTL
-    expect(setCall.options?.EX).toBe(30 * 24 * 60 * 60);
-
-    const sAddCall = mockRedis._calls.find(c => c.op === 'sAdd' && c.key === META_AGENTS_INDEX);
-    expect(sAddCall).toBeDefined();
-    expect(sAddCall.values).toContain(newNs);
-  });
-
-  it('does not re-provision an already-registered namespace', async () => {
-    const ns = 'existing-agent';
-    mockRedis._seedSet(META_AGENTS_INDEX, [ns]);
-
-    await api('POST', '/api/meta-chat/send', { ns, message: 'hello' });
-
-    const setCall = mockRedis._calls.find(c => c.op === 'set' && c.key === metaKey(ns));
-    expect(setCall).toBeUndefined(); // no re-provisioning
-  });
-
-  it('pushes message to canonical input queue', async () => {
-    const ns = 'push-test-agent';
-    await api('POST', '/api/meta-chat/send', { ns, message: 'do something' });
-
-    const lPushCall = mockRedis._calls.find(c => c.op === 'lPush' && c.key === metaInputKey(ns));
-    expect(lPushCall).toBeDefined();
-    const entry = JSON.parse(lPushCall.values[0]);
-    expect(entry.content).toBe('do something');
-    expect(entry.id).toBeDefined();
-    expect(entry.timestamp).toBeDefined();
-  });
-
-  it('derives canonical short namespace from owner/repo format', async () => {
-    // "gonzih/my-repo" → canonical "my-repo"
-    await api('POST', '/api/meta-chat/send', { ns: 'gonzih/my-repo', message: 'hi' });
-
-    const lPushCall = mockRedis._calls.find(c => c.op === 'lPush' && c.key === metaInputKey('my-repo'));
-    expect(lPushCall).toBeDefined();
-  });
-});
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Config — GET /api/config
@@ -803,28 +533,25 @@ describe('GET /api/config', () => {
 // Versions — GET /versions
 // ══════════════════════════════════════════════════════════════════════════════
 describe('GET /versions', () => {
-  it('returns all three version fields', async () => {
+  it('returns cc-agent-ui and cc-agent version fields', async () => {
     mockRedis._seed(CC_AGENT_VERSION_KEY, '2.3.4');
-    mockRedis._seed(CC_TG_VERSION_KEY,    '1.0.1');
 
     const { status, body } = await api('GET', '/versions');
     expect(status).toBe(200);
     expect(body['cc-agent-ui']).toMatch(/^\d+\.\d+\.\d+/); // from package.json
     expect(body['cc-agent']).toBe('2.3.4');
-    expect(body['cc-tg']).toBe('1.0.1');
+    expect(body['cc-tg']).toBeUndefined();
   });
 
   it('falls back to "unknown" when Redis keys are absent', async () => {
     const { body } = await api('GET', '/versions');
     expect(body['cc-agent']).toBe('unknown');
-    expect(body['cc-tg']).toBe('unknown');
   });
 
-  it('reads CC_AGENT_VERSION_KEY and CC_TG_VERSION_KEY from Redis', async () => {
+  it('reads CC_AGENT_VERSION_KEY from Redis', async () => {
     await api('GET', '/versions');
     const getKeys = mockRedis._calls.filter(c => c.op === 'get').map(c => c.key);
     expect(getKeys).toContain(CC_AGENT_VERSION_KEY);
-    expect(getKeys).toContain(CC_TG_VERSION_KEY);
   });
 });
 

@@ -6,7 +6,6 @@ import {
   getJobIds,
   fetchJob,
   fetchJobs,
-  fetchMetaStatus,
   getOutputTail,
   pollNewOutput,
   getSwarms,
@@ -179,32 +178,6 @@ describe('fetchJobs', () => {
     });
     const result = await fetchJobs(redis, ['other-id']);
     assert.strictEqual(result[0].id, 'from-json');
-  });
-});
-
-// ── fetchMetaStatus ───────────────────────────────────────────────────────────
-
-describe('fetchMetaStatus', () => {
-  test('returns null when key does not exist', async () => {
-    const redis = makeMockRedis({ get: async () => null });
-    assert.strictEqual(await fetchMetaStatus(redis, 'test-ns'), null);
-  });
-
-  test('returns parsed status object', async () => {
-    const status = { status: 'running', currentTool: 'Read' };
-    const redis = makeMockRedis({ get: async () => JSON.stringify(status) });
-    assert.deepStrictEqual(await fetchMetaStatus(redis, 'test-ns'), status);
-  });
-
-  test('returns null when Redis throws', async () => {
-    const redis = makeMockRedis({ get: async () => { throw new Error('conn error'); } });
-    assert.strictEqual(await fetchMetaStatus(redis, 'ns'), null);
-  });
-
-  test('returns null when JSON is invalid', async () => {
-    const redis = makeMockRedis({ get: async () => 'not-json' });
-    // JSON.parse throws → caught by try/catch → returns null
-    assert.strictEqual(await fetchMetaStatus(redis, 'ns'), null);
   });
 });
 
