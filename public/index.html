@@ -119,144 +119,6 @@ body {
 #ws-dot.ok  { background: var(--green); box-shadow: 0 0 6px var(--green); }
 #ws-dot.err { background: var(--red); }
 
-/* ── Meta-agent bar ───────────────────────────────────────────────────── */
-#meta-bar {
-  flex-shrink: 0;
-  background: rgba(99, 102, 241, 0.07);
-  border-bottom: 1px solid rgba(99, 102, 241, 0.2);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 16px;
-  z-index: 150;
-}
-#meta-bar-label {
-  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
-}
-#meta-bar-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: #6366f1;
-  box-shadow: 0 0 6px #6366f1;
-  animation: breathe 2.5s ease-in-out infinite;
-}
-#meta-bar-ns {
-  font-size: 10px; font-weight: 700; color: #818cf8;
-  text-transform: uppercase; letter-spacing: 0.08em;
-  white-space: nowrap;
-  cursor: pointer;
-}
-#meta-bar-ns:hover { color: #a5b4fc; text-decoration: underline; }
-#meta-bar-messages {
-  flex: 1;
-  display: flex;
-  gap: 10px;
-  overflow: hidden;
-  min-width: 0;
-}
-.meta-msg {
-  font-size: 11px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 280px;
-  flex-shrink: 0;
-}
-.meta-msg.user { color: var(--dim); }
-.meta-msg.user::before { content: 'you: '; color: var(--dimmer); }
-.meta-msg.assistant { color: var(--text); }
-.meta-msg.assistant::before { content: '✦ '; color: #6366f1; }
-.meta-msg.coordinator { color: #f59e0b; }
-.meta-msg.coordinator::before { content: '↗ '; color: #d97706; }
-#meta-bar-input-row {
-  display: flex; gap: 6px; flex-shrink: 0;
-}
-#meta-bar-input {
-  width: 240px;
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(99,102,241,0.3);
-  border-radius: 4px;
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 11px;
-  padding: 4px 8px;
-  outline: none;
-}
-#meta-bar-input:focus { border-color: #6366f1; }
-#meta-bar-send {
-  background: rgba(99,102,241,0.2);
-  border: 1px solid rgba(99,102,241,0.3);
-  border-radius: 4px;
-  color: #818cf8;
-  font-size: 11px;
-  padding: 4px 8px;
-  cursor: pointer;
-  font-family: var(--font);
-}
-#meta-bar-send:hover { background: rgba(99,102,241,0.35); }
-
-/* ── Per-column META bar ──────────────────────────────────────────────── */
-.col-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(99, 102, 241, 0.07);
-  border: 1px solid rgba(99, 102, 241, 0.18);
-  border-radius: 5px;
-  padding: 5px 8px;
-  margin-bottom: 2px;
-}
-.col-meta-label {
-  display: flex; align-items: center; gap: 5px; flex-shrink: 0; cursor: pointer;
-}
-.col-meta-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: #6366f1;
-  box-shadow: 0 0 5px #6366f1;
-  animation: breathe 2.5s ease-in-out infinite;
-}
-.col-meta-tag {
-  font-size: 9px; font-weight: 700; color: #818cf8;
-  text-transform: uppercase; letter-spacing: 0.08em;
-  white-space: nowrap;
-}
-.col-meta-msgs {
-  flex: 1;
-  overflow: hidden;
-  min-width: 0;
-  font-size: 10px;
-  color: var(--dim);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.col-meta-msgs .meta-msg {
-  max-width: none;
-}
-.col-meta-input-row {
-  display: flex; gap: 4px; flex-shrink: 0;
-}
-.col-meta-input {
-  width: 120px;
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(99,102,241,0.25);
-  border-radius: 3px;
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 10px;
-  padding: 3px 6px;
-  outline: none;
-}
-.col-meta-input:focus { border-color: #6366f1; }
-.col-meta-send {
-  background: rgba(99,102,241,0.15);
-  border: 1px solid rgba(99,102,241,0.25);
-  border-radius: 3px;
-  color: #818cf8;
-  font-size: 10px;
-  padding: 3px 6px;
-  cursor: pointer;
-  font-family: var(--font);
-}
-.col-meta-send:hover { background: rgba(99,102,241,0.3); }
 
 /* ── Layout ───────────────────────────────────────────────────────────── */
 #main {
@@ -855,272 +717,7 @@ body {
 #jp-msg-send:hover { background: rgba(86,182,194,0.12); border-color: var(--cyan); }
 #jp-msg-send:disabled { opacity: 0.35; cursor: not-allowed; }
 
-/* ── Sidebar resizer handle ── */
-#sidebar-resizer {
-  height: 5px;
-  background: var(--border);
-  cursor: ns-resize;
-  flex-shrink: 0;
-  position: relative;
-  transition: background 0.15s;
-}
-#sidebar-resizer:hover,
-#sidebar-resizer.dragging {
-  background: var(--cyan);
-}
-#sidebar-resizer::before {
-  content: '';
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 24px;
-  height: 2px;
-  border-radius: 2px;
-  background: currentColor;
-  opacity: 0.4;
-}
 
-/* ── Meta Agents sidebar section ── */
-#meta-section {
-  flex-shrink: 0;
-  min-height: 80px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-}
-#meta-section::-webkit-scrollbar { width: 4px; }
-#meta-section::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-#meta-header {
-  padding: 8px 14px;
-  font-size: 9px;
-  color: var(--cyan);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-weight: 700;
-  border-bottom: 1px solid var(--border);
-  background: rgba(86, 182, 194, 0.06);
-  position: sticky; top: 0; z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-#meta-header::before {
-  content: '◈';
-  font-size: 10px;
-  color: var(--cyan);
-  opacity: 0.8;
-}
-.meta-item {
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-  transition: background 0.15s;
-  position: relative;
-}
-.meta-item:hover { background: rgba(255,255,255,0.025); }
-.meta-item.active { background: rgba(229,192,123,0.06); }
-.meta-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 2px;
-  background: var(--yellow);
-}
-.mi-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.mi-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--dim);
-  flex-shrink: 0;
-  transition: background 0.3s, box-shadow 0.3s;
-}
-.mi-dot.running  { background: var(--green); box-shadow: 0 0 5px var(--green); animation: breathe 2s ease-in-out infinite; }
-.mi-dot.stopped  { background: var(--red); box-shadow: none; animation: none; }
-.mi-dot.unknown  { background: var(--yellow); box-shadow: 0 0 4px var(--yellow); animation: breathe 2s ease-in-out infinite; }
-.mi-ns {
-  font-size: 10px; font-weight: 600; color: var(--text);
-  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.mi-tool-badge {
-  font-size: 8px; font-weight: 700;
-  padding: 1px 5px; border-radius: 3px;
-  background: rgba(86,182,194,0.12); color: var(--cyan); border: 1px solid rgba(86,182,194,0.25);
-  text-transform: uppercase; letter-spacing: 0.06em;
-  flex-shrink: 0;
-}
-.mi-typing {
-  font-size: 9px; color: var(--cyan); flex-shrink: 0;
-  animation: typing-pulse 1.1s ease-in-out infinite;
-}
-@keyframes typing-pulse {
-  0%,100% { opacity: 1; } 50% { opacity: 0.3; }
-}
-.mi-meta-row {
-  display: flex; align-items: center; gap: 6px;
-  margin-bottom: 2px; min-height: 14px;
-}
-.mi-last-msg {
-  font-size: 9px; color: var(--dim);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  flex: 1;
-}
-.mi-footer {
-  display: flex; align-items: center; gap: 8px;
-  margin-top: 2px;
-}
-.mi-turn-count {
-  font-size: 8px; color: var(--dimmer);
-  flex-shrink: 0;
-}
-.mi-last-active {
-  font-size: 8px; color: var(--dimmer);
-  margin-left: auto; flex-shrink: 0;
-}
-.mi-icons { font-size: 11px; color: var(--dim); letter-spacing: 0.05em; line-height: 1; }
-
-/* ── Meta Agent Panel ── */
-#metapanel {
-  position: fixed;
-  top: 40px; right: 0; bottom: 0;
-  width: 600px;
-  background: var(--sidebar-bg);
-  border-left: 1px solid var(--border-hi);
-  display: flex;
-  flex-direction: column;
-  z-index: 600;
-  transform: translateX(100%);
-  transition: transform 0.22s cubic-bezier(.4,0,.2,1);
-}
-#metapanel.open { transform: translateX(0); }
-
-#mp-topbar {
-  display: flex; align-items: center;
-  padding: 0 14px; height: 44px;
-  border-bottom: 1px solid var(--border);
-  gap: 10px; flex-shrink: 0;
-}
-#mp-title {
-  flex: 1; font-size: 11px; font-weight: 600;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.mp-run-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--yellow);
-  box-shadow: 0 0 6px var(--yellow);
-  animation: breathe 2s ease-in-out infinite;
-  flex-shrink: 0;
-}
-#mp-close {
-  background: transparent; border: none;
-  color: var(--dim); font-size: 16px; cursor: pointer;
-  padding: 0 4px; line-height: 1; font-family: var(--font);
-}
-#mp-close:hover { color: var(--text); }
-
-#mp-icon-strip {
-  padding: 6px 14px;
-  border-bottom: 1px solid var(--border);
-  min-height: 28px; max-height: 72px;
-  overflow-y: auto;
-  display: flex; flex-wrap: wrap; gap: 2px; align-content: flex-start;
-  background: rgba(0,0,0,0.2);
-  flex-shrink: 0;
-}
-.mp-icon {
-  font-size: 12px;
-  opacity: 0.7;
-  cursor: default;
-  line-height: 1.5;
-  transition: opacity 0.1s;
-}
-.mp-icon:hover { opacity: 1; }
-
-#mp-chat {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 14px;
-  display: flex; flex-direction: column; gap: 6px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-  background: var(--card-body);
-}
-#mp-chat::-webkit-scrollbar { width: 4px; }
-#mp-chat::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
-
-.mp-msg { display: flex; flex-direction: column; gap: 2px; }
-.mp-msg.user { align-items: flex-end; }
-.mp-msg.assistant, .mp-msg.coordinator, .mp-msg.tool { align-items: flex-start; }
-.mp-bubble {
-  max-width: 90%;
-  padding: 6px 10px;
-  border-radius: 5px;
-  font-size: 10px;
-  line-height: 1.6;
-  word-break: break-word;
-}
-.mp-msg.user .mp-bubble {
-  background: rgba(86,182,194,0.12);
-  border: 1px solid rgba(86,182,194,0.25);
-  color: var(--text);
-}
-.mp-msg.assistant .mp-bubble {
-  background: rgba(0,0,0,0.2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  white-space: pre-wrap;
-}
-.mp-msg.coordinator .mp-bubble {
-  background: rgba(245,158,11,0.08);
-  border: 1px solid rgba(245,158,11,0.25);
-  color: #f59e0b;
-  white-space: pre-wrap;
-}
-.mp-msg-coordinator-label {
-  font-size: 8px;
-  color: #d97706;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 2px;
-}
-.mp-msg.tool .mp-bubble {
-  padding: 2px 6px;
-  background: transparent;
-  color: var(--blue);
-  opacity: 0.65;
-  font-size: 9px;
-  border: none;
-}
-.mp-msg-time { font-size: 9px; color: var(--dimmer); padding: 0 2px; }
-
-#mp-msg-bar {
-  border-top: 1px solid var(--border);
-  padding: 8px 14px;
-  display: flex; gap: 8px;
-  flex-shrink: 0;
-  background: rgba(0,0,0,0.15);
-}
-#mp-msg-input {
-  flex: 1;
-  background: rgba(0,0,0,0.4);
-  border: 1px solid var(--border-hi);
-  border-radius: 4px;
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 11px;
-  padding: 5px 10px;
-  outline: none;
-  transition: border-color 0.15s;
-}
-#mp-msg-input::placeholder { color: var(--dim); }
-#mp-msg-input:focus { border-color: var(--yellow); }
-#mp-msg-send {
-  font-family: var(--font); font-size: 10px;
-  padding: 5px 14px; border-radius: 4px; cursor: pointer;
-  border: 1px solid rgba(229,192,123,0.4);
-  background: transparent; color: var(--yellow); font-weight: 600;
-  transition: all 0.15s; white-space: nowrap;
-}
-#mp-msg-send:hover { background: rgba(229,192,123,0.12); border-color: var(--yellow); }
 
 /* ── Working indicator on empty running terminal ── */
 .term-working {
@@ -1340,161 +937,6 @@ body {
   color: var(--dimmer); font-size: 12px; padding: 24px 0;
 }
 
-/* ── Chat Panel ───────────────────────────────────────────────────────── */
-#chat-panel {
-  display: none;
-  flex: 1;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--bg);
-}
-#chat-panel.active { display: flex; }
-
-#chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-}
-#chat-messages::-webkit-scrollbar { width: 4px; }
-#chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-.chat-msg {
-  display: flex;
-  flex-direction: column;
-  max-width: 70%;
-}
-.chat-msg.user { align-self: flex-end; align-items: flex-end; }
-.chat-msg.assistant { align-self: flex-start; align-items: flex-start; }
-.chat-msg.coordinator { align-self: flex-start; align-items: flex-start; }
-.chat-bubble {
-  padding: 9px 13px;
-  border-radius: 12px;
-  font-size: 12px;
-  line-height: 1.55;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.chat-msg.user .chat-bubble {
-  background: rgba(86,182,194,0.15);
-  border: 1px solid rgba(86,182,194,0.3);
-  color: var(--text);
-  border-bottom-right-radius: 3px;
-}
-.chat-msg.assistant .chat-bubble {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-bottom-left-radius: 3px;
-}
-.chat-msg.coordinator .chat-bubble {
-  background: rgba(245,158,11,0.08);
-  border: 1px solid rgba(245,158,11,0.3);
-  color: #f59e0b;
-  border-bottom-left-radius: 3px;
-}
-.chat-badge-coordinator {
-  font-size: 9px; color: #d97706;
-  background: rgba(245,158,11,0.12);
-  border: 1px solid rgba(245,158,11,0.25);
-  border-radius: 3px;
-  padding: 1px 4px;
-}
-.chat-msg-meta {
-  font-size: 9px; color: var(--dimmer);
-  margin-top: 3px;
-  display: flex; align-items: center; gap: 6px;
-}
-.chat-badge-tg {
-  font-size: 9px; color: var(--dim);
-  background: rgba(97,175,239,0.1);
-  border: 1px solid rgba(97,175,239,0.2);
-  border-radius: 3px;
-  padding: 1px 4px;
-}
-
-.chat-msg.tool { align-self: flex-start; align-items: flex-start; max-width: 90%; }
-.chat-msg.tool .chat-bubble {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--border);
-  font-size: 10px;
-  color: var(--dim);
-  font-family: var(--font);
-  padding: 6px 10px;
-  border-radius: 6px;
-}
-.chat-tool-header {
-  display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;
-}
-.chat-tool-header:hover .chat-tool-name { color: var(--blue); }
-.chat-tool-chevron {
-  color: var(--dimmer); font-size: 9px; transition: transform 0.15s; flex-shrink: 0;
-}
-.chat-tool-chevron.open { transform: rotate(90deg); }
-.chat-tool-name { color: var(--cyan); font-weight: 600; }
-.chat-tool-body {
-  display: none;
-  margin-top: 6px;
-  border-top: 1px solid var(--border);
-  padding-top: 6px;
-  max-height: 400px;
-  overflow-y: auto;
-}
-.chat-tool-body.open { display: block; }
-.chat-tool-arg { color: var(--dim); margin-left: 8px; }
-.chat-tool-val {
-  color: var(--text);
-  white-space: pre-wrap;
-  word-break: break-all;
-  margin: 0;
-  font-family: var(--font);
-  font-size: 10px;
-}
-
-#chat-input-bar {
-  flex-shrink: 0;
-  padding: 12px 20px;
-  background: var(--sidebar-bg);
-  border-top: 1px solid var(--border);
-  display: flex; gap: 8px; align-items: flex-end;
-}
-#chat-textarea {
-  flex: 1;
-  font-family: var(--font);
-  font-size: 12px;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 8px 10px;
-  border-radius: 6px;
-  resize: none;
-  min-height: 38px;
-  max-height: 140px;
-  outline: none;
-  transition: border-color 0.15s;
-  line-height: 1.5;
-  overflow-y: auto;
-}
-#chat-textarea:focus { border-color: var(--cyan); }
-#chat-send-btn {
-  font-family: var(--font); font-size: 11px; font-weight: 600;
-  padding: 8px 14px;
-  background: var(--cyan-glow);
-  border: 1px solid var(--cyan);
-  color: var(--cyan);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-  height: 38px;
-}
-#chat-send-btn:hover { background: rgba(86,182,194,0.2); }
-#chat-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.chat-hint { font-size: 9px; color: var(--dimmer); white-space: nowrap; padding-bottom: 10px; }
 
 /* ── Cost display on job cards ─────────────────────────────────────────── */
 .card-cost { color: var(--dim); }
@@ -1941,7 +1383,6 @@ body {
   <div id="tab-nav">
     <button class="tab-btn active" data-tab="jobs">Jobs</button>
     <button class="tab-btn" data-tab="crons">Crons</button>
-    <button class="tab-btn" data-tab="chat">Chat</button>
     <button class="tab-btn" data-tab="swarms">Swarms</button>
     <button class="tab-btn" data-tab="wiki">Wiki</button>
   </div>
@@ -1957,19 +1398,6 @@ body {
   <div class="topbar-hint">scroll · drag to pan · wheel to zoom · click job to focus</div>
   <div id="version-badge" title="Component versions"></div>
   <div id="ws-dot" title="WebSocket"></div>
-</div>
-
-<!-- Meta-agent bar -->
-<div id="meta-bar">
-  <div id="meta-bar-label">
-    <span id="meta-bar-dot"></span>
-    <span id="meta-bar-ns">META-AGENT</span>
-  </div>
-  <div id="meta-bar-messages"></div>
-  <div id="meta-bar-input-row">
-    <input id="meta-bar-input" type="text" placeholder="message coordinator…" autocomplete="off">
-    <button id="meta-bar-send">↵</button>
-  </div>
 </div>
 
 <!-- Main -->
@@ -1995,11 +1423,6 @@ body {
       <button class="dfbtn" data-driver="other">other</button>
     </div>
     <div id="job-list"></div>
-    <div id="sidebar-resizer"></div>
-    <div id="meta-section">
-      <div id="meta-header">meta agents</div>
-      <div id="meta-list"></div>
-    </div>
   </div>
 
   <!-- Infinite canvas viewport -->
@@ -2074,26 +1497,6 @@ body {
   </div>
   <div id="cron-list" class="cron-list">
     <div class="cron-empty">Loading crons…</div>
-  </div>
-</div>
-
-<!-- Chat Panel -->
-<div id="chat-panel">
-  <div id="chat-messages"></div>
-  <div id="chat-input-bar">
-    <textarea id="chat-textarea" placeholder="Type a message… (Enter to send)" rows="1"></textarea>
-    <span class="chat-hint">Enter</span>
-    <select id="chat-driver" title="Agent driver" style="font-family:var(--font);font-size:10px;background:var(--card-bg);border:1px solid var(--border);color:var(--dim);padding:4px 6px;border-radius:4px;height:38px;outline:none;cursor:pointer;">
-      <option value="">claude</option>
-      <option value="aider">aider</option>
-      <option value="openai">openai</option>
-      <option value="qwen">qwen</option>
-      <option value="kimi">kimi</option>
-      <option value="deepseek">deepseek</option>
-      <option value="pi">pi</option>
-    </select>
-    <input id="chat-model" type="text" placeholder="model" title="Agent model (optional)" style="font-family:var(--font);font-size:10px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:4px;height:38px;outline:none;width:140px;" autocomplete="off">
-    <button id="chat-send-btn" onclick="chatSend()">Send</button>
   </div>
 </div>
 
@@ -2174,21 +1577,6 @@ body {
   </div>
 </div>
 
-<!-- Meta Agent Panel -->
-<div id="metapanel">
-  <div id="mp-topbar">
-    <span id="mp-title">—</span>
-    <div class="mp-run-dot"></div>
-    <button id="mp-close" onclick="mpClose()">✕</button>
-  </div>
-  <div id="mp-icon-strip"></div>
-  <div id="mp-chat"></div>
-  <div id="mp-msg-bar">
-    <input id="mp-msg-input" type="text" placeholder="Message meta agent…" autocomplete="off">
-    <button id="mp-msg-send" onclick="mpSend()">↵ Send</button>
-  </div>
-</div>
-
 <!-- File Browser Modal -->
 <div id="fb-backdrop" class="fb-backdrop hidden">
   <div id="fb-modal">
@@ -2211,18 +1599,9 @@ const cols = {};          // repoKey → { el, cardsEl }
 let filterMode = 'all';
 let driverFilter = 'all';
 let jobCounter = 0;
-const metaState = {}; // ns → { msgs: [] }
 const swarmsState = {};    // swarm_id → swarm record
 const jobToSwarm = {};     // job_id → swarm_id (reverse mapping)
-const seenMsgIds = new Set(); // deduplicate meta_msg events by id
-const recentUserMsgs = []; // { content, ts } — content-based dedup for cc-tg echo (different UUID, same text)
 function isRecentDuplicate(msg) {
-  if (msg.role !== 'user') return false;
-  const now = Date.now();
-  while (recentUserMsgs.length && now - recentUserMsgs[0].ts > 10000) recentUserMsgs.shift();
-  const content = (msg.content || '').trim();
-  if (recentUserMsgs.some(m => m.content === content)) return true;
-  recentUserMsgs.push({ content, ts: now });
   return false;
 }
 let scale = 1, ox = 40, oy = 40;
@@ -2310,26 +1689,6 @@ const TOOL_ICONS = {
   MultiEdit:'✏️', NotebookEdit:'📓', Dispatch:'⚡',
 };
 
-const META_TOOL_ICONS = {
-  Read:'📖', Edit:'✏️', Write:'💾', Bash:'$', Glob:'🔍', Grep:'🔎',
-  WebFetch:'🌐', WebSearch:'🌐', TodoWrite:'✅', Agent:'🤖',
-  MultiEdit:'✏️', NotebookEdit:'📓', Dispatch:'⚡', AskUserQuestion:'❓',
-};
-
-function metaMsgIcon(msg) {
-  if (!msg) return '';
-  if (msg.role === 'user') return '💬';
-  if (msg.role === 'assistant') return '🤖';
-  if (msg.role === 'tool') {
-    const m = (msg.content||'').match(/^\[tool\]\s+([\w:]+)/);
-    if (m) {
-      const toolName = m[1].split(':').pop();
-      return META_TOOL_ICONS[toolName] || '⚙';
-    }
-    return '⚙';
-  }
-  return '';
-}
 
 function classifyLine(raw) {
   const s = raw.replace(/\x1b\[[0-9;]*m/g, '').trim();
@@ -2666,41 +2025,10 @@ function getOrCreateCol(key) {
       <span class="col-repo-name" title="${escHtml(key)}">${escHtml(key)}</span>
       <span class="col-counts"></span>
     </div>
-    <div class="col-meta">
-      <div class="col-meta-label">
-        <span class="col-meta-dot"></span>
-        <span class="col-meta-tag">META</span>
-      </div>
-      <div class="col-meta-msgs" id="col-meta-msgs-${safeKey}"></div>
-      <div class="col-meta-input-row">
-        <input class="col-meta-input" type="text" placeholder="message…" autocomplete="off" data-ns="${escHtml(key)}">
-        <button class="col-meta-send" data-ns="${escHtml(key)}">↵</button>
-      </div>
-    </div>
     <div class="col-cards"></div>
   `;
   cols[key] = { el, cardsEl: el.querySelector('.col-cards') };
   inner.appendChild(el);
-
-  // Wire up per-column chat send
-  const colInput = el.querySelector('.col-meta-input');
-  const colBtn = el.querySelector('.col-meta-send');
-  const sendColMsg = async () => {
-    const msg = colInput.value.trim();
-    if (!msg) return;
-    colInput.value = '';
-    try {
-      await fetch('/chat/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, namespace: key })
-      });
-    } catch (err) { console.error('col chat send', err); }
-  };
-  colBtn.addEventListener('click', sendColMsg);
-  colInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendColMsg(); });
-  // META label click → open right panel (resolve job namespace to canonical meta-agent ns)
-  el.querySelector('.col-meta-label').addEventListener('click', () => mpOpen(resolveMetaNs(key)));
 
   return cols[key];
 }
@@ -2757,8 +2085,6 @@ function handleSnapshot(data) {
   applyFilter();
   if (Object.keys(jobs).length > 0) emptyState.style.display = 'none';
   if (typeof hideLoader === 'function') hideLoader();
-  window._metaAgentsData = data.metaAgents || [];
-  initMetaAgents(data.metaAgents);
   // Load swarms from snapshot
   for (const s of (data.swarms || [])) {
     swarmsState[s.swarm_id] = s;
@@ -2893,8 +2219,6 @@ function connect() {
       case 'job_update':  handleJobUpdate(evt); break;
       case 'job_new':     handleJobNew(evt); break;
       case 'job_output':  handleOutput(evt); break;
-      case 'meta_msg':    handleMetaMsg(evt); break;
-      case 'meta_status': handleMetaStatus(evt); break;
       case 'swarm_update': handleSwarmUpdate(evt); break;
     }
   };
@@ -2945,329 +2269,16 @@ async function jpSendMessage() {
   }
 }
 
-// ── Meta Agent Panel ───────────────────────────────────────────────────────
-const mpEl    = document.getElementById('metapanel');
-const mpTitle = document.getElementById('mp-title');
-const mpIcons = document.getElementById('mp-icon-strip');
-const mpChat  = document.getElementById('mp-chat');
-let mpCurrentNs = null;
-
-function mpClose() {
-  mpEl.classList.remove('open');
-  mpCurrentNs = null;
-  document.querySelectorAll('.meta-item').forEach(e => e.classList.remove('active'));
-}
-
-function mpMsgEl(msg) {
-  const isCoordinator = msg.role === 'assistant' && msg.source && msg.source !== 'claude';
-  const cssRole = isCoordinator ? 'coordinator' : (msg.role || 'assistant');
-  const div = document.createElement('div');
-  div.className = `mp-msg ${cssRole}`;
-  const ts = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
-  const bubble = document.createElement('div');
-  bubble.className = 'mp-bubble';
-  if (msg.role === 'tool') {
-    const m = (msg.content||'').match(/^\[tool\]\s+([\w:]+)/);
-    const icon = m ? (META_TOOL_ICONS[m[1].split(':').pop()] || '⚙') : '⚙';
-    const name = m ? m[1] : 'tool';
-    bubble.textContent = `${icon} ${name}`;
-  } else {
-    if (isCoordinator) {
-      const label = document.createElement('div');
-      label.className = 'mp-msg-coordinator-label';
-      label.textContent = msg.source || 'coordinator';
-      bubble.appendChild(label);
-    }
-    const text = document.createTextNode(msg.content || '');
-    bubble.appendChild(text);
-  }
-  const timeel = document.createElement('div');
-  timeel.className = 'mp-msg-time';
-  timeel.textContent = ts;
-  div.appendChild(bubble);
-  div.appendChild(timeel);
-  return div;
-}
-
-function mpAppendIcon(msg) {
-  const icon = metaMsgIcon(msg);
-  if (!icon) return;
-  const span = document.createElement('span');
-  span.className = 'mp-icon';
-  span.textContent = icon;
-  const ts = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
-  span.title = `${msg.role}${ts ? ' · ' + ts : ''}`;
-  mpIcons.appendChild(span);
-  while (mpIcons.children.length > 120) mpIcons.removeChild(mpIcons.firstChild);
-  mpIcons.scrollTop = mpIcons.scrollHeight;
-}
-
-/**
- * Resolve a job namespace (e.g. "gonzih/cc-agent") to the canonical meta-agent
- * namespace (e.g. "cc-agent") using the repoUrl stored in _metaAgentsData.
- */
-function resolveMetaNs(ns) {
-  // 1. Try to find by repoUrl match against known meta-agents
-  const found = (window._metaAgentsData || []).find(a =>
-    a.repoUrl && a.repoUrl.replace(/^https?:\/\/[^/]+\//, '') === ns
-  );
-  if (found) return found.namespace;
-  // 2. Fallback: owner/repo → repo (last segment). Works for all future repos.
-  if (ns.includes('/')) return ns.split('/').pop();
-  return ns;
-}
-
-async function mpOpen(ns) {
-  document.getElementById('jobpanel').classList.remove('open');
-  mpCurrentNs = ns;
-  mpEl.classList.add('open');
-  mpTitle.textContent = ns;
-  document.querySelectorAll('.meta-item').forEach(e => e.classList.remove('active'));
-  const si = document.querySelector(`.meta-item[data-ns="${CSS.escape(ns)}"]`);
-  if (si) si.classList.add('active');
-
-  mpIcons.innerHTML = '<span style="color:var(--dim);font-size:9px">loading…</span>';
-  mpChat.innerHTML = '<div style="color:var(--dim);font-size:10px;padding:4px">loading…</div>';
-  try {
-    const r = await fetch(`/api/meta-chat/log?ns=${encodeURIComponent(ns)}`);
-    const msgs = await r.json();
-    if (!metaState[ns]) metaState[ns] = { msgs: [] };
-    metaState[ns].msgs = msgs;
-
-    mpIcons.innerHTML = '';
-    mpChat.innerHTML = '';
-    for (const m of msgs) {
-      if (m.id) seenMsgIds.add(m.id);
-      if (m.role === 'user') recentUserMsgs.push({ content: (m.content || '').trim(), ts: Date.now() });
-      mpAppendIcon(m);
-      if (m.role !== 'tool') mpChat.appendChild(mpMsgEl(m));
-    }
-    mpChat.scrollTop = mpChat.scrollHeight;
-  } catch (e) {
-    mpIcons.innerHTML = `<span style="color:var(--red);font-size:9px">${e.message}</span>`;
-    mpChat.innerHTML = `<div style="color:var(--red);font-size:10px">${e.message}</div>`;
-  }
-  setTimeout(() => document.getElementById('mp-msg-input').focus(), 50);
-}
-
-async function mpSend() {
-  const input = document.getElementById('mp-msg-input');
-  const btn = document.getElementById('mp-msg-send');
-  const text = input.value.trim();
-  if (!text || !mpCurrentNs) return;
-  input.value = '';
-  btn.disabled = true;
-  try {
-    await fetch('/api/meta-chat/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ns: mpCurrentNs, message: text }),
-    });
-  } catch(e) { console.error('mpSend', e); }
-  finally { btn.disabled = false; input.focus(); }
-}
-
-function handleMetaMsg(data) {
-  const { ns, msg } = data;
-  if (msg.id) {
-    if (seenMsgIds.has(msg.id)) return;
-    seenMsgIds.add(msg.id);
-    if (seenMsgIds.size > 500) seenMsgIds.clear();
-  }
-  if (isRecentDuplicate(msg)) return;
-  if (!metaState[ns]) metaState[ns] = { msgs: [] };
-  metaState[ns].msgs.push(msg);
-  if (metaState[ns].msgs.length > 300) metaState[ns].msgs.shift();
-
-  // Update last-msg snippet in sidebar card
-  const si = document.querySelector(`.meta-item[data-ns="${CSS.escape(ns)}"]`);
-  if (si && msg.role !== 'tool') {
-    const lastMsgRow = si.querySelector('.mi-meta-row');
-    const snippet = (msg.content || '').slice(0, 80);
-    if (lastMsgRow) {
-      const el = lastMsgRow.querySelector('.mi-last-msg');
-      if (el) { el.textContent = snippet; el.title = snippet; }
-    } else {
-      // insert before footer
-      const footer = si.querySelector('.mi-footer');
-      const row = document.createElement('div');
-      row.className = 'mi-meta-row';
-      row.innerHTML = `<span class="mi-last-msg" title="${escHtml(snippet)}">${escHtml(snippet)}</span>`;
-      if (footer) si.insertBefore(row, footer);
-      else si.appendChild(row);
-    }
-  }
-
-  if (mpCurrentNs === ns) {
-    mpAppendIcon(msg);
-    if (msg.role !== 'tool') {
-      mpChat.appendChild(mpMsgEl(msg));
-      const atBottom = mpChat.scrollHeight - mpChat.scrollTop - mpChat.clientHeight < 60;
-      if (atBottom) mpChat.scrollTop = mpChat.scrollHeight;
-    }
-  }
-}
-
-function handleMetaStatus(data) {
-  const { ns, status } = data;
-  if (!status) return;
-  // Update the metaState cache with status fields
-  if (!metaState[ns]) metaState[ns] = { msgs: [] };
-  metaState[ns].agentStatus = status;
-
-  const si = document.querySelector(`.meta-item[data-ns="${CSS.escape(ns)}"]`);
-  if (!si) return;
-
-  // Update status dot
-  const dot = si.querySelector('.mi-dot');
-  if (dot) {
-    dot.className = `mi-dot ${status.status === 'running' ? 'running' : status.status === 'stopped' ? 'stopped' : 'unknown'}`;
-  }
-
-  // Update typing indicator
-  const top = si.querySelector('.mi-top');
-  if (top) {
-    let typingEl = top.querySelector('.mi-typing');
-    if (status.isTyping) {
-      if (!typingEl) {
-        typingEl = document.createElement('span');
-        typingEl.className = 'mi-typing';
-        typingEl.textContent = '●●●';
-        top.appendChild(typingEl);
-      }
-    } else {
-      if (typingEl) typingEl.remove();
-    }
-
-    // Update tool badge
-    let toolBadge = top.querySelector('.mi-tool-badge');
-    if (status.currentTool) {
-      if (!toolBadge) {
-        toolBadge = document.createElement('span');
-        toolBadge.className = 'mi-tool-badge';
-        // Insert before typing indicator
-        const typing = top.querySelector('.mi-typing');
-        if (typing) top.insertBefore(toolBadge, typing);
-        else top.appendChild(toolBadge);
-      }
-      toolBadge.textContent = status.currentTool;
-    } else {
-      if (toolBadge) toolBadge.remove();
-    }
-  }
-
-  // Update last message
-  if (status.lastMessage) {
-    const snippet = status.lastMessage.slice(0, 80);
-    let lastMsgRow = si.querySelector('.mi-meta-row');
-    if (lastMsgRow) {
-      const el = lastMsgRow.querySelector('.mi-last-msg');
-      if (el) { el.textContent = snippet; el.title = snippet; }
-    } else {
-      const footer = si.querySelector('.mi-footer');
-      const row = document.createElement('div');
-      row.className = 'mi-meta-row';
-      row.innerHTML = `<span class="mi-last-msg" title="${escHtml(snippet)}">${escHtml(snippet)}</span>`;
-      if (footer) si.insertBefore(row, footer);
-      else si.appendChild(row);
-    }
-  }
-
-  // Update footer (turn count + last active)
-  let footer = si.querySelector('.mi-footer');
-  if (!footer) {
-    footer = document.createElement('div');
-    footer.className = 'mi-footer';
-    si.appendChild(footer);
-  }
-  const turnEl = footer.querySelector('.mi-turn-count');
-  const activeEl = footer.querySelector('.mi-last-active');
-  if (status.turnCount != null) {
-    if (turnEl) turnEl.textContent = `${status.turnCount} turns`;
-    else { const s = document.createElement('span'); s.className = 'mi-turn-count'; s.textContent = `${status.turnCount} turns`; footer.prepend(s); }
-  }
-  if (status.lastActivity) {
-    const t = timeAgo(status.lastActivity);
-    if (activeEl) activeEl.textContent = t;
-    else { const s = document.createElement('span'); s.className = 'mi-last-active'; s.textContent = t; footer.appendChild(s); }
-  }
-}
-
-function metaItemHTML(a) {
-  const status = a.status || 'unknown';
-  const dotClass = status === 'running' ? 'running' : status === 'stopped' ? 'stopped' : 'unknown';
-  const toolBadge = a.currentTool
-    ? `<span class="mi-tool-badge">${escHtml(a.currentTool)}</span>`
-    : '';
-  const typingEl = a.isTyping
-    ? `<span class="mi-typing">●●●</span>`
-    : '';
-  const lastMsg = a.lastMessage
-    ? `<div class="mi-meta-row"><span class="mi-last-msg" title="${escHtml(a.lastMessage)}">${escHtml(a.lastMessage)}</span></div>`
-    : '';
-  const turnCount = a.turnCount != null ? `<span class="mi-turn-count">${a.turnCount} turns</span>` : '';
-  const lastActive = a.lastActivity ? `<span class="mi-last-active">${timeAgo(a.lastActivity)}</span>` : '';
-  const footer = (turnCount || lastActive)
-    ? `<div class="mi-footer">${turnCount}${lastActive}</div>`
-    : '';
-  return `
-    <div class="mi-top">
-      <div class="mi-dot ${dotClass}"></div>
-      <span class="mi-ns">${escHtml(a.namespace)}</span>
-      ${toolBadge}${typingEl}
-    </div>
-    ${lastMsg}
-    ${footer}`;
-}
-
-function renderMetaAgents(agents) {
-  const list = document.getElementById('meta-list');
-  if (!list) return;
-  if (!agents || !agents.length) {
-    list.innerHTML = '<div style="padding:8px 14px;font-size:9px;color:var(--dimmer)">none</div>';
-    return;
-  }
-  list.innerHTML = '';
-  for (const a of agents) {
-    const item = document.createElement('div');
-    item.className = 'meta-item';
-    item.dataset.ns = a.namespace;
-    item.innerHTML = metaItemHTML(a);
-    item.addEventListener('click', () => mpOpen(a.namespace));
-    list.appendChild(item);
-  }
-}
-
-function initMetaAgents(agents) {
-  renderMetaAgents(agents);
-}
-
-// Refresh relative timestamps in meta-agent cards every 30s
-setInterval(() => {
-  document.querySelectorAll('.meta-item').forEach(si => {
-    const ns = si.dataset.ns;
-    if (!ns || !metaState[ns]?.agentStatus?.lastActivity) return;
-    const el = si.querySelector('.mi-last-active');
-    if (el) el.textContent = timeAgo(metaState[ns].agentStatus.lastActivity);
-  });
-}, 30000);
-
 // Enter key submits message
 document.addEventListener('DOMContentLoaded', () => {
   $('jp-msg-input').addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); jpSendMessage(); }
-  });
-  $('mp-msg-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); mpSend(); }
   });
 });
 
 async function jpOpen(id) {
   const entry = jobs[id];
   if (!entry) return;
-  // Close meta panel if open
-  document.getElementById('metapanel')?.classList.remove('open');
-  document.querySelectorAll('.meta-item').forEach(e => e.classList.remove('active'));
   jpCurrentId = id;
   jp.classList.add('open');
 
@@ -4043,7 +3054,6 @@ connect();
 // ── Tab switching ──────────────────────────────────────────────────────────
 const mainEl      = $('main');
 const cronsPanel  = $('crons-panel');
-const chatPanel   = $('chat-panel');
 const swarmsPanel = $('swarms-panel');
 const wikiPanel   = $('wiki-panel');
 
@@ -4054,27 +3064,17 @@ function switchToTab(tab) {
   if (tab === 'jobs') {
     mainEl.style.display = 'flex';
     cronsPanel.classList.remove('active');
-    chatPanel.classList.remove('active');
     swarmsPanel.classList.remove('active');
     wikiPanel.classList.remove('active');
   } else if (tab === 'crons') {
     mainEl.style.display = 'none';
     cronsPanel.classList.add('active');
-    chatPanel.classList.remove('active');
     swarmsPanel.classList.remove('active');
     wikiPanel.classList.remove('active');
     cronLoad();
-  } else if (tab === 'chat') {
-    mainEl.style.display = 'none';
-    cronsPanel.classList.remove('active');
-    chatPanel.classList.add('active');
-    swarmsPanel.classList.remove('active');
-    wikiPanel.classList.remove('active');
-    chatInit();
   } else if (tab === 'swarms') {
     mainEl.style.display = 'none';
     cronsPanel.classList.remove('active');
-    chatPanel.classList.remove('active');
     swarmsPanel.classList.add('active');
     wikiPanel.classList.remove('active');
     swarmLoad();
@@ -4082,7 +3082,6 @@ function switchToTab(tab) {
   } else if (tab === 'wiki') {
     mainEl.style.display = 'none';
     cronsPanel.classList.remove('active');
-    chatPanel.classList.remove('active');
     swarmsPanel.classList.remove('active');
     wikiPanel.classList.add('active');
     wikiLoad();
@@ -4094,9 +3093,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => switchToTab(btn.dataset.tab));
 });
 
-// Namespace label in meta-bar → navigate to Chat tab
-const metaBarNs = document.getElementById('meta-bar-ns');
-if (metaBarNs) metaBarNs.addEventListener('click', () => switchToTab('chat'));
 
 // ── Crons ─────────────────────────────────────────────────────────────────
 let cronPollTimer = null;
@@ -4234,252 +3230,6 @@ setInterval(() => {
   if (cronsPanel.classList.contains('active')) cronLoad();
 }, 10000);
 
-// ── Chat ─────────────────────────────────────────────────────────────────
-let chatInitialized = false;
-let chatSSE = null;
-
-function escHtmlChat(s) { return escHtml(s); }
-
-function chatMsgEl(msg) {
-  const isUser = msg.role === 'user';
-  const isTool = msg.role === 'tool';
-  const isTg   = msg.source === 'telegram';
-  const isCoordinator = !isUser && !isTool && msg.source && msg.source !== 'claude';
-  const div = document.createElement('div');
-  div.dataset.id = msg.id || '';
-  const ts = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : '';
-
-  if (isTool) {
-    div.className = 'chat-msg tool';
-    const content = msg.content || '';
-    const m = content.match(/^\[tool\]\s+([\w-]+):\s+(\{.*\})$/s);
-
-    const bubble = document.createElement('div');
-    bubble.className = 'chat-bubble';
-
-    const header = document.createElement('div');
-    header.className = 'chat-tool-header';
-
-    const chevron = document.createElement('span');
-    chevron.className = 'chat-tool-chevron';
-    chevron.textContent = '▶';
-
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'chat-tool-name';
-
-    const body = document.createElement('div');
-    body.className = 'chat-tool-body';
-
-    if (m) {
-      nameSpan.textContent = `[tool] ${m[1]}`;
-      try {
-        const args = JSON.parse(m[2]);
-        for (const [k, v] of Object.entries(args)) {
-          // DO NOT TRUNCATE. Full value always. Objects → JSON, primitives → string.
-          const val = (v !== null && typeof v === 'object') ? JSON.stringify(v, null, 2) : String(v);
-          const row = document.createElement('div');
-          row.innerHTML = `<span class="chat-tool-arg">${escHtml(k)}:</span><pre class="chat-tool-val">${escHtml(val)}</pre>`;
-          body.appendChild(row);
-        }
-      } catch {
-        const row = document.createElement('div');
-        row.innerHTML = `<span class="chat-tool-val">${escHtml(m[2])}</span>`;
-        body.appendChild(row);
-      }
-    } else {
-      nameSpan.textContent = '[tool]';
-      const row = document.createElement('div');
-      row.innerHTML = `<span class="chat-tool-val">${escHtml(content)}</span>`;
-      body.appendChild(row);
-    }
-
-    header.appendChild(chevron);
-    header.appendChild(nameSpan);
-    header.addEventListener('click', () => {
-      const open = body.classList.toggle('open');
-      chevron.classList.toggle('open', open);
-    });
-
-    bubble.appendChild(header);
-    bubble.appendChild(body);
-
-    const meta = document.createElement('div');
-    meta.className = 'chat-msg-meta';
-    meta.textContent = ts;
-
-    div.appendChild(bubble);
-    div.appendChild(meta);
-  } else {
-    const roleClass = isUser ? 'user' : (isCoordinator ? 'coordinator' : 'assistant');
-    div.className = `chat-msg ${roleClass}`;
-    const coordinatorBadge = isCoordinator
-      ? `<span class="chat-badge-coordinator">↗ ${escHtml(msg.source || 'coordinator')}</span>`
-      : '';
-    div.innerHTML = `
-      <div class="chat-bubble">${escHtml(msg.content || '')}</div>
-      <div class="chat-msg-meta">
-        ${ts}
-        ${isTg ? '<span class="chat-badge-tg">📱 Telegram</span>' : ''}
-        ${coordinatorBadge}
-      </div>`;
-  }
-  return div;
-}
-
-function chatAppend(msg) {
-  const messagesEl = $('chat-messages');
-  const el = chatMsgEl(msg);
-  messagesEl.appendChild(el);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
-async function chatInit() {
-  if (chatInitialized) return;
-  chatInitialized = true;
-
-  // Load history
-  try {
-    const r = await fetch('/chat/history');
-    if (r.ok) {
-      const msgs = await r.json();
-      const messagesEl = $('chat-messages');
-      messagesEl.innerHTML = '';
-      for (const m of msgs) chatAppend(m);
-    }
-  } catch (e) { console.error('chat history', e); }
-
-  // SSE subscription to cca:chat:outgoing:{ns} (server-side).
-  // Protocol: messages are published by cc-tg after an 800ms debounce from the last Claude chunk.
-  chatSSE = new EventSource('/chat/stream');
-  chatSSE.onmessage = e => {
-    try {
-      const msg = JSON.parse(e.data);
-      // Deduplicate: skip if we already have this id (sent by us)
-      if (msg.id && document.querySelector(`[data-id="${CSS.escape(msg.id)}"]`)) return;
-      chatAppend(msg);
-      handleChatEvent(e.data);
-    } catch {}
-  };
-  chatSSE.onerror = () => { console.warn('chat SSE disconnected, will retry'); };
-
-  const ta = $('chat-textarea');
-  ta.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); chatSend(); }
-  });
-}
-
-
-async function chatSend() {
-  const ta = $('chat-textarea');
-  const message = ta.value.trim();
-  if (!message) return;
-  const btn = $('chat-send-btn');
-  btn.disabled = true;
-  const driver = $('chat-driver')?.value?.trim();
-  const model = $('chat-model')?.value?.trim();
-  const payload = { message };
-  if (driver) payload.agent_driver = driver;
-  if (model) payload.agent_model = model;
-  try {
-    const r = await fetch('/chat/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!r.ok) throw new Error(await r.text());
-    await r.json();
-    ta.value = '';
-  } catch (e) {
-    alert('Error sending message: ' + e.message);
-  } finally {
-    btn.disabled = false;
-    ta.focus();
-  }
-}
-
-// ── Meta-agent bar ─────────────────────────────────────────────────────────
-let primaryNamespace = '';
-
-async function initMetaBar() {
-  try {
-    const cfg = await fetch('/api/config').then(r => r.json());
-    primaryNamespace = cfg.namespace || '';
-    const nsEl = document.getElementById('meta-bar-ns');
-    if (nsEl && primaryNamespace) nsEl.textContent = `★ ${primaryNamespace}`;
-  } catch {}
-  await loadMetaBarHistory();
-}
-
-async function loadMetaBarHistory() {
-  if (!primaryNamespace) return;
-  try {
-    const msgs = await fetch(`/chat/history?namespace=${encodeURIComponent(primaryNamespace)}`).then(r => r.json());
-    const container = document.getElementById('meta-bar-messages');
-    if (!container) return;
-    container.innerHTML = '';
-    const last5 = msgs.slice(-5);
-    for (const m of last5) appendMetaMsg(m);
-  } catch {}
-}
-
-function appendMetaMsg(msg) {
-  const container = document.getElementById('meta-bar-messages');
-  if (!container) return;
-  const isCoordinator = msg.role === 'assistant' && msg.source && msg.source !== 'claude';
-  const cssRole = isCoordinator ? 'coordinator' : (msg.role || 'assistant');
-  const div = document.createElement('div');
-  div.className = `meta-msg ${cssRole}`;
-  div.textContent = isCoordinator ? `[${msg.source}] ${msg.content || ''}` : (msg.content || '');
-  div.title = msg.content || '';
-  container.appendChild(div);
-  // Keep last 5
-  while (container.children.length > 5) container.removeChild(container.firstChild);
-}
-
-document.getElementById('meta-bar-send').addEventListener('click', sendMetaMsg);
-document.getElementById('meta-bar-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') sendMetaMsg();
-});
-
-async function sendMetaMsg() {
-  const input = document.getElementById('meta-bar-input');
-  const msg = input.value.trim();
-  if (!msg) return;
-  input.value = '';
-  try {
-    await fetch('/chat/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, namespace: primaryNamespace })
-    });
-  } catch (err) { console.error('meta-bar send', err); }
-}
-
-// Route SSE chat events to meta-bar or per-column chat
-function handleChatEvent(data) {
-  try {
-    const parsed = JSON.parse(data);
-    const ns = parsed.namespace || primaryNamespace;
-    if (!primaryNamespace || ns === primaryNamespace) {
-      appendMetaMsg(parsed);
-    }
-    // Also update per-column chat if the column exists
-    const safeNs = ns.replace(/[^a-z0-9]/gi, '-');
-    const colChat = document.getElementById(`col-meta-msgs-${safeNs}`);
-    if (colChat) {
-      const isCoordinator = parsed.role === 'assistant' && parsed.source && parsed.source !== 'claude';
-      const d = document.createElement('div');
-      d.className = `meta-msg ${isCoordinator ? 'coordinator' : (parsed.role || 'assistant')}`;
-      d.textContent = isCoordinator ? `[${parsed.source}] ${parsed.content || ''}` : (parsed.content || '');
-      d.title = parsed.content || '';
-      colChat.appendChild(d);
-      while (colChat.children.length > 3) colChat.removeChild(colChat.firstChild);
-    }
-  } catch {}
-}
-
-initMetaBar();
-
 // ── Version badge ─────────────────────────────────────────────────────────
 async function fetchVersions() {
   try {
@@ -4495,64 +3245,12 @@ async function fetchVersions() {
     badge.innerHTML = [
       fmt('ui', v['cc-agent-ui'] || 'unknown'),
       fmt('agent', v['cc-agent'] || 'unknown'),
-      fmt('tg', v['cc-tg'] || 'unknown'),
     ].join(' &nbsp;');
   } catch {}
 }
 fetchVersions();
 setInterval(fetchVersions, 60000);
 
-// ── Sidebar resizer ────────────────────────────────────────────────────────
-(function() {
-  const resizer = document.getElementById('sidebar-resizer');
-  const metaSection = document.getElementById('meta-section');
-  const sidebar = document.getElementById('sidebar');
-  if (!resizer || !metaSection || !sidebar) return;
-
-  const STORAGE_KEY = 'cc-agent-ui:meta-section-height';
-  const DEFAULT_HEIGHT = 220;
-  const MIN_HEIGHT = 80;
-
-  // Restore saved height
-  const saved = parseInt(localStorage.getItem(STORAGE_KEY), 10);
-  if (saved && saved >= MIN_HEIGHT) {
-    metaSection.style.height = saved + 'px';
-  } else {
-    metaSection.style.height = DEFAULT_HEIGHT + 'px';
-  }
-
-  let startY = 0;
-  let startHeight = 0;
-  let dragging = false;
-
-  resizer.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    dragging = true;
-    startY = e.clientY;
-    startHeight = metaSection.offsetHeight;
-    resizer.classList.add('dragging');
-    document.body.style.cursor = 'ns-resize';
-    document.body.style.userSelect = 'none';
-  });
-
-  document.addEventListener('mousemove', (e) => {
-    if (!dragging) return;
-    const delta = startY - e.clientY; // drag up = bigger meta section
-    const sidebarH = sidebar.offsetHeight;
-    const maxHeight = sidebarH - MIN_HEIGHT - 60; // leave room for job-list and header
-    const newHeight = Math.max(MIN_HEIGHT, Math.min(maxHeight, startHeight + delta));
-    metaSection.style.height = newHeight + 'px';
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (!dragging) return;
-    dragging = false;
-    resizer.classList.remove('dragging');
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-    localStorage.setItem(STORAGE_KEY, metaSection.offsetHeight);
-  });
-})();
 </script>
 </body>
 </html>

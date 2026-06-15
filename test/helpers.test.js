@@ -7,11 +7,9 @@ import {
   getJobIds,
   fetchJob,
   fetchJobs,
-  fetchMetaStatus,
   getOutputTail,
   pollNewOutput,
   getSwarms,
-  cleanGhostChatLogs,
 } from '../lib/helpers.js';
 
 // ── Mock redis factory ────────────────────────────────────────────────────────
@@ -172,32 +170,6 @@ describe('fetchJobs', () => {
     const result = await fetchJobs(redis, ['bad', 'ok']);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('ok');
-  });
-});
-
-// ── fetchMetaStatus ───────────────────────────────────────────────────────────
-
-describe('fetchMetaStatus', () => {
-  it('returns null when key missing', async () => {
-    const redis = makeMockRedis({ get: vi.fn().mockResolvedValue(null) });
-    expect(await fetchMetaStatus(redis, 'ns')).toBe(null);
-  });
-
-  it('returns parsed status object', async () => {
-    const status = { status: 'running', currentTool: 'Read' };
-    const redis = makeMockRedis({ get: vi.fn().mockResolvedValue(JSON.stringify(status)) });
-    const result = await fetchMetaStatus(redis, 'ns');
-    expect(result).toEqual(status);
-  });
-
-  it('returns null on invalid JSON', async () => {
-    const redis = makeMockRedis({ get: vi.fn().mockResolvedValue('{bad}') });
-    expect(await fetchMetaStatus(redis, 'ns')).toBe(null);
-  });
-
-  it('returns null when redis.get throws', async () => {
-    const redis = makeMockRedis({ get: vi.fn().mockRejectedValue(new Error('conn refused')) });
-    expect(await fetchMetaStatus(redis, 'ns')).toBe(null);
   });
 });
 
@@ -418,64 +390,3 @@ describe('getSwarms', () => {
   });
 });
 
-// ── cleanGhostChatLogs ────────────────────────────────────────────────────────
-
-describe('cleanGhostChatLogs', () => {
-  it('does nothing when no chat log keys', async () => {
-    const redis = makeMockRedis({ keys: vi.fn().mockResolvedValue([]) });
-    await cleanGhostChatLogs(redis);
-    expect(redis.del).not.toHaveBeenCalled();
-  });
-
-  it('skips the default namespace key', async () => {
-    const redis = makeMockRedis({
-      keys: vi.fn().mockResolvedValue(['cca:chat:log:default']),
-      sMembers: vi.fn().mockResolvedValue([]),
-    });
-    await cleanGhostChatLogs(redis);
-    expect(redis.del).not.toHaveBeenCalled();
-  });
-
-  it('skips canonical namespaces (no slash)', async () => {
-    const redis = makeMockRedis({
-      keys: vi.fn().mockResolvedValue(['cca:chat:log:money-brain']),
-      sMembers: vi.fn().mockResolvedValue(['money-brain']),
-    });
-    await cleanGhostChatLogs(redis);
-    expect(redis.del).not.toHaveBeenCalled();
-  });
-
-  it('skips owner/repo namespaces that are in canonical set', async () => {
-    const redis = makeMockRedis({
-      keys: vi.fn().mockResolvedValue(['cca:chat:log:gonzih/cc-agent']),
-      sMembers: vi.fn().mockResolvedValue(['gonzih/cc-agent']),
-    });
-    await cleanGhostChatLogs(redis);
-    expect(redis.del).not.toHaveBeenCalled();
-  });
-
-  it('deletes ghost owner/repo keys not in canonical set', async () => {
-    const redis = makeMockRedis({
-      keys: vi.fn().mockResolvedValue(['cca:chat:log:ghost/repo']),
-      sMembers: vi.fn().mockResolvedValue([]),
-      del: vi.fn().mockResolvedValue(1),
-    });
-    await cleanGhostChatLogs(redis);
-    expect(redis.del).toHaveBeenCalledOnce();
-  });
-
-  it('does not delete non-slash namespaces even if not in canonical set', async () => {
-    const redis = makeMockRedis({
-      keys: vi.fn().mockResolvedValue(['cca:chat:log:unknown-ns']),
-      sMembers: vi.fn().mockResolvedValue([]),
-    });
-    await cleanGhostChatLogs(redis);
-    // 'unknown-ns' doesn't include '/' → not deleted
-    expect(redis.del).not.toHaveBeenCalled();
-  });
-
-  it('handles Redis error gracefully', async () => {
-    const redis = makeMockRedis({ keys: vi.fn().mockRejectedValue(new Error('fail')) });
-    await expect(cleanGhostChatLogs(redis)).resolves.toBeUndefined();
-  });
-});
