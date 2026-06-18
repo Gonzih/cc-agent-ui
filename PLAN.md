@@ -1,37 +1,44 @@
-# Plan: Wiki Tab — per-repo LLM knowledge base browser
+# Plan: Meta Agents Tab — Discord-like live streaming view
 
 ## Task restatement
 
-Add a browsable/editable "Wiki" tab to cc-agent-ui that reads from Redis HASH keys
-(`cca:wiki:{repo_slug}`) written by cc-agent. The tab shows a repo list on the left,
-a page list in the middle, and markdown content on the right with inline editing.
+Add a "Meta Agents" tab as the first/primary tab with a Discord-like two-panel layout:
+- Left panel: namespace list (like Discord channel list) from Redis
+- Right panel: streaming log for selected namespace via SSE + Redis pub/sub
 
-## Redis key schema
-
-- `cca:wiki:{repo_slug}` → Redis HASH  (field=page_name, value=markdown string)
-- `cca:wiki:{repo_slug}:updated` → String (ISO timestamp of last update)
-
-These are NOT in @gonzih/cc-wire yet — define as local key helpers in server.js.
+Restructure nav: Meta Agents → Jobs → Crons. Remove/hide Swarms button. Keep Wiki.
 
 ## Approach
 
-Single PR that touches: server.js (5 new API routes), public/index.html (tab + panel + CSS + JS),
-test/helpers/redis-mock.js (hash commands), test/data-access.test.js (wiki test suite).
+Single PR touching server.js (2 new endpoints) and public/index.html (CSS + HTML + JS).
 
-No new files created for routes — follow existing inline-handler pattern in server.js.
-No heavy markdown dep — use `<pre>` for display since content is agent-generated markdown.
-A simple marked.js CDN include for basic rendering is acceptable per the spec.
+**Server-side additions:**
+1. `GET /api/meta-agents` — list namespaces from:
+   - `cca:discord:channels:index` (set of channel IDs) → `cca:discord:channel:{id}` (HASH → `namespace` field)  
+   - Fallback: scan `cca:meta:*:heartbeat` keys
+   - Include `lastActive` from `cca:meta:{ns}:heartbeat`
+2. `GET /api/meta-agents/{ns}/stream` — SSE endpoint mirroring `/api/jobs/{id}/stream`:
+   - History: `LRANGE cca:meta:{ns}:log 0 199`
+   - Live: subscribe to `cca:meta:{ns}:stream` pub/sub channel
+
+**Client-side additions:**
+- CSS: Meta agents panel, namespace list (Discord-like), stream view, message type colors
+- HTML: `#meta-agents-panel` with `#ma-ns-list` (left) + `#ma-stream` (right)
+- JS: `metaLoad()`, `metaSelectNs(ns)`, message classification, SSE lifecycle, tab integration
+
+**Message classification (from JSON chunks `{ ts, ns, text }` or raw text):**
+- Tool calls (contains "Tool:", "Running", JSON patterns) → blue/purple, monospace, subtle tint
+- System events (session started, /compact, /clear, cc-agent prefix) → gray italic
+- Assistant text → normal light text
 
 ## Files touched
 
-1. `server.js` — add wikiKey() helpers + 5 API endpoints
-2. `public/index.html` — Wiki tab button, CSS, HTML panel, JS functions
-3. `test/helpers/redis-mock.js` — add hGetAll/hGet/hSet/hDel/hKeys/hLen
-4. `test/data-access.test.js` — wiki endpoint test suite appended at end
+1. `server.js` — 2 new REST/SSE endpoints
+2. `public/index.html` — CSS (meta panel styles), HTML (panel markup), JS (meta tab logic)
 
 ## Risks
 
-- server.js already imports `swarmKey` without declaring it in imports — this is a pre-existing bug I should not touch
-- Redis hash commands not in mock — need to add them carefully
-- UI: the index.html is large (~3700 lines); need precise insertions
-- Slug validation: only allow `[a-zA-Z0-9_.-]` chars to prevent injection
+- `redis.keys('cca:meta:*:heartbeat')` is O(N) but fine for dev/small deployments
+- SSE unsubscribe: must call `sub.disconnect()` on req close (same as job stream pattern)
+- Namespace param needs validation to prevent Redis key injection
+- Wiki tab: keep it (not in restructure requirement = keep as-is)

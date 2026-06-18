@@ -1363,6 +1363,152 @@ body {
   flex: 1; display: flex; align-items: center; justify-content: center;
   color: var(--dim); font-size: 11px;
 }
+
+/* ── Meta Agents Panel ─────────────────────────────────────────────────────── */
+#meta-agents-panel {
+  display: none;
+  flex: 1;
+  flex-direction: row;
+  overflow: hidden;
+}
+#meta-agents-panel.active { display: flex; }
+
+/* Left: namespace list (Discord channel list style) */
+#ma-ns-panel {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+#ma-ns-header {
+  padding: 12px 14px 8px;
+  font-size: 9px; font-weight: 700; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.1em;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+#ma-ns-header .ma-header-icon { color: var(--purple); font-size: 11px; }
+#ma-ns-list {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+#ma-ns-list::-webkit-scrollbar { width: 4px; }
+#ma-ns-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.ma-ns-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.12s;
+  position: relative;
+}
+.ma-ns-item:hover { background: rgba(255,255,255,0.03); }
+.ma-ns-item.active { background: rgba(198,120,221,0.08); }
+.ma-ns-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px; background: var(--purple);
+}
+.ma-ns-icon {
+  font-size: 13px; flex-shrink: 0; width: 18px; text-align: center; color: var(--dim);
+}
+.ma-ns-item.active .ma-ns-icon { color: var(--purple); }
+.ma-ns-name {
+  flex: 1; font-size: 11px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ma-ns-item.active .ma-ns-name { color: var(--purple); }
+.ma-ns-status {
+  font-size: 9px; color: var(--dim); flex-shrink: 0; white-space: nowrap;
+}
+.ma-ns-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--dimmer); flex-shrink: 0;
+  transition: background 0.3s;
+}
+.ma-ns-dot.live { background: var(--green); box-shadow: 0 0 5px var(--green); animation: breathe 2s ease-in-out infinite; }
+.ma-ns-empty {
+  padding: 16px 14px; font-size: 11px; color: var(--dim); line-height: 1.6;
+}
+
+/* Right: stream view */
+#ma-stream-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+#ma-stream-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--sidebar-bg);
+  flex-shrink: 0;
+  min-height: 40px;
+}
+#ma-stream-ns {
+  font-size: 12px; font-weight: 700; color: var(--purple);
+}
+#ma-stream-status {
+  font-size: 10px; color: var(--dim);
+}
+#ma-stream-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--dimmer); flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+#ma-stream-dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); }
+#ma-no-ns {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  color: var(--dim); font-size: 12px; flex-direction: column; gap: 8px;
+}
+#ma-no-ns .ma-no-ns-icon { font-size: 32px; color: var(--dimmer); }
+#ma-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  font-size: 11px;
+  line-height: 1.7;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  display: none;
+  font-family: var(--font);
+}
+#ma-log::-webkit-scrollbar { width: 4px; }
+#ma-log::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 2px; }
+
+/* Meta log line types */
+.ma-line { white-space: pre-wrap; word-break: break-all; display: block; padding: 1px 0; }
+.ma-line-tool {
+  color: var(--blue);
+  opacity: 0.85;
+  font-size: 10px;
+  background: rgba(97,175,239,0.05);
+  border-left: 2px solid rgba(97,175,239,0.25);
+  padding-left: 8px; margin-left: -10px;
+}
+.ma-line-sys {
+  color: var(--dim);
+  font-style: italic;
+  font-size: 10px;
+}
+.ma-line-ts {
+  color: var(--dimmer);
+  font-size: 9px;
+  margin-right: 5px;
+  user-select: none;
+}
+.ma-line-new { animation: fadein 0.3s ease-out; }
 </style>
 </head>
 <body>
@@ -1381,9 +1527,9 @@ body {
   </div>
   <div class="topbar-sep"></div>
   <div id="tab-nav">
+    <button class="tab-btn" data-tab="meta-agents">Meta Agents</button>
     <button class="tab-btn active" data-tab="jobs">Jobs</button>
     <button class="tab-btn" data-tab="crons">Crons</button>
-    <button class="tab-btn" data-tab="swarms">Swarms</button>
     <button class="tab-btn" data-tab="wiki">Wiki</button>
   </div>
   <div class="topbar-sep"></div>
@@ -1436,6 +1582,29 @@ body {
     <div id="zoom-hint">100%</div>
   </div>
 
+</div>
+
+<!-- Meta Agents Panel -->
+<div id="meta-agents-panel">
+  <div id="ma-ns-panel">
+    <div id="ma-ns-header">
+      <span class="ma-header-icon">◈</span>
+      Meta Agents
+    </div>
+    <div id="ma-ns-list"><div class="ma-ns-empty">Loading…</div></div>
+  </div>
+  <div id="ma-stream-panel">
+    <div id="ma-stream-header" style="display:none">
+      <div id="ma-stream-dot"></div>
+      <span id="ma-stream-ns">—</span>
+      <span id="ma-stream-status"></span>
+    </div>
+    <div id="ma-no-ns">
+      <div class="ma-no-ns-icon">◈</div>
+      <span>Select a namespace to view its live output</span>
+    </div>
+    <div id="ma-log"></div>
+  </div>
 </div>
 
 <!-- Crons Panel -->
@@ -3049,43 +3218,196 @@ function wikiStartPolling() {
   }, 30000);
 }
 
+// ── Meta Agents ────────────────────────────────────────────────────────────
+let maSelectedNs = null;
+let maSSE = null;
+
+function maCloseSSE() {
+  if (maSSE) { maSSE.close(); maSSE = null; }
+  const dot = $('ma-stream-dot');
+  if (dot) dot.className = '';
+}
+
+function maClassifyLine(text) {
+  if (!text) return 'ma-line';
+  const s = text.trim();
+  // Tool call patterns
+  if (/^(Tool:|Running tool|Using tool|\[tool\]|Read|Edit|Write|Bash|Glob|Grep|WebFetch|WebSearch|Agent|MultiEdit|NotebookEdit)\b/.test(s)) return 'ma-line ma-line-tool';
+  if (/\{.*"type"\s*:\s*"tool_use"/.test(s)) return 'ma-line ma-line-tool';
+  // System events
+  if (/^(Session (started|ended)|\/compact|\/clear|\[cc-agent\]|\[system\]|cc-agent:|Human:|Tool result:)/i.test(s)) return 'ma-line ma-line-sys';
+  if (/^(Thinking\.\.\.|Processing\.\.\.|Awaiting|Initializing|Starting session)/.test(s)) return 'ma-line ma-line-sys';
+  return 'ma-line';
+}
+
+function maAppendEntry(logEl, raw, isNew) {
+  let text = raw;
+  let ts = null;
+  // Try to parse JSON { ts, ns, text } or { ts, text }
+  try {
+    const obj = JSON.parse(raw);
+    if (obj && typeof obj.text === 'string') {
+      text = obj.text;
+      ts = obj.ts || null;
+    }
+  } catch {}
+
+  const lines = text.split('\n');
+  const frag = document.createDocumentFragment();
+  for (const line of lines) {
+    if (!line && lines.length > 1) continue; // skip blank lines within multi-line
+    const d = document.createElement('div');
+    const cls = maClassifyLine(line);
+    d.className = isNew ? cls + ' ma-line-new' : cls;
+    const tsHtml = ts ? `<span class="ma-line-ts">${new Date(ts).toLocaleTimeString()}</span>` : '';
+    d.innerHTML = tsHtml + escHtml(line);
+    if (isNew) setTimeout(() => d.classList.remove('ma-line-new'), 1500);
+    frag.appendChild(d);
+  }
+
+  const atBottom = logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 60;
+  logEl.appendChild(frag);
+  while (logEl.children.length > 600) logEl.removeChild(logEl.firstChild);
+  if (atBottom) logEl.scrollTop = logEl.scrollHeight;
+}
+
+async function metaSelectNs(ns) {
+  maCloseSSE();
+  maSelectedNs = ns;
+
+  // Update namespace list active state
+  document.querySelectorAll('.ma-ns-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.ns === ns);
+  });
+
+  const streamHeader = $('ma-stream-header');
+  const noNs = $('ma-no-ns');
+  const logEl = $('ma-log');
+  const nsLabel = $('ma-stream-ns');
+  const statusEl = $('ma-stream-status');
+  const dot = $('ma-stream-dot');
+
+  streamHeader.style.display = 'flex';
+  noNs.style.display = 'none';
+  logEl.style.display = 'block';
+  logEl.innerHTML = '';
+  nsLabel.textContent = ns;
+  statusEl.textContent = 'connecting…';
+  dot.className = '';
+
+  let sseReady = false;
+  maSSE = new EventSource(`/api/meta-agents/${encodeURIComponent(ns)}/stream`);
+
+  maSSE.addEventListener('ready', () => {
+    sseReady = true;
+    statusEl.textContent = 'live';
+    dot.className = 'live';
+  });
+
+  maSSE.onmessage = e => {
+    try {
+      const raw = JSON.parse(e.data);
+      maAppendEntry(logEl, raw, sseReady);
+    } catch {
+      maAppendEntry(logEl, e.data, sseReady);
+    }
+  };
+
+  maSSE.onerror = () => {
+    statusEl.textContent = 'disconnected';
+    dot.className = '';
+    maCloseSSE();
+  };
+}
+
+async function metaLoad() {
+  const listEl = $('ma-ns-list');
+  if (!listEl) return;
+  try {
+    const r = await fetch('/api/meta-agents');
+    if (!r.ok) throw new Error(await r.text());
+    const { namespaces } = await r.json();
+    listEl.innerHTML = '';
+    if (!namespaces.length) {
+      listEl.innerHTML = '<div class="ma-ns-empty">No meta agents found. Start cc-agent to see namespaces here.</div>';
+      return;
+    }
+    for (const entry of namespaces) {
+      const ns = entry.namespace;
+      const el = document.createElement('div');
+      el.className = 'ma-ns-item' + (maSelectedNs === ns ? ' active' : '');
+      el.dataset.ns = ns;
+
+      // Determine "live" state: last active within 2 minutes
+      const lastTs = entry.lastActive ? new Date(entry.lastActive) : null;
+      const isLive = lastTs && (Date.now() - lastTs.getTime() < 120000);
+      const statusText = lastTs ? timeAgo(entry.lastActive) : 'no heartbeat';
+
+      el.innerHTML = `
+        <div class="ma-ns-dot${isLive ? ' live' : ''}"></div>
+        <span class="ma-ns-name">${escHtml(ns)}</span>
+        <span class="ma-ns-status">${escHtml(statusText)}</span>
+      `;
+      el.addEventListener('click', () => metaSelectNs(ns));
+      listEl.appendChild(el);
+    }
+    // If a namespace was selected before, re-select it to refresh dot state
+    if (maSelectedNs && !document.querySelector(`.ma-ns-item[data-ns="${maSelectedNs}"]`)) {
+      maSelectedNs = null;
+    }
+  } catch (e) {
+    listEl.innerHTML = `<div class="ma-ns-empty" style="color:var(--red)">Error: ${escHtml(e.message)}</div>`;
+  }
+}
+
 connect();
 
 // ── Tab switching ──────────────────────────────────────────────────────────
-const mainEl      = $('main');
-const cronsPanel  = $('crons-panel');
-const swarmsPanel = $('swarms-panel');
-const wikiPanel   = $('wiki-panel');
+const mainEl           = $('main');
+const cronsPanel       = $('crons-panel');
+const swarmsPanel      = $('swarms-panel');
+const wikiPanel        = $('wiki-panel');
+const metaAgentsPanel  = $('meta-agents-panel');
+
+let metaPollTimer = null;
 
 function switchToTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === tab);
   });
+  // Hide all panels first
+  mainEl.style.display = 'none';
+  cronsPanel.classList.remove('active');
+  swarmsPanel.classList.remove('active');
+  wikiPanel.classList.remove('active');
+  metaAgentsPanel.classList.remove('active');
+
   if (tab === 'jobs') {
     mainEl.style.display = 'flex';
-    cronsPanel.classList.remove('active');
-    swarmsPanel.classList.remove('active');
-    wikiPanel.classList.remove('active');
   } else if (tab === 'crons') {
-    mainEl.style.display = 'none';
     cronsPanel.classList.add('active');
-    swarmsPanel.classList.remove('active');
-    wikiPanel.classList.remove('active');
     cronLoad();
   } else if (tab === 'swarms') {
-    mainEl.style.display = 'none';
-    cronsPanel.classList.remove('active');
     swarmsPanel.classList.add('active');
-    wikiPanel.classList.remove('active');
     swarmLoad();
     swarmStartPolling();
   } else if (tab === 'wiki') {
-    mainEl.style.display = 'none';
-    cronsPanel.classList.remove('active');
-    swarmsPanel.classList.remove('active');
     wikiPanel.classList.add('active');
     wikiLoad();
     wikiStartPolling();
+  } else if (tab === 'meta-agents') {
+    metaAgentsPanel.classList.add('active');
+    metaLoad();
+    if (!metaPollTimer) {
+      metaPollTimer = setInterval(() => {
+        if (!metaAgentsPanel.classList.contains('active')) {
+          clearInterval(metaPollTimer);
+          metaPollTimer = null;
+          return;
+        }
+        metaLoad();
+      }, 15000);
+    }
   }
 }
 

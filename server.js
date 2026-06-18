@@ -419,6 +419,100 @@ const server = http.createServer((req, res) => {
       } catch (e) { res.writeHead(500); res.end(e.message); }
     });
 
+  } else if (url.pathname === '/api/meta-agents' && req.method === 'GET') {
+    (async () => {
+      try {
+        const nsMap = new Map();
+        // Primary source: cca:discord:channels:index
+        try {
+          const channelIds = await redis.sMembers('cca:discord:channels:index');
+          for (const id of channelIds) {
+            const h = await redis.hGetAll(`cca:discord:channel:${id}`);
+            if (h && h.namespace) {
+              const lastActive = await redis.get(`cca:meta:${h.namespace}:heartbeat`).catch(() => null);
+              nsMap.set(h.namespace, { namespace: h.namespace, lastActive: lastActive || null, channelId: id });
+            }
+          }
+        } catch {}
+        // Fallback: scan cca:meta:*:heartbeat keys
+        const hbKeys = await redis.keys('cca:meta:*:heartbeat').catch(() => []);
+        for (const k of hbKeys) {
+          const ns = k.slice('cca:meta:'.length, k.length - ':heartbeat'.length);
+          if (!nsMap.has(ns)) {
+            const lastActive = await redis.get(k).catch(() => null);
+            nsMap.set(ns, { namespace: ns, lastActive: lastActive || null });
+          }
+        }
+        const namespaces = Array.from(nsMap.values()).sort((a, b) => {
+          // Sort by lastActive desc, then namespace name
+          if (a.lastActive && b.lastActive) return new Date(b.lastActive) - new Date(a.lastActive);
+          if (a.lastActive) return -1;
+          if (b.lastActive) return 1;
+          return a.namespace.localeCompare(b.namespace);
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ namespaces }));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    })();
+
+  } else if (/^\/api\/meta-agents\/([^/]+)\/log$/.test(url.pathname) && req.method === 'GET') {
+    const ns = decodeURIComponent(url.pathname.match(/^\/api\/meta-agents\/([^/]+)\/log$/)[1]);
+    if (!validSlug(ns)) { res.writeHead(400); res.end('invalid namespace'); return; }
+    (async () => {
+      try {
+        const lines = await redis.lRange(`cca:meta:${ns}:log`, -200, -1);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ lines }));
+      } catch (e) { res.writeHead(500); res.end(e.message); }
+    })();
+
+  } else if (/^\/api\/meta-agents\/([^/]+)\/stream$/.test(url.pathname)) {
+    // SSE: stream meta-agent output for a namespace
+    const ns = decodeURIComponent(url.pathname.match(/^\/api\/meta-agents\/([^/]+)\/stream$/)[1]);
+    if (!validSlug(ns)) { res.writeHead(400); res.end('invalid namespace'); return; }
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    });
+    res.write('retry: 3000\n\n');
+
+    let closed = false;
+    let sub = null;
+
+    req.on('close', async () => {
+      closed = true;
+      if (sub) { try { await sub.disconnect(); } catch {} sub = null; }
+    });
+
+    (async () => {
+      try {
+        // Send last 200 history lines
+        const lines = await redis.lRange(`cca:meta:${ns}:log`, -200, -1);
+        for (const line of lines) {
+          if (closed) return;
+          res.write(`data: ${JSON.stringify(line)}\n\n`);
+        }
+        if (closed) return;
+        res.write('event: ready\ndata: 1\n\n');
+
+        // Subscribe to live stream
+        try {
+          sub = redis.duplicate();
+          await sub.connect();
+          await sub.subscribe(`cca:meta:${ns}:stream`, (msg) => {
+            if (!closed) {
+              try { res.write(`data: ${JSON.stringify(msg)}\n\n`); } catch {}
+            }
+          });
+        } catch {
+          if (sub) { try { await sub.disconnect(); } catch {} sub = null; }
+        }
+      } catch (e) {
+        if (!closed) { try { res.end(); } catch {} }
+      }
+    })();
+
   } else if (/^\/api\/jobs\/([^/]+)\/stream$/.test(url.pathname)) {
     // SSE endpoint: stream job output in real-time
     const id = url.pathname.match(/^\/api\/jobs\/([^/]+)\/stream$/)[1];
