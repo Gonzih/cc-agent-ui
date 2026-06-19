@@ -1509,6 +1509,63 @@ body {
   user-select: none;
 }
 .ma-line-new { animation: fadein 0.3s ease-out; }
+
+/* Structured event blocks in #ma-log */
+.ma-event { margin: 3px 0; border-radius: 3px; overflow: hidden; }
+.ma-event-tool-use {
+  background: rgba(97,175,239,0.07);
+  border-left: 2px solid rgba(97,175,239,0.4);
+  padding: 4px 8px 4px 10px;
+  margin-left: -2px;
+}
+.ma-event-tool-label {
+  font-size: 10px; color: var(--blue); font-weight: 600;
+  display: flex; align-items: center; gap: 6px; margin-bottom: 2px;
+}
+.ma-event-tool-name { color: var(--cyan); }
+.ma-event-bash {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 10px; color: var(--green);
+  white-space: pre-wrap; word-break: break-all;
+  margin-top: 2px;
+}
+.ma-event-tool-result {
+  background: rgba(152,195,121,0.05);
+  border-left: 2px solid rgba(152,195,121,0.2);
+  padding: 3px 8px 3px 10px;
+  margin-left: -2px;
+  font-size: 10px; color: var(--dim);
+  white-space: pre-wrap; word-break: break-all;
+  max-height: 120px; overflow-y: auto;
+}
+.ma-event-tool-result.err {
+  background: rgba(224,108,117,0.06);
+  border-left-color: rgba(224,108,117,0.3);
+  color: var(--red);
+}
+.ma-event-assistant {
+  color: var(--text);
+  font-size: 11px;
+  white-space: pre-wrap; word-break: break-word;
+  padding: 1px 0;
+}
+.ma-event-result {
+  background: rgba(152,195,121,0.08);
+  border: 1px solid rgba(152,195,121,0.2);
+  border-radius: 3px;
+  padding: 5px 10px;
+  font-size: 10px; color: var(--green);
+  white-space: pre-wrap; word-break: break-all;
+  margin: 4px 0;
+}
+.ma-event-result.err {
+  background: rgba(224,108,117,0.08);
+  border-color: rgba(224,108,117,0.2);
+  color: var(--red);
+}
 </style>
 </head>
 <body>
@@ -3228,41 +3285,131 @@ function maCloseSSE() {
   if (dot) dot.className = '';
 }
 
+// Render a single structured event object into a DOM element.
+// Handles: tool_use, tool_result, assistant, text, result
+// Falls back to plain-text rendering for unknown shapes.
+function maRenderEvent(obj, isNew) {
+  const wrap = document.createElement('div');
+  wrap.className = 'ma-event' + (isNew ? ' ma-line-new' : '');
+  if (isNew) setTimeout(() => wrap.classList.remove('ma-line-new'), 1500);
+
+  const type = obj.type;
+
+  if (type === 'tool_use') {
+    wrap.classList.add('ma-event-tool-use');
+    const icon = TOOL_ICONS[obj.name] || '⚙';
+    const label = document.createElement('div');
+    label.className = 'ma-event-tool-label';
+    label.innerHTML = `${escHtml(String(icon))} <span class="ma-event-tool-name">${escHtml(obj.name || 'Tool')}</span>`;
+    wrap.appendChild(label);
+
+    // If it's a Bash call, render the command in a code block
+    if (obj.name === 'Bash' && obj.input && obj.input.command) {
+      const bash = document.createElement('div');
+      bash.className = 'ma-event-bash';
+      bash.textContent = obj.input.command;
+      wrap.appendChild(bash);
+    } else if (obj.input) {
+      // Generic: show first meaningful input field
+      const keys = Object.keys(obj.input);
+      if (keys.length) {
+        const preview = document.createElement('div');
+        preview.className = 'ma-event-bash';
+        const val = obj.input[keys[0]];
+        preview.textContent = typeof val === 'string' ? val : JSON.stringify(val);
+        wrap.appendChild(preview);
+      }
+    }
+
+  } else if (type === 'tool_result') {
+    wrap.classList.add('ma-event-tool-result');
+    if (obj.is_error) wrap.classList.add('err');
+    const content = typeof obj.content === 'string' ? obj.content
+      : Array.isArray(obj.content) ? obj.content.map(c => c.text || JSON.stringify(c)).join('\n')
+      : JSON.stringify(obj.content || '');
+    wrap.textContent = content.slice(0, 1000) + (content.length > 1000 ? '…' : '');
+
+  } else if (type === 'assistant' || type === 'text') {
+    const text = obj.text || '';
+    if (!text.trim()) return null;
+    wrap.classList.add('ma-event-assistant');
+    wrap.innerHTML = linkifyPaths(escHtml(text));
+
+  } else if (type === 'result') {
+    wrap.classList.add('ma-event-result');
+    if (obj.is_error) wrap.classList.add('err');
+    const result = typeof obj.result === 'string' ? obj.result : JSON.stringify(obj.result || '');
+    wrap.textContent = result.slice(0, 500) + (result.length > 500 ? '…' : '');
+
+  } else {
+    // Unknown structured type — render as dim text
+    wrap.classList.add('ma-line', 'ma-line-sys');
+    wrap.textContent = JSON.stringify(obj);
+  }
+
+  return wrap;
+}
+
+// Legacy plain-text classifier for non-JSON log entries
 function maClassifyLine(text) {
   if (!text) return 'ma-line';
   const s = text.trim();
-  // Tool call patterns
   if (/^(Tool:|Running tool|Using tool|\[tool\]|Read|Edit|Write|Bash|Glob|Grep|WebFetch|WebSearch|Agent|MultiEdit|NotebookEdit)\b/.test(s)) return 'ma-line ma-line-tool';
   if (/\{.*"type"\s*:\s*"tool_use"/.test(s)) return 'ma-line ma-line-tool';
-  // System events
   if (/^(Session (started|ended)|\/compact|\/clear|\[cc-agent\]|\[system\]|cc-agent:|Human:|Tool result:)/i.test(s)) return 'ma-line ma-line-sys';
   if (/^(Thinking\.\.\.|Processing\.\.\.|Awaiting|Initializing|Starting session)/.test(s)) return 'ma-line ma-line-sys';
   return 'ma-line';
 }
 
+// Main entry point: accepts a raw string (possibly JSON) and appends to logEl.
+// If the JSON matches a structured event schema, renders it richly.
+// Otherwise falls back to plain-text line rendering.
 function maAppendEntry(logEl, raw, isNew) {
-  let text = raw;
-  let ts = null;
-  // Try to parse JSON { ts, ns, text } or { ts, text }
+  const frag = document.createDocumentFragment();
+
+  let handled = false;
   try {
-    const obj = JSON.parse(raw);
-    if (obj && typeof obj.text === 'string') {
-      text = obj.text;
-      ts = obj.ts || null;
+    const obj = typeof raw === 'object' ? raw : JSON.parse(raw);
+    if (obj && typeof obj === 'object') {
+      // Structured event schema: has a "type" field matching known event types
+      const STRUCTURED_TYPES = new Set(['tool_use', 'tool_result', 'assistant', 'text', 'result']);
+      if (STRUCTURED_TYPES.has(obj.type)) {
+        const el = maRenderEvent(obj, isNew);
+        if (el) frag.appendChild(el);
+        handled = true;
+      } else if (typeof obj.text === 'string') {
+        // Legacy {ts, text} shape
+        const text = obj.text;
+        const ts = obj.ts || null;
+        const lines = text.split('\n');
+        for (const line of lines) {
+          if (!line && lines.length > 1) continue;
+          const d = document.createElement('div');
+          const cls = maClassifyLine(line);
+          d.className = isNew ? cls + ' ma-line-new' : cls;
+          const tsHtml = ts ? `<span class="ma-line-ts">${new Date(ts).toLocaleTimeString()}</span>` : '';
+          d.innerHTML = tsHtml + escHtml(line);
+          if (isNew) setTimeout(() => d.classList.remove('ma-line-new'), 1500);
+          frag.appendChild(d);
+        }
+        handled = true;
+      }
     }
   } catch {}
 
-  const lines = text.split('\n');
-  const frag = document.createDocumentFragment();
-  for (const line of lines) {
-    if (!line && lines.length > 1) continue; // skip blank lines within multi-line
-    const d = document.createElement('div');
-    const cls = maClassifyLine(line);
-    d.className = isNew ? cls + ' ma-line-new' : cls;
-    const tsHtml = ts ? `<span class="ma-line-ts">${new Date(ts).toLocaleTimeString()}</span>` : '';
-    d.innerHTML = tsHtml + escHtml(line);
-    if (isNew) setTimeout(() => d.classList.remove('ma-line-new'), 1500);
-    frag.appendChild(d);
+  if (!handled) {
+    // Plain text fallback
+    const text = typeof raw === 'string' ? raw : String(raw);
+    const lines = text.split('\n');
+    for (const line of lines) {
+      if (!line && lines.length > 1) continue;
+      const d = document.createElement('div');
+      const cls = maClassifyLine(line);
+      d.className = isNew ? cls + ' ma-line-new' : cls;
+      d.innerHTML = escHtml(line);
+      if (isNew) setTimeout(() => d.classList.remove('ma-line-new'), 1500);
+      frag.appendChild(d);
+    }
   }
 
   const atBottom = logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < 60;
